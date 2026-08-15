@@ -1,0 +1,1970 @@
+<!DOCTYPE html>
+<!--
+  LightTrail（光迹）· 拍摄决策引擎 — 高保真 Web UI 原型
+  设计系统：彩格调（暗色默认，桌面优先响应式 SPA）
+  原型构建师：筑原型（Zhu）
+  页面：旅程总览 / D1 灵感 / D2 规划 / D3 决策 / D4 复盘 / M1 记忆
+  说明：所有样式与脚本内联，可独立双击打开。示例数据仅用于演示。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LightTrail · 光迹 — 拍摄决策引擎</title>
+<style>
+/* ============================================================
+   1. 设计令牌（Design Tokens）
+   ============================================================ */
+:root{
+  /* 基底 */
+  --bg-base:#0A0D14;
+  --bg-sunken:#070910;
+  --bg-elevated:#111722;
+  --bg-overlay:#182130;
+  --border-subtle:rgba(255,255,255,.06);
+  --border-default:rgba(255,255,255,.10);
+
+  /* 文本 */
+  --text-primary:#E8ECF4;
+  --text-secondary:#9AA7B8;
+  --text-muted:#5C6B7F;
+
+  /* 点缀 */
+  --accent-amber:#E8A23B;
+  --amber-hover:#F0B45C;
+  --amber-glow:rgba(232,162,59,.30);
+  --accent-blue:#5F8DF2;
+  --accent-blue-soft:#7CA6FF;
+  --blue-glow:rgba(95,141,242,.28);
+  --dusk-gradient:linear-gradient(120deg,#E8A23B,#C06B4A 45%,#5B6EDB);
+
+  /* 语义（永不单靠颜色，须配图标/文字） */
+  --semantic-go:#3FCF8E;
+  --semantic-wait:#E9C46A;
+  --semantic-risk:#EF6A5F;
+  --go-bg:rgba(63,207,142,.14);
+  --wait-bg:rgba(233,196,106,.14);
+  --risk-bg:rgba(239,106,95,.14);
+
+  /* 字体 */
+  --font-ui:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --font-display:"Fraunces","Songti SC","Noto Serif SC",Georgia,serif;
+  --font-data:ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono",Consolas,monospace;
+
+  /* 间距（4px 基准） */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px; --sp-7:48px; --sp-8:64px;
+
+  /* 圆角 */
+  --r-sm:6px; --r-md:10px; --r-lg:14px; --r-full:999px;
+
+  /* 动效 */
+  --ease:cubic-bezier(.2,0,0,1);
+  --t-fast:150ms;
+  --t-panel:240ms;
+  --t-max:300ms;
+
+  /* 天象带（仅时间线与品牌时刻使用） */
+  --sky-band:linear-gradient(90deg,#0d1322 0%,#101a2e 8%,#1b2a47 14%,#33405e 26%,#2c3a54 44%,#5B6EDB 52%,#C06B4A 62%,#E8A23B 66%,#C06B4A 70%,#7a4f8f 76%,#1a2240 82%,#0d1322 92%);
+}
+
+/* ============================================================
+   2. 基础与重置
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{-webkit-text-size-adjust:100%;}
+body{
+  background:var(--bg-base);
+  color:var(--text-primary);
+  font-family:var(--font-ui);
+  font-size:15px;
+  line-height:1.6;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+img,svg{display:block;}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer;}
+ul,ol{list-style:none;}
+a{color:var(--accent-blue-soft);text-decoration:none;}
+::selection{background:var(--amber-glow);color:var(--text-primary);}
+
+/* 滚动条（暗色） */
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-thumb{background:#232d3f;border-radius:var(--r-full);}
+::-webkit-scrollbar-track{background:transparent;}
+
+/* ============================================================
+   3. 排版层级
+   ============================================================ */
+.display{font-family:var(--font-display);font-size:52px;font-weight:600;line-height:1.08;letter-spacing:-.015em;}
+h1{font-size:36px;line-height:1.2;font-weight:650;letter-spacing:-.01em;}
+h2{font-size:26px;line-height:1.25;font-weight:650;letter-spacing:-.01em;}
+h3{font-size:20px;line-height:1.3;font-weight:600;}
+.title{font-size:16px;font-weight:600;}
+.body{font-size:15px;line-height:1.6;}
+.small{font-size:13px;color:var(--text-muted);line-height:1.55;}
+.data{font-family:var(--font-data);font-variant-numeric:tabular-nums;font-size:13px;}
+.eyebrow{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-blue-soft);font-weight:600;}
+strong{font-weight:650;}
+
+/* 图标 */
+.ic{width:20px;height:20px;flex:none;}
+.ic-sm{width:16px;height:16px;flex:none;}
+.ic-lg{width:24px;height:24px;flex:none;}
+
+/* ============================================================
+   4. 布局容器
+   ============================================================ */
+.container{width:100%;max-width:1200px;margin:0 auto;padding:0 var(--sp-5);}
+.app-main{flex:1;padding:var(--sp-6) 0 var(--sp-8);}
+.page{display:none;}
+.page.is-active{display:block;animation:pageIn var(--t-panel) var(--ease);}
+@keyframes pageIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+.page-stack{display:flex;flex-direction:column;gap:var(--sp-6);}
+.section-title{font-size:20px;font-weight:600;margin-bottom:var(--sp-4);}
+
+/* ============================================================
+   5. 顶栏
+   ============================================================ */
+.topbar{
+  position:sticky;top:0;z-index:50;
+  background:color-mix(in srgb,var(--bg-base) 82%,transparent);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border-subtle);
+}
+.topbar-inner{display:flex;align-items:center;gap:var(--sp-5);height:64px;}
+.brand{display:inline-flex;align-items:center;gap:10px;padding:var(--sp-2);border-radius:var(--r-md);transition:background var(--t-fast) var(--ease);}
+.brand:hover{background:var(--bg-elevated);}
+.brand-mark{
+  width:34px;height:34px;border-radius:var(--r-md);
+  background:var(--dusk-gradient);
+  display:grid;place-items:center;color:#0A0D14;
+  box-shadow:0 0 0 1px rgba(255,255,255,.08),0 4px 16px rgba(192,107,74,.25);
+}
+.brand-mark svg{width:20px;height:20px;}
+.brand-name{font-weight:700;font-size:17px;letter-spacing:.01em;display:flex;align-items:baseline;gap:6px;}
+.brand-sub{font-size:12px;color:var(--text-muted);font-weight:500;}
+
+.main-nav{display:flex;align-items:center;gap:var(--sp-2);margin-left:var(--sp-2);}
+.nav-step{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:8px 13px;border-radius:var(--r-md);
+  color:var(--text-secondary);font-size:14px;font-weight:500;
+  transition:color var(--t-fast) var(--ease),background var(--t-fast) var(--ease);
+}
+.nav-step .ic{width:16px;height:16px;opacity:.75;}
+.nav-step:hover{color:var(--text-primary);background:var(--bg-elevated);}
+.nav-step.is-active{color:var(--text-primary);background:var(--bg-elevated);box-shadow:inset 0 -2px 0 var(--accent-amber);}
+.nav-arrow{color:var(--text-muted);font-size:12px;user-select:none;}
+.topbar-actions{margin-left:auto;display:flex;align-items:center;gap:var(--sp-2);}
+.icon-btn{
+  width:38px;height:38px;border-radius:var(--r-md);
+  display:grid;place-items:center;color:var(--text-secondary);
+  border:1px solid transparent;
+  transition:color var(--t-fast) var(--ease),background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
+}
+.icon-btn:hover{color:var(--text-primary);background:var(--bg-elevated);border-color:var(--border-subtle);}
+
+/* ============================================================
+   6. 按钮 / 徽标 / 标签
+   ============================================================ */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:10px 16px;border-radius:var(--r-md);
+  border:1px solid var(--border-default);background:var(--bg-elevated);
+  color:var(--text-primary);font-size:14px;font-weight:550;
+  transition:background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease),transform var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease);
+  white-space:nowrap;
+}
+.btn:hover{border-color:rgba(255,255,255,.2);background:var(--bg-overlay);transform:translateY(-1px);}
+.btn:active{transform:translateY(0);}
+.btn-primary{background:var(--accent-amber);border-color:var(--accent-amber);color:#171006;font-weight:650;}
+.btn-primary:hover{background:var(--amber-hover);border-color:var(--amber-hover);box-shadow:0 6px 20px var(--amber-glow);}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--text-secondary);}
+.btn-ghost:hover{background:var(--bg-elevated);border-color:transparent;color:var(--text-primary);transform:none;}
+.btn-danger-ghost{background:transparent;border-color:var(--border-default);color:var(--semantic-risk);}
+.btn-danger-ghost:hover{border-color:var(--semantic-risk);background:var(--risk-bg);}
+
+.status-chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:650;padding:4px 11px;border-radius:var(--r-full);}
+.status-chip .ic{width:15px;height:15px;}
+.status-chip.go{color:var(--semantic-go);background:var(--go-bg);}
+.status-chip.wait{color:var(--semantic-wait);background:var(--wait-bg);}
+.status-chip.risk{color:var(--semantic-risk);background:var(--risk-bg);}
+
+.tag{display:inline-flex;align-items:center;font-size:12px;font-weight:600;padding:2px 9px;border-radius:var(--r-full);color:var(--text-secondary);background:var(--bg-overlay);border:1px solid var(--border-subtle);}
+.tag.amber{color:var(--accent-amber);border-color:rgba(232,162,59,.35);background:rgba(232,162,59,.10);}
+.tag.blue{color:var(--accent-blue-soft);border-color:rgba(95,141,242,.35);background:rgba(95,141,242,.10);}
+.tag.go{color:var(--semantic-go);border-color:rgba(63,207,142,.35);background:var(--go-bg);}
+.tag.wait{color:var(--semantic-wait);border-color:rgba(233,196,106,.35);background:var(--wait-bg);}
+.tag.risk{color:var(--semantic-risk);border-color:rgba(239,106,95,.35);background:var(--risk-bg);}
+
+.src-tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--text-muted);padding:2px 8px;border:1px solid var(--border-subtle);border-radius:var(--r-full);background:var(--bg-sunken);}
+.src-tag::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent-blue);}
+
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:var(--r-full);border:1px solid var(--border-default);color:var(--text-secondary);font-size:13px;cursor:pointer;transition:all var(--t-fast) var(--ease);background:var(--bg-elevated);}
+.chip:hover{border-color:var(--accent-amber);color:var(--accent-amber);}
+
+/* ============================================================
+   7. 面板 / 卡片
+   ============================================================ */
+.panel{
+  background:var(--bg-elevated);
+  border:1px solid var(--border-subtle);
+  border-radius:var(--r-lg);
+  padding:var(--sp-5);
+}
+.panel-title{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:var(--sp-4);}
+.panel-title .ic{width:18px;height:18px;color:var(--accent-amber);}
+
+/* ============================================================
+   8. 页头
+   ============================================================ */
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--sp-5);flex-wrap:wrap;}
+.page-head h1{margin:6px 0 8px;}
+.page-sub{color:var(--text-secondary);max-width:560px;}
+.page-head-actions{display:flex;align-items:center;gap:var(--sp-3);}
+
+/* 开关 */
+.switch{display:inline-flex;align-items:center;gap:9px;font-size:13px;color:var(--text-secondary);font-weight:550;cursor:pointer;user-select:none;}
+.switch input{position:absolute;opacity:0;width:0;height:0;}
+.switch .track{width:38px;height:22px;border-radius:var(--r-full);background:var(--bg-overlay);border:1px solid var(--border-default);position:relative;transition:background var(--t-fast) var(--ease);}
+.switch .track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--text-secondary);transition:transform var(--t-fast) var(--ease),background var(--t-fast) var(--ease);}
+.switch input:checked + .track{background:var(--accent-amber);border-color:var(--accent-amber);}
+.switch input:checked + .track::after{transform:translateX(16px);background:#171006;}
+.switch input:focus-visible + .track{outline:2px solid var(--accent-blue);outline-offset:2px;}
+
+/* ============================================================
+   9. 旅程总览（首页）
+   ============================================================ */
+.home-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--sp-6);flex-wrap:wrap;padding:var(--sp-2) 0 var(--sp-4);}
+.home-hero h1 em{font-style:normal;color:var(--accent-amber);}
+.hero-sub{color:var(--text-secondary);margin-top:10px;max-width:520px;}
+.hero-actions{display:flex;gap:var(--sp-3);flex-wrap:wrap;}
+
+/* 今日决策速览 */
+.today-card{
+  background:linear-gradient(180deg,var(--bg-elevated),var(--bg-sunken));
+  border:1px solid var(--border-default);
+  border-radius:var(--r-lg);
+  padding:var(--sp-6);
+  display:flex;align-items:center;justify-content:space-between;gap:var(--sp-6);flex-wrap:wrap;
+  position:relative;overflow:hidden;
+}
+.today-card::before{
+  content:"";position:absolute;inset:0 0 auto 0;height:3px;
+  background:var(--dusk-gradient);opacity:.9;
+}
+.today-left{max-width:640px;}
+.today-left h2{font-size:22px;margin:12px 0 8px;}
+.today-window{color:var(--text-muted);font-size:15px;font-weight:500;margin-left:8px;}
+.today-left p{color:var(--text-secondary);}
+.today-right{display:flex;align-items:center;gap:var(--sp-5);flex-wrap:wrap;}
+
+.mini-prob{display:flex;flex-direction:column;align-items:center;gap:6px;}
+.mini-prob-label{font-size:12px;color:var(--text-muted);}
+.ring{width:74px;height:74px;transform:rotate(-90deg);}
+.ring-bg{fill:none;stroke:var(--bg-overlay);stroke-width:7;}
+.ring-fill{fill:none;stroke:var(--accent-amber);stroke-width:7;stroke-linecap:round;transition:stroke-dashoffset 600ms var(--ease);}
+.ring-text{fill:var(--text-primary);font-family:var(--font-data);font-size:17px;font-weight:650;transform:rotate(90deg);transform-origin:32px 32px;}
+.ring-label{fill:var(--text-muted);font-size:8px;font-family:var(--font-ui);transform:rotate(90deg);transform-origin:32px 32px;}
+
+/* 四阶段入口 */
+.stage-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-4);}
+.stage-card{
+  background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:var(--r-lg);
+  padding:var(--sp-5);cursor:pointer;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;gap:var(--sp-3);
+  transition:transform var(--t-panel) var(--ease),border-color var(--t-panel) var(--ease),box-shadow var(--t-panel) var(--ease);
+}
+.stage-card:hover{transform:translateY(-4px);border-color:var(--border-default);box-shadow:0 12px 32px rgba(0,0,0,.35);}
+.stage-card.highlight{border-color:rgba(232,162,59,.45);box-shadow:0 0 0 1px rgba(232,162,59,.25),0 12px 32px rgba(0,0,0,.3);}
+.stage-card.highlight:hover{box-shadow:0 0 0 1px rgba(232,162,59,.4),0 16px 40px rgba(232,162,59,.12);}
+.stage-head{display:flex;align-items:flex-start;justify-content:space-between;}
+.stage-ico{
+  width:44px;height:44px;border-radius:var(--r-md);
+  display:grid;place-items:center;color:var(--accent-amber);
+  background:rgba(232,162,59,.10);border:1px solid rgba(232,162,59,.22);
+}
+.stage-card.highlight .stage-ico{color:#171006;background:var(--accent-amber);border-color:var(--accent-amber);}
+.stage-no{font-family:var(--font-data);font-size:12px;color:var(--text-muted);}
+.stage-card h3{margin-top:2px;}
+.stage-card p{color:var(--text-secondary);font-size:13.5px;flex:1;}
+.stage-cta{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:650;color:var(--text-secondary);transition:color var(--t-fast) var(--ease);}
+.stage-card:hover .stage-cta{color:var(--accent-amber);}
+
+/* 首页双栏 */
+.home-cols{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-5);}
+.home-cols .panel{padding:var(--sp-5);}
+.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--sp-4);}
+.panel-head h3{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.panel-head .ic{color:var(--accent-amber);}
+
+.plan-mini{display:flex;flex-direction:column;gap:var(--sp-3);}
+.plan-mini-item{
+  display:flex;align-items:center;gap:var(--sp-3);
+  padding:var(--sp-3);border-radius:var(--r-md);
+  border:1px solid var(--border-subtle);background:var(--bg-sunken);
+  transition:border-color var(--t-fast) var(--ease);
+}
+.plan-mini-item:hover{border-color:var(--border-default);}
+.plan-mini-date{font-family:var(--font-data);font-size:12px;color:var(--accent-blue-soft);width:96px;flex:none;}
+.plan-mini-info{flex:1;min-width:0;}
+.plan-mini-info strong{display:block;font-size:14px;}
+.plan-mini-info span{font-size:12.5px;color:var(--text-muted);}
+
+.mem-mini{display:flex;flex-direction:column;gap:var(--sp-3);}
+.mem-row{display:flex;align-items:flex-start;gap:var(--sp-3);padding:var(--sp-3) 0;border-bottom:1px solid var(--border-subtle);}
+.mem-row:last-child{border-bottom:none;}
+.mem-ico{width:34px;height:34px;border-radius:var(--r-md);background:var(--bg-overlay);display:grid;place-items:center;color:var(--accent-blue-soft);flex:none;}
+.mem-ico .ic{width:17px;height:17px;}
+.mem-body strong{display:block;font-size:14px;}
+.mem-body span{font-size:12.5px;color:var(--text-muted);}
+
+/* ============================================================
+   10. D3 决策页
+   ============================================================ */
+.d3-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:var(--sp-5);}
+.col-7{grid-column:span 7;}
+.col-5{grid-column:span 5;}
+.col-12{grid-column:span 12;}
+
+/* 三态决策卡 */
+.decision-panel{
+  background:linear-gradient(180deg,var(--bg-elevated),var(--bg-sunken));
+  border-color:var(--border-default);
+  display:flex;flex-direction:column;gap:var(--sp-5);
+}
+.decision-verdict{display:flex;gap:var(--sp-4);align-items:flex-start;}
+.verdict-icon{
+  width:56px;height:56px;border-radius:var(--r-md);flex:none;
+  display:grid;place-items:center;
+}
+.verdict-icon.go{color:var(--semantic-go);background:var(--go-bg);}
+.verdict-icon.wait{color:var(--semantic-wait);background:var(--wait-bg);}
+.verdict-icon.risk{color:var(--semantic-risk);background:var(--risk-bg);}
+.verdict-icon .ic{width:28px;height:28px;}
+.verdict-title{font-size:30px;font-weight:700;margin:4px 0 2px;letter-spacing:-.01em;}
+.verdict-meta{color:var(--text-secondary);font-size:14px;}
+
+.countdown-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:var(--sp-3) var(--sp-4);border-radius:var(--r-md);
+  background:var(--bg-sunken);border:1px solid var(--border-subtle);
+}
+.countdown-label{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);}
+.countdown-value{font-size:20px;font-weight:650;color:var(--accent-amber);font-family:var(--font-data);font-variant-numeric:tabular-nums;}
+
+.three-state{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-3);}
+.state-btn{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:var(--sp-4) var(--sp-3);border-radius:var(--r-md);
+  border:1px solid var(--border-default);background:var(--bg-elevated);
+  transition:all var(--t-fast) var(--ease);
+}
+.state-btn:hover{border-color:rgba(255,255,255,.22);transform:translateY(-2px);}
+.state-ico{width:26px;height:26px;margin-bottom:2px;}
+.state-label{font-size:17px;font-weight:700;}
+.state-hint{font-size:12px;color:var(--text-muted);text-align:center;line-height:1.4;}
+.state-btn.go{border-color:rgba(63,207,142,.35);color:var(--semantic-go);}
+.state-btn.go.is-active{background:var(--go-bg);border-color:var(--semantic-go);color:var(--semantic-go);box-shadow:0 0 0 1px var(--semantic-go) inset,0 8px 24px rgba(63,207,142,.18);}
+.state-btn.wait{border-color:rgba(233,196,106,.35);color:var(--semantic-wait);}
+.state-btn.wait.is-active{background:var(--wait-bg);border-color:var(--semantic-wait);color:var(--semantic-wait);box-shadow:0 0 0 1px var(--semantic-wait) inset,0 8px 24px rgba(233,196,106,.18);}
+.state-btn.risk{border-color:rgba(239,106,95,.35);color:var(--semantic-risk);}
+.state-btn.risk.is-active{background:var(--risk-bg);border-color:var(--semantic-risk);color:var(--semantic-risk);box-shadow:0 0 0 1px var(--semantic-risk) inset,0 8px 24px rgba(239,106,95,.18);}
+.three-state-note{font-size:12.5px;color:var(--text-muted);text-align:center;}
+
+/* 现场模式（移动端大按钮） */
+.decision-panel.field-mode .three-state{grid-template-columns:1fr;gap:var(--sp-3);}
+.decision-panel.field-mode .state-btn{flex-direction:row;justify-content:flex-start;gap:var(--sp-4);padding:var(--sp-5);}
+.decision-panel.field-mode .state-hint{margin-left:auto;text-align:right;}
+.decision-panel.field-mode .state-label{font-size:20px;}
+
+/* 概率依据 */
+.prob-list{display:flex;flex-direction:column;gap:var(--sp-4);}
+.prob-item{display:flex;flex-direction:column;gap:7px;}
+.prob-row{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);}
+.prob-name{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:550;color:var(--text-primary);}
+.prob-name .ic{width:17px;height:17px;color:var(--text-secondary);}
+.prob-val{font-size:15px;font-weight:650;font-family:var(--font-data);font-variant-numeric:tabular-nums;}
+.prob-bar{height:8px;border-radius:var(--r-full);background:var(--bg-sunken);border:1px solid var(--border-subtle);overflow:hidden;}
+.prob-fill{height:100%;border-radius:var(--r-full);transition:width 600ms var(--ease);}
+.prob-fill.go{background:var(--semantic-go);}
+.prob-fill.amber{background:var(--accent-amber);}
+.prob-fill.blue{background:var(--accent-blue);}
+.prob-note{font-size:12.5px;color:var(--text-muted);}
+
+/* 置信度（主值 + 区间条 + 依据列表） */
+.conf-main{display:flex;align-items:baseline;gap:var(--sp-3);}
+.conf-value{font-size:44px;font-weight:700;color:var(--accent-amber);font-family:var(--font-display);letter-spacing:-.02em;}
+.conf-tag{font-size:13px;font-weight:650;color:var(--accent-amber);background:rgba(232,162,59,.12);padding:3px 10px;border-radius:var(--r-full);}
+.conf-note{font-size:12.5px;color:var(--text-muted);margin-top:2px;}
+.conf-interval{margin:var(--sp-4) 0;padding:var(--sp-4);border-radius:var(--r-md);background:var(--bg-sunken);border:1px solid var(--border-subtle);}
+.interval-scale{position:relative;height:10px;border-radius:var(--r-full);background:var(--bg-overlay);}
+.interval-range{position:absolute;top:0;height:100%;border-radius:var(--r-full);background:var(--blue-glow);border:1px solid rgba(95,141,242,.5);}
+.interval-marker{position:absolute;top:-4px;width:3px;height:18px;border-radius:2px;background:var(--accent-amber);box-shadow:0 0 10px var(--amber-glow);}
+.interval-labels{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12px;color:var(--text-muted);}
+.interval-labels .data{color:var(--text-secondary);}
+.conf-basis{display:flex;flex-direction:column;gap:var(--sp-3);}
+.conf-basis li{display:flex;gap:var(--sp-3);align-items:flex-start;font-size:13.5px;color:var(--text-secondary);}
+.conf-basis li .src-tag{margin-left:auto;flex:none;}
+.basis-ico{width:22px;height:22px;border-radius:6px;background:var(--bg-overlay);display:grid;place-items:center;color:var(--accent-blue-soft);flex:none;margin-top:1px;}
+.basis-ico .ic{width:13px;height:13px;}
+.conf-basis li p{flex:1;}
+.conf-basis li p em{font-style:normal;color:var(--text-primary);font-weight:600;}
+
+/* 参数推荐 */
+.param-panel{display:flex;flex-direction:column;gap:var(--sp-5);}
+.exp-tri{display:flex;flex-direction:column;gap:var(--sp-4);}
+.exp-svg{width:100%;max-width:340px;margin:0 auto;}
+.exp-line{stroke:rgba(255,255,255,.16);stroke-width:1.5;}
+.exp-line.dash{stroke-dasharray:4 5;stroke:rgba(255,255,255,.10);}
+.exp-center{fill:var(--bg-sunken);stroke:var(--accent-amber);stroke-width:1.5;}
+.exp-ev{fill:var(--accent-amber);font-family:var(--font-data);font-size:15px;font-weight:700;}
+.exp-ev-sub{fill:var(--text-muted);font-size:8px;font-family:var(--font-ui);letter-spacing:.06em;}
+.exp-node-bg{fill:var(--bg-overlay);stroke:rgba(255,255,255,.14);}
+.exp-node-t{fill:var(--text-secondary);font-size:11px;font-family:var(--font-ui);font-weight:600;}
+.exp-node-v{fill:var(--text-primary);font-size:12.5px;font-family:var(--font-data);font-weight:650;}
+.exp-sliders{display:flex;flex-direction:column;gap:var(--sp-3);}
+.exp-slider-row{display:flex;align-items:center;gap:var(--sp-3);}
+.exp-slider-label{width:74px;flex:none;font-size:13px;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;}
+.exp-slider-label .dot{width:8px;height:8px;border-radius:2px;flex:none;}
+.exp-slider-row input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:6px;border-radius:var(--r-full);background:var(--bg-overlay);outline:none;}
+.exp-slider-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent-amber);border:2px solid #171006;cursor:pointer;box-shadow:0 0 0 3px rgba(232,162,59,.18);}
+.exp-slider-row input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--accent-amber);border:2px solid #171006;cursor:pointer;}
+.exp-slider-val{width:64px;flex:none;text-align:right;font-family:var(--font-data);font-size:14px;font-weight:650;color:var(--text-primary);}
+.param-note{font-size:12.5px;color:var(--text-muted);text-align:center;}
+.param-cards{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);}
+.param-card{background:var(--bg-sunken);border:1px solid var(--border-subtle);border-radius:var(--r-md);padding:var(--sp-4);}
+.param-card h4{font-size:14px;font-weight:650;display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.param-card h4 .ic{width:17px;height:17px;color:var(--accent-blue-soft);}
+.param-card p{font-size:13px;color:var(--text-secondary);display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--border-subtle);}
+.param-card p:last-child{border-bottom:none;}
+.param-card p .data{color:var(--text-primary);font-weight:650;}
+.param-formula{font-family:var(--font-data);font-size:12px;color:var(--accent-blue-soft);background:var(--bg-base);border-radius:var(--r-sm);padding:6px 9px;margin-top:8px;}
+
+/* 为什么这么判断 */
+.why-panel{padding:0;overflow:hidden;}
+.why-toggle{
+  width:100%;display:flex;align-items:center;gap:var(--sp-3);
+  padding:var(--sp-5);font-size:16px;font-weight:650;
+  transition:background var(--t-fast) var(--ease);
+}
+.why-toggle:hover{background:var(--bg-overlay);}
+.why-toggle .chev{transition:transform var(--t-panel) var(--ease);color:var(--text-muted);margin-left:auto;}
+.why-panel.open .why-toggle .chev{transform:rotate(180deg);}
+.why-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--t-panel) var(--ease);}
+.why-panel.open .why-body{grid-template-rows:1fr;}
+.why-body-inner{overflow:hidden;}
+.why-content{padding:0 var(--sp-5) var(--sp-5);display:flex;flex-direction:column;gap:var(--sp-5);}
+.reason-list{display:flex;flex-direction:column;gap:var(--sp-4);}
+.reason-list li{display:flex;flex-direction:column;gap:6px;padding-left:var(--sp-4);border-left:2px solid var(--border-default);}
+.reason-list li:nth-child(1){border-left-color:var(--accent-amber);}
+.reason-list li:nth-child(2){border-left-color:var(--accent-blue);}
+.reason-list li:nth-child(3){border-left-color:var(--semantic-wait);}
+.reason-list li:nth-child(4){border-left-color:var(--semantic-go);}
+.reason-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.reason-step{font-family:var(--font-data);font-size:12px;color:var(--accent-amber);}
+.reason-head strong{font-size:14px;}
+.reason-list li>p{font-size:13.5px;color:var(--text-secondary);}
+.data-sources{background:var(--bg-sunken);border:1px solid var(--border-subtle);border-radius:var(--r-md);padding:var(--sp-4);}
+.data-sources h4{font-size:13px;font-weight:650;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.data-sources h4 .ic{width:16px;height:16px;color:var(--accent-blue-soft);}
+.data-sources ul{display:flex;flex-direction:column;gap:8px;}
+.data-sources li{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-secondary);}
+.data-sources li::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent-blue);flex:none;}
+.data-sources li .src-time{margin-left:auto;font-family:var(--font-data);font-size:11px;color:var(--text-muted);flex:none;}
+
+/* ============================================================
+   11. D1 灵感页
+   ============================================================ */
+.inspire-input{display:flex;flex-direction:column;gap:var(--sp-4);}
+.convo-input{display:flex;gap:var(--sp-3);align-items:flex-end;}
+.convo-input textarea{
+  flex:1;resize:vertical;min-height:88px;
+  background:var(--bg-sunken);border:1px solid var(--border-default);border-radius:var(--r-md);
+  color:var(--text-primary);font-family:var(--font-ui);font-size:15px;line-height:1.6;
+  padding:var(--sp-3) var(--sp-4);
+  transition:border-color var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease);
+}
+.convo-input textarea::placeholder{color:var(--text-muted);}
+.convo-input textarea:focus{outline:none;border-color:var(--accent-amber);box-shadow:0 0 0 3px var(--amber-glow);}
+.example-chips{display:flex;gap:var(--sp-2);flex-wrap:wrap;}
+
+.upload-zone{
+  border:1.5px dashed var(--border-default);border-radius:var(--r-md);
+  padding:var(--sp-6) var(--sp-5);text-align:center;color:var(--text-muted);
+  cursor:pointer;transition:border-color var(--t-fast) var(--ease),background var(--t-fast) var(--ease);
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+}
+.upload-zone:hover,.upload-zone.is-hover{border-color:var(--accent-blue);background:var(--blue-glow);color:var(--text-secondary);}
+.upload-zone .ic{width:30px;height:30px;color:var(--accent-blue-soft);}
+.upload-zone p{font-size:14px;color:var(--text-secondary);}
+.upload-zone span{font-size:12px;color:var(--text-muted);}
+.upload-preview{display:flex;gap:var(--sp-3);flex-wrap:wrap;margin-top:var(--sp-3);}
+.thumb{
+  width:96px;height:72px;border-radius:var(--r-sm);overflow:hidden;
+  background:var(--bg-overlay);border:1px solid var(--border-subtle);
+  display:grid;place-items:center;color:var(--text-muted);font-size:11px;
+}
+
+/* 方案输出 */
+.inspire-results{display:flex;flex-direction:column;gap:var(--sp-4);}
+.plan-card{background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:var(--r-lg);padding:var(--sp-5);}
+.plan-card.is-reco{border-color:rgba(232,162,59,.4);box-shadow:0 0 0 1px rgba(232,162,59,.2),0 12px 32px rgba(0,0,0,.3);}
+.plan-head{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;margin-bottom:10px;}
+.plan-badge{font-size:12px;font-weight:700;color:#171006;background:var(--accent-amber);padding:3px 10px;border-radius:var(--r-full);}
+.plan-desc{font-size:15px;color:var(--text-primary);margin-bottom:var(--sp-4);}
+.basis-chain{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--bg-sunken);border:1px solid var(--border-subtle);border-radius:var(--r-md);padding:var(--sp-3) var(--sp-4);margin-bottom:var(--sp-4);}
+.chain-node{font-size:12.5px;color:var(--text-secondary);background:var(--bg-overlay);border-radius:var(--r-full);padding:4px 11px;display:inline-flex;align-items:center;gap:6px;}
+.chain-node .ic{width:13px;height:13px;color:var(--accent-blue-soft);}
+.chain-arrow{color:var(--text-muted);font-size:12px;}
+.plan-actions{display:flex;gap:var(--sp-3);flex-wrap:wrap;}
+
+/* ============================================================
+   12. D2 规划页
+   ============================================================ */
+.plan-grid{display:grid;grid-template-columns:5fr 7fr;gap:var(--sp-5);}
+.spot-list{display:flex;flex-direction:column;gap:var(--sp-3);}
+.spot-card{background:var(--bg-sunken);border:1px solid var(--border-subtle);border-radius:var(--r-md);padding:var(--sp-4);cursor:pointer;transition:border-color var(--t-fast) var(--ease),background var(--t-fast) var(--ease);}
+.spot-card:hover{border-color:var(--border-default);background:var(--bg-overlay);}
+.spot-card.is-active{border-color:var(--accent-amber);background:rgba(232,162,59,.06);}
+.spot-head{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);margin-bottom:6px;}
+.spot-head h4{font-size:14.5px;font-weight:650;}
+.spot-meta{font-size:12.5px;color:var(--text-muted);margin-bottom:10px;display:flex;gap:6px;align-items:center;}
+.spot-score{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-muted);}
+.spot-score .prob-bar{flex:1;}
+.spot-score .data{color:var(--text-secondary);font-weight:650;}
+
+.map-static{
+  margin-top:var(--sp-4);border-radius:var(--r-md);overflow:hidden;
+  border:1px solid var(--border-subtle);background:var(--bg-sunken);
+}
+.map-static svg{width:100%;height:auto;display:block;}
+
+/* 天象时间线 */
+.sky-panel{display:flex;flex-direction:column;gap:var(--sp-5);}
+.sky-timeline{padding-top:var(--sp-3);}
+.sky-band{position:relative;height:96px;border-radius:var(--r-md);background:var(--sky-band);border:1px solid var(--border-subtle);overflow:hidden;}
+.sky-hour-labels{display:flex;justify-content:space-between;font-family:var(--font-data);font-size:11px;color:var(--text-muted);margin-top:6px;}
+.sky-markers{position:absolute;inset:0;pointer-events:none;}
+.sky-mark{
+  position:absolute;top:50%;transform:translate(-50%,-50%);
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:11.5px;font-weight:650;padding:3px 9px;border-radius:var(--r-full);
+  background:rgba(10,13,20,.72);color:var(--text-primary);
+  border:1px solid var(--border-default);white-space:nowrap;
+}
+.sky-mark .ic{width:13px;height:13px;}
+.sky-mark.sunrise{color:#F0B45C;}
+.sky-mark.sunset{color:#E8A23B;}
+.sky-mark.blue{color:#7CA6FF;}
+.sky-mark.milky{color:#C79BF2;border-color:rgba(199,155,242,.4);}
+.sky-window{position:absolute;top:0;height:100%;background:rgba(232,162,59,.16);border-left:1px solid var(--accent-amber);border-right:1px solid var(--accent-amber);}
+
+.sky-legend{display:flex;gap:var(--sp-4);flex-wrap:wrap;font-size:12px;color:var(--text-muted);}
+.sky-legend span{display:inline-flex;align-items:center;gap:6px;}
+.legend-dot{width:10px;height:10px;border-radius:3px;}
+
+.moon-row{display:flex;align-items:center;gap:var(--sp-4);background:var(--bg-sunken);border:1px solid var(--border-subtle);border-radius:var(--r-md);padding:var(--sp-3) var(--sp-4);}
+.moon-ico{width:34px;height:34px;border-radius:50%;background:var(--bg-overlay);display:grid;place-items:center;color:#E9E4D0;flex:none;}
+.moon-ico svg{width:22px;height:22px;}
+.moon-info strong{font-size:14px;display:block;}
+.moon-info span{font-size:12px;color:var(--text-muted);}
+
+/* 赶场时间轴 */
+.route-panel{}
+.route-timeline{display:flex;flex-direction:column;position:relative;}
+.route-item{display:flex;gap:var(--sp-5);position:relative;padding-bottom:var(--sp-5);}
+.route-item:last-child{padding-bottom:0;}
+.route-item::before{content:"";position:absolute;left:47px;top:26px;bottom:-4px;width:2px;background:var(--border-subtle);}
+.route-item:last-child::before{display:none;}
+.route-time{width:96px;flex:none;font-family:var(--font-data);font-size:13px;font-weight:650;color:var(--text-secondary);padding-top:2px;}
+.route-time.highlight{color:var(--accent-amber);}
+.route-dot{width:12px;height:12px;border-radius:50%;background:var(--bg-overlay);border:2px solid var(--text-muted);flex:none;margin-top:6px;position:relative;z-index:1;}
+.route-item.highlight .route-dot{border-color:var(--accent-amber);background:var(--accent-amber);box-shadow:0 0 0 4px var(--amber-glow);}
+.route-body{flex:1;background:var(--bg-sunken);border:1px solid var(--border-subtle);border-radius:var(--r-md);padding:var(--sp-3) var(--sp-4);}
+.route-body strong{font-size:14px;display:flex;align-items:center;gap:8px;}
+.route-body p{font-size:12.5px;color:var(--text-muted);margin-top:2px;}
+
+/* ============================================================
+   13. D4 复盘页
+   ============================================================ */
+.upload-batch{display:flex;flex-direction:column;gap:var(--sp-4);}
+.analysis-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-3);}
+.analysis-card{background:var(--bg-sunken);border:1px solid var(--border-subtle);border-radius:var(--r-md);padding:var(--sp-4);}
+.analysis-card h4{font-size:13px;font-weight:650;color:var(--text-secondary);display:flex;align-items:center;gap:7px;margin-bottom:12px;}
+.analysis-card h4 .ic{width:16px;height:16px;color:var(--accent-blue-soft);}
+.analysis-score{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;}
+.analysis-score .data{font-size:24px;font-weight:700;color:var(--text-primary);font-family:var(--font-display);}
+.analysis-score .outof{font-size:12px;color:var(--text-muted);}
+.analysis-desc{font-size:12px;color:var(--text-muted);}
+
+.prescription-list{display:flex;flex-direction:column;gap:var(--sp-3);}
+.prescription-item{display:flex;align-items:flex-start;gap:var(--sp-3);background:var(--bg-sunken);border:1px solid var(--border-subtle);border-radius:var(--r-md);padding:var(--sp-3) var(--sp-4);}
+.sev{flex:none;font-size:11px;font-weight:700;padding:2px 8px;border-radius:var(--r-full);margin-top:2px;}
+.sev.high{color:var(--semantic-risk);background:var(--risk-bg);}
+.sev.mid{color:var(--semantic-wait);background:var(--wait-bg);}
+.sev.low{color:var(--semantic-go);background:var(--go-bg);}
+.prescription-item p{font-size:14px;color:var(--text-primary);flex:1;}
+.prescription-item p em{font-style:normal;color:var(--text-secondary);font-size:13px;display:block;margin-top:2px;}
+
+/* ============================================================
+   14. M1 记忆页
+   ============================================================ */
+.memory-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:var(--sp-5);}
+.memory-grid .col-4{grid-column:span 4;}
+.memory-grid .col-8{grid-column:span 8;}
+.gear-list{display:flex;flex-direction:column;gap:var(--sp-3);}
+.gear-card{display:flex;gap:var(--sp-3);align-items:center;background:var(--bg-sunken);border:1px solid var(--border-subtle);border-radius:var(--r-md);padding:var(--sp-3) var(--sp-4);}
+.gear-ico{width:40px;height:40px;border-radius:var(--r-md);background:var(--bg-overlay);display:grid;place-items:center;color:var(--accent-blue-soft);flex:none;}
+.gear-ico .ic{width:20px;height:20px;}
+.gear-info strong{font-size:14px;display:block;}
+.gear-info span{font-size:12px;color:var(--text-muted);}
+.gear-tag{margin-left:auto;flex:none;}
+
+.event-list{display:flex;flex-direction:column;}
+.event-item{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3) 0;border-bottom:1px solid var(--border-subtle);}
+.event-item:last-child{border-bottom:none;}
+.event-date{font-family:var(--font-data);font-size:12px;color:var(--accent-blue-soft);width:88px;flex:none;}
+.event-name{flex:1;font-size:14px;font-weight:550;}
+.event-note{font-size:12px;color:var(--text-muted);margin-right:var(--sp-2);}
+
+.pref-chips{display:flex;flex-wrap:wrap;gap:var(--sp-2);margin-bottom:var(--sp-3);}
+.pref-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:var(--r-full);background:var(--bg-overlay);border:1px solid var(--border-subtle);font-size:13px;color:var(--text-secondary);}
+.pref-chip .ic{width:14px;height:14px;color:var(--accent-amber);}
+
+/* ============================================================
+   15. 页脚 + 模态
+   ============================================================ */
+.app-footer{border-top:1px solid var(--border-subtle);padding:var(--sp-5) 0;margin-top:var(--sp-4);}
+.footer-inner{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4);flex-wrap:wrap;}
+.footer-note{font-size:12px;color:var(--text-muted);}
+
+.modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:var(--sp-5);}
+.modal.is-open{display:flex;}
+.modal-backdrop{position:absolute;inset:0;background:rgba(7,9,16,.72);backdrop-filter:blur(4px);}
+.modal-card{position:relative;width:100%;max-width:520px;background:var(--bg-elevated);border:1px solid var(--border-default);border-radius:var(--r-lg);padding:var(--sp-6);animation:pageIn var(--t-panel) var(--ease);}
+.modal-card h2{font-size:22px;margin-bottom:6px;}
+.modal-card>p{color:var(--text-secondary);font-size:14px;margin-bottom:var(--sp-5);}
+.modal-close{position:absolute;top:var(--sp-4);right:var(--sp-4);}
+
+/* Toast */
+.toast{
+  position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);
+  background:var(--bg-overlay);border:1px solid var(--border-default);border-radius:var(--r-md);
+  padding:12px 20px;font-size:13.5px;color:var(--text-primary);
+  opacity:0;pointer-events:none;transition:opacity var(--t-panel) var(--ease),transform var(--t-panel) var(--ease);
+  z-index:120;display:flex;align-items:center;gap:10px;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast .ic{width:17px;height:17px;color:var(--accent-amber);}
+
+/* ============================================================
+   16. 动效 & 无障碍
+   ============================================================ */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;}
+}
+
+/* ============================================================
+   17. 响应式
+   ============================================================ */
+@media (max-width:1080px){
+  .stage-grid{grid-template-columns:repeat(2,1fr);}
+  .plan-grid{grid-template-columns:1fr;}
+  .d3-grid{grid-template-columns:1fr;}
+  .col-7,.col-5,.col-12{grid-column:span 12;}
+  .memory-grid .col-4,.memory-grid .col-8{grid-column:span 12;}
+  .main-nav{margin-left:0;}
+}
+@media (max-width:820px){
+  .display{font-size:38px;}
+  h1{font-size:28px;}
+  .home-cols{grid-template-columns:1fr;}
+  .analysis-grid{grid-template-columns:repeat(2,1fr);}
+  .topbar-inner{height:auto;flex-wrap:wrap;padding:10px 0;gap:8px;}
+  .main-nav{order:3;width:100%;justify-content:space-between;}
+  .nav-arrow{display:none;}
+  .param-cards{grid-template-columns:1fr;}
+}
+@media (max-width:560px){
+  .stage-grid{grid-template-columns:1fr;}
+  .three-state{grid-template-columns:1fr;}
+  .today-card{padding:var(--sp-5);}
+  .page-head-actions{width:100%;}
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     顶栏：品牌 + 旅程导航 + 我的记忆 / 设置
+     ============================================================ -->
+<header class="topbar">
+  <div class="container topbar-inner">
+    <button class="brand" data-nav="home" aria-label="返回旅程总览">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c.6 4.2 3.8 7.4 8 8-4.2.6-7.4 3.8-8 8-.6-4.2-3.8-7.4-8-8 4.2-.6 7.4-3.8 8-8z"/><path d="M19 15c.2 1.8 1.2 2.8 3 3-1.8.2-2.8 1.2-3 3-.2-1.8-1.2-2.8-3-3 1.8-.2 2.8-1.2 3-3z" opacity=".8"/></svg>
+      </span>
+      <span class="brand-name">LightTrail<span class="brand-sub">光迹</span></span>
+    </button>
+
+    <nav class="main-nav" aria-label="拍摄旅程">
+      <button class="nav-step" data-nav="d1">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l2.2 7.3 7.3 2.2-7.3 2.2L12 21.5l-2.2-7.3-7.3-2.2 7.3-2.2L12 2.5z"/></svg>
+        灵感
+      </button>
+      <span class="nav-arrow" aria-hidden="true">→</span>
+      <button class="nav-step" data-nav="d2">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.2-7-11a7 7 0 0114 0c0 5.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>
+        规划
+      </button>
+      <span class="nav-arrow" aria-hidden="true">→</span>
+      <button class="nav-step" data-nav="d3">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.8 8.2l-2.2 5.4-5.4 2.2 2.2-5.4 5.4-2.2z"/></svg>
+        决策
+      </button>
+      <span class="nav-arrow" aria-hidden="true">→</span>
+      <button class="nav-step" data-nav="d4">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 11-2.3-5.6"/><path d="M20 3v5h-5"/></svg>
+        复盘
+      </button>
+    </nav>
+
+    <div class="topbar-actions">
+      <button class="btn btn-ghost" data-nav="m1">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10v18l-5-3.6L7 21V3z"/></svg>
+        我的记忆
+      </button>
+      <button class="icon-btn" id="btn-settings" aria-label="全局设置">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h8M17 7h3M4 17h3M12 17h8"/><circle cx="14.5" cy="7" r="2.4"/><circle cx="9.5" cy="17" r="2.4"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="app-main">
+
+<!-- ============================================================
+     旅程总览（首页）
+     ============================================================ -->
+<section id="page-home" class="page">
+  <div class="container page-stack">
+
+    <header class="home-hero">
+      <div>
+        <p class="eyebrow">拍摄旅程总览 · <span id="today-label">今晚</span></p>
+        <h1 class="display">晚上好，今晚<br><em>值得出门</em></h1>
+        <p class="hero-sub">天气、天象与你的记忆已经对齐。从一句灵感开始，或直接看今日决策——光迹帮你把「数据」变成「决定」。</p>
+      </div>
+      <div class="hero-actions">
+        <button class="btn btn-primary" data-nav="d3">查看今日决策
+          <svg class="ic-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+        <button class="btn btn-ghost" data-nav="d1">从一句话开始</button>
+      </div>
+    </header>
+
+    <!-- 今日决策速览 -->
+    <section class="today-card" aria-label="今日决策速览">
+      <div class="today-left">
+        <span class="status-chip go">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.2l2.4 2.4 4.6-4.8"/></svg>
+          值得出门
+        </span>
+        <h2>现在值得出门吗？<span class="today-window">最佳窗口 16:42 – 17:20</span></h2>
+        <p>火烧云概率 68%、云量 32%，西湖断桥逆光机位朝西无遮挡。距离最佳窗口还有 <strong class="data" style="color:var(--accent-amber)">1 小时 42 分</strong>，现在出发正好。</p>
+      </div>
+      <div class="today-right">
+        <div class="mini-prob">
+          <span class="mini-prob-label">火烧云概率</span>
+          <svg viewBox="0 0 64 64" class="ring" role="img" aria-label="火烧云概率 68%">
+            <circle class="ring-bg" cx="32" cy="32" r="26"/>
+            <circle class="ring-fill" cx="32" cy="32" r="26" stroke-dasharray="163.4" stroke-dashoffset="52.3"/>
+            <text x="32" y="33" text-anchor="middle" class="ring-text">68%</text>
+            <text x="32" y="46" text-anchor="middle" class="ring-label">火烧云</text>
+          </svg>
+        </div>
+        <button class="btn btn-primary" data-nav="d3">查看完整决策
+          <svg class="ic-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- 四阶段入口 -->
+    <section class="stage-grid" aria-label="拍摄旅程四阶段">
+      <article class="stage-card" data-nav="d1" role="button" tabindex="0">
+        <div class="stage-head">
+          <span class="stage-ico">
+            <svg class="ic-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l2.2 7.3 7.3 2.2-7.3 2.2L12 21.5l-2.2-7.3-7.3-2.2 7.3-2.2L12 2.5z"/></svg>
+          </span>
+          <span class="stage-no">01</span>
+        </div>
+        <h3 class="title">灵感</h3>
+        <p>一句话出方案，或丢一张参考照片反推拍摄参数与机位。</p>
+        <span class="stage-cta">去获取灵感
+          <svg class="ic-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+      </article>
+
+      <article class="stage-card" data-nav="d2" role="button" tabindex="0">
+        <div class="stage-head">
+          <span class="stage-ico">
+            <svg class="ic-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.2-7-11a7 7 0 0114 0c0 5.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>
+          </span>
+          <span class="stage-no">02</span>
+        </div>
+        <h3 class="title">规划</h3>
+        <p>机位 × 天象匹配，时间线看得见日出日落与银河窗口。</p>
+        <span class="stage-cta">去规划机位
+          <svg class="ic-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+      </article>
+
+      <article class="stage-card highlight" data-nav="d3" role="button" tabindex="0">
+        <div class="stage-head">
+          <span class="stage-ico">
+            <svg class="ic-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.8 8.2l-2.2 5.4-5.4 2.2 2.2-5.4 5.4-2.2z"/></svg>
+          </span>
+          <span class="stage-no">03</span>
+        </div>
+        <h3 class="title">决策</h3>
+        <p>去、再等等还是放弃——不只看数字，还告诉你为什么。</p>
+        <span class="stage-cta">看今日决策
+          <svg class="ic-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+      </article>
+
+      <article class="stage-card" data-nav="d4" role="button" tabindex="0">
+        <div class="stage-head">
+          <span class="stage-ico">
+            <svg class="ic-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 11-2.3-5.6"/><path d="M20 3v5h-5"/></svg>
+          </span>
+          <span class="stage-no">04</span>
+        </div>
+        <h3 class="title">复盘</h3>
+        <p>批量上传成片，得到多模态分析与下次可执行的处方。</p>
+        <span class="stage-cta">去复盘照片
+          <svg class="ic-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+      </article>
+    </section>
+
+    <!-- 最近计划 + 记忆摘要 -->
+    <div class="home-cols">
+      <section class="panel">
+        <div class="panel-head">
+          <h3>
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+            最近计划
+          </h3>
+          <button class="btn btn-ghost" data-nav="d2" style="font-size:13px">全部规划</button>
+        </div>
+        <div class="plan-mini">
+          <div class="plan-mini-item" data-nav="d3" role="button" tabindex="0">
+            <span class="plan-mini-date">今天 17:00</span>
+            <div class="plan-mini-info">
+              <strong>西湖断桥 · 日落火烧云</strong>
+              <span>决策已就绪 · 建议出门</span>
+            </div>
+            <span class="tag go">值得去</span>
+          </div>
+          <div class="plan-mini-item" data-nav="d2" role="button" tabindex="0">
+            <span class="plan-mini-date">周六 02:00</span>
+            <div class="plan-mini-info">
+              <strong>崇明东滩 · 夏季银河</strong>
+              <span>机位与天象已匹配 · 待确认</span>
+            </div>
+            <span class="tag blue">条件优</span>
+          </div>
+          <div class="plan-mini-item" data-nav="d4" role="button" tabindex="0">
+            <span class="plan-mini-date">上周日</span>
+            <div class="plan-mini-info">
+              <strong>黄浦江边 · 蓝调慢门</strong>
+              <span>复盘处方已生成 · 3 条待看</span>
+            </div>
+            <span class="tag wait">待复盘</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h3>
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10v18l-5-3.6L7 21V3z"/></svg>
+            记忆摘要
+          </h3>
+          <button class="btn btn-ghost" data-nav="m1" style="font-size:13px">我的记忆</button>
+        </div>
+        <div class="mem-mini">
+          <div class="mem-row">
+            <span class="mem-ico">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z"/><circle cx="12" cy="13" r="4"/></svg>
+            </span>
+            <div class="mem-body">
+              <strong>常用机身：S5M2 全画幅</strong>
+              <span>已记录 3 支镜头 · 光圈优先为主</span>
+            </div>
+          </div>
+          <div class="mem-row">
+            <span class="mem-ico">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8"/><path d="M3 3v5h5"/><path d="M12 8v4l3 2"/></svg>
+            </span>
+            <div class="mem-body">
+              <strong>偏好：清晨蓝调 · 低饱和后期</strong>
+              <span>最近 12 次拍摄自动归纳</span>
+            </div>
+          </div>
+          <div class="mem-row">
+            <span class="mem-ico">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.2-7-11a7 7 0 0114 0c0 5.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>
+            </span>
+            <div class="mem-body">
+              <strong>常去机位：西湖断桥 · 崇明东滩</strong>
+              <span>各有 3 次以上成功记录</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================
+     D3 决策页（最高优先）
+     ============================================================ -->
+<section id="page-d3" class="page is-active">
+  <div class="container page-stack">
+
+    <header class="page-head">
+      <div>
+        <p class="eyebrow">决策 · D3</p>
+        <h1>今晚 17:00 · 西湖断桥 日落</h1>
+        <p class="page-sub">综合气象、天象与你的记忆，给出拍摄时机判断。现场模式可切换为大按钮布局。</p>
+      </div>
+      <div class="page-head-actions">
+        <label class="switch">
+          现场模式
+          <input type="checkbox" id="field-mode">
+          <span class="track" aria-hidden="true"></span>
+        </label>
+      </div>
+    </header>
+
+    <div class="d3-grid">
+
+      <!-- 三态决策卡 -->
+      <section class="panel decision-panel col-7" aria-label="今日三态决策">
+        <div class="decision-verdict">
+          <div class="verdict-icon go">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.2l2.4 2.4 4.6-4.8"/></svg>
+          </div>
+          <div>
+            <p class="eyebrow">当前建议</p>
+            <h2 class="verdict-title" id="verdict-title">值得出门</h2>
+            <p class="verdict-meta" id="verdict-meta">最佳拍摄窗口 16:42 – 17:20 · 现在出发可在 16:20 前到位</p>
+          </div>
+        </div>
+
+        <div class="countdown-row">
+          <span class="countdown-label">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2.5 1.5"/><path d="M10 2h4"/></svg>
+            距最佳窗口
+          </span>
+          <span class="countdown-value" id="countdown">01:42:00</span>
+        </div>
+
+        <div class="three-state" id="three-state">
+          <button class="state-btn go is-active" data-state="go" aria-pressed="true">
+            <svg class="state-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.2l2.4 2.4 4.6-4.8"/></svg>
+            <span class="state-label">去</span>
+            <span class="state-hint">现在出门 · 赶上窗口</span>
+          </button>
+          <button class="state-btn wait" data-state="wait" aria-pressed="false">
+            <svg class="state-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            <span class="state-label">再等等</span>
+            <span class="state-hint">过 30 分钟再确认</span>
+          </button>
+          <button class="state-btn risk" data-state="risk" aria-pressed="false">
+            <svg class="state-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5l5 5M14.5 9.5l-5 5"/></svg>
+            <span class="state-label">放弃</span>
+            <span class="state-hint">今天不适合出门</span>
+          </button>
+        </div>
+        <p class="three-state-note">点击选择你的决定，光迹会记录并用于复盘校准。</p>
+      </section>
+
+      <!-- 概率依据 -->
+      <section class="panel col-5" aria-label="概率依据">
+        <h3 class="panel-title">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></svg>
+          概率依据
+        </h3>
+        <div class="prob-list">
+          <div class="prob-item">
+            <div class="prob-row">
+              <span class="prob-name">
+                <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 010-8 5 5 0 019.6-1.4A3.5 3.5 0 0117 18H7z"/></svg>
+                云量
+              </span>
+              <span class="prob-val" style="color:var(--semantic-go)">32%</span>
+            </div>
+            <div class="prob-bar"><div class="prob-fill go" style="width:32%"></div></div>
+            <p class="prob-note">高空少云，日落方向通透，利于光线穿透</p>
+          </div>
+          <div class="prob-item">
+            <div class="prob-row">
+              <span class="prob-name">
+                <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/><path d="M3 20h18"/></svg>
+                火烧云概率
+              </span>
+              <span class="prob-val" style="color:var(--accent-amber)">68%</span>
+            </div>
+            <div class="prob-bar"><div class="prob-fill amber" style="width:68%"></div></div>
+            <p class="prob-note">湿度 58%，低云比例适中，爆发条件中等偏上</p>
+          </div>
+          <div class="prob-item">
+            <div class="prob-row">
+              <span class="prob-name">
+                <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2.5 1.5"/><path d="M10 2h4"/></svg>
+                最佳窗口
+              </span>
+              <span class="prob-val" style="color:var(--accent-blue-soft)">16:42 – 17:20</span>
+            </div>
+            <div class="prob-bar"><div class="prob-fill blue" style="width:38%"></div></div>
+            <p class="prob-note">日落后 20 分钟，火烧云峰值出现窗口</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 置信度（主值 + 区间条 + 依据列表） -->
+      <section class="panel col-5" aria-label="置信度">
+        <h3 class="panel-title">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a8 8 0 0116 0"/><path d="M12 14l4-4"/><circle cx="12" cy="14" r="1.6"/></svg>
+          置信度
+        </h3>
+        <div class="conf-main">
+          <span class="conf-value">72%</span>
+          <span class="conf-tag">中高</span>
+        </div>
+        <p class="conf-note">主值 + 区间 + 依据，不只看一个数字。</p>
+
+        <div class="conf-interval">
+          <div class="interval-scale">
+            <div class="interval-range" style="left:58%;width:28%"></div>
+            <div class="interval-marker" style="left:72%"></div>
+          </div>
+          <div class="interval-labels">
+            <span class="data">58%</span>
+            <span>综合置信区间</span>
+            <span class="data">86%</span>
+          </div>
+        </div>
+
+        <ul class="conf-basis">
+          <li>
+            <span class="basis-ico"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 010-8 5 5 0 019.6-1.4A3.5 3.5 0 0117 18H7z"/></svg></span>
+            <p>云量 32%，<em>高空无遮挡</em>，风向稳定</p>
+            <span class="src-tag">气象 20:00</span>
+          </li>
+          <li>
+            <span class="basis-ico"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8"/><path d="M3 3v5h5"/><path d="M12 8v4l3 2"/></svg></span>
+            <p>与 <em>2025-11-02</em> 相似气象命中 <em>3/5</em> 次</p>
+            <span class="src-tag">我的记忆</span>
+          </li>
+          <li>
+            <span class="basis-ico"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.2-7-11a7 7 0 0114 0c0 5.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/></svg></span>
+            <p>断桥逆光机位 <em>朝西无遮挡</em>，落日方向验证通过</p>
+            <span class="src-tag">机位档案</span>
+          </li>
+        </ul>
+      </section>
+
+      <!-- 参数推荐 -->
+      <section class="panel param-panel col-7" aria-label="参数推荐">
+        <h3 class="panel-title">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3l4 9-4 9-4-9 4-9z"/></svg>
+          参数推荐
+        </h3>
+
+        <div class="exp-tri">
+          <svg viewBox="0 0 340 200" class="exp-svg" role="img" aria-label="曝光三角联动示意图">
+            <line x1="170" y1="30" x2="44" y2="170" class="exp-line"/>
+            <line x1="170" y1="30" x2="296" y2="170" class="exp-line"/>
+            <line x1="44" y1="170" x2="296" y2="170" class="exp-line dash"/>
+            <circle cx="170" cy="100" r="36" class="exp-center"/>
+            <text x="170" y="98" text-anchor="middle" class="exp-ev">EV 14</text>
+            <text x="170" y="115" text-anchor="middle" class="exp-ev-sub">等效曝光</text>
+            <circle cx="170" cy="30" r="27" class="exp-node-bg"/>
+            <text x="170" y="27" text-anchor="middle" class="exp-node-t">光圈</text>
+            <text x="170" y="44" text-anchor="middle" class="exp-node-v" id="tri-ap">f/5.6</text>
+            <circle cx="44" cy="170" r="27" class="exp-node-bg"/>
+            <text x="44" y="167" text-anchor="middle" class="exp-node-t">快门</text>
+            <text x="44" y="184" text-anchor="middle" class="exp-node-v" id="tri-sh">1/500</text>
+            <circle cx="296" cy="170" r="27" class="exp-node-bg"/>
+            <text x="296" y="167" text-anchor="middle" class="exp-node-t">ISO</text>
+            <text x="296" y="184" text-anchor="middle" class="exp-node-v" id="tri-iso">100</text>
+          </svg>
+
+          <div class="exp-sliders">
+            <div class="exp-slider-row">
+              <span class="exp-slider-label"><span class="dot" style="background:var(--accent-amber)"></span>光圈</span>
+              <input type="range" id="ap-slider" min="0" max="8" step="1" value="3" aria-label="光圈">
+              <span class="exp-slider-val" id="ap-val">f/5.6</span>
+            </div>
+            <div class="exp-slider-row">
+              <span class="exp-slider-label"><span class="dot" style="background:var(--accent-blue)"></span>快门</span>
+              <input type="range" id="sh-slider" min="0" max="19" step="1" value="9" aria-label="快门">
+              <span class="exp-slider-val" id="sh-val">1/500</span>
+            </div>
+            <div class="exp-slider-row">
+              <span class="exp-slider-label"><span class="dot" style="background:var(--semantic-go)"></span>ISO</span>
+              <input type="range" id="iso-slider" min="0" max="30" step="1" value="4" aria-label="ISO">
+              <span class="exp-slider-val" id="iso-val">100</span>
+            </div>
+          </div>
+          <p class="param-note">三者联动：拖动任意一项，其余自动换算以保持等效曝光 EV 14。</p>
+        </div>
+
+        <div class="param-cards">
+          <div class="param-card">
+            <h4>
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.5 6 .9-4.3 4.2 1 6-5.4-2.9-5.4 2.9 1-6L3.3 9.4l6-.9L12 3z"/></svg>
+              星空 · 500 / NPF
+            </h4>
+            <p>500 法则 · 14mm<span class="data" id="rule500">20s</span></p>
+            <p>NPF · 14mm f/2.8<span class="data" id="npf">9s</span></p>
+            <div class="param-formula">NPF = (35N + 30p) / f</div>
+          </div>
+          <div class="param-card">
+            <h4>
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v-1M12 21v-1M4 12H3M21 12h-1"/></svg>
+              长曝光 · ND
+            </h4>
+            <p>基础 1/60s × ND1000<span class="data">16s</span></p>
+            <p>建议携带<span class="data">ND64 + ND1000</span></p>
+            <div class="param-formula">曝光 = 基础 × ND 系数</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 为什么这么判断 -->
+      <section class="panel why-panel col-12" id="why-panel">
+        <button class="why-toggle" id="why-toggle" aria-expanded="false" aria-controls="why-body">
+          为什么这么判断
+          <svg class="ic chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="why-body" id="why-body">
+          <div class="why-body-inner">
+            <div class="why-content">
+              <ol class="reason-list">
+                <li>
+                  <div class="reason-head"><span class="reason-step">01</span><strong>天空条件</strong><span class="src-tag">气象预报 · 20:00 更新</span></div>
+                  <p>云量 32%、湿度 58%，日落方向低云比例适中。按历史相似条件，形成火烧云概率约 68%。</p>
+                </li>
+                <li>
+                  <div class="reason-head"><span class="reason-step">02</span><strong>机位朝向</strong><span class="src-tag">机位档案</span></div>
+                  <p>西湖断桥逆光位朝西 265°，落日方向无山体与建筑遮挡，18:00 前阳光可直射湖面。</p>
+                </li>
+                <li>
+                  <div class="reason-head"><span class="reason-step">03</span><strong>到达可行性</strong><span class="src-tag">交通 / 记忆</span></div>
+                  <p>距机位 4.2km，驾车 25 分钟；现在出发可在 16:20 前到位，留有架机时间，判断为「值得出门」。</p>
+                </li>
+                <li>
+                  <div class="reason-head"><span class="reason-step">04</span><strong>不确定性</strong><span class="src-tag">模型区间</span></div>
+                  <p>风向若在 17:00 后转为偏北，低云可能被吹散，因此置信区间下沿 58%、上沿 86%，建议临场再确认一次。</p>
+                </li>
+              </ol>
+              <div class="data-sources">
+                <h4>
+                  <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>
+                  数据来源
+                </h4>
+                <ul>
+                  <li>气象预报 — 温度 / 湿度 / 云量 / 风向<span class="src-time">20:00 更新</span></li>
+                  <li>天文历 — 日出日落、月相、银河可见窗口<span class="src-time">年度</span></li>
+                  <li>我的记忆 — 相似场景历史与偏好<span class="src-time">实时</span></li>
+                  <li>机位档案 — 朝向 / 遮挡 / 距离<span class="src-time">用户维护</span></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     D1 灵感页
+     ============================================================ -->
+<section id="page-d1" class="page">
+  <div class="container page-stack">
+
+    <header class="page-head">
+      <div>
+        <p class="eyebrow">灵感 · D1</p>
+        <h1>一句话出方案</h1>
+        <p class="page-sub">描述你想要的画面，或上传一张参考照片，光迹反推机位、时机与参数。</p>
+      </div>
+    </header>
+
+    <section class="panel inspire-input">
+      <div class="convo-input">
+        <textarea id="inspire-text" rows="3" placeholder="例如：这周末想拍夏季银河，去崇明东滩，带什么参数、几点出发？"></textarea>
+        <button class="btn btn-primary" id="btn-inspire">
+          生成方案
+          <svg class="ic-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
+        </button>
+      </div>
+      <div class="example-chips">
+        <span class="chip">雨后初晴的山顶云海</span>
+        <span class="chip">海边蓝调慢门</span>
+        <span class="chip">城市夜景长曝光</span>
+      </div>
+      <div class="upload-zone" id="upload-inspire" role="button" tabindex="0" aria-label="上传参考照片">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>
+        <p>拖入一张参考照片，反推拍摄方案</p>
+        <span>支持 RAW / JPG · 原型仅示意</span>
+      </div>
+      <div class="upload-preview" id="inspire-preview" hidden>
+        <span class="thumb">参考图 1</span>
+      </div>
+    </section>
+
+    <section class="inspire-results" aria-label="方案输出">
+      <h2 class="section-title">方案输出</h2>
+
+      <div class="plan-card is-reco">
+        <div class="plan-head">
+          <span class="plan-badge">方案 A · 推荐</span>
+          <span class="src-tag">依据链</span>
+        </div>
+        <p class="plan-desc">周六凌晨的崇明东滩夏季银河：低光害、银河核心约 02:00 过天顶，适合 14mm 广角竖构图。</p>
+        <div class="basis-chain">
+          <span class="chain-node"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/></svg>月相 24% · 银河可见</span>
+          <span class="chain-arrow">→</span>
+          <span class="chain-node"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.2-7-11a7 7 0 0114 0c0 5.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>机位：东滩堤岸南向</span>
+          <span class="chain-arrow">→</span>
+          <span class="chain-node"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3l4 9-4 9-4-9 4-9z"/></svg>14mm f/2.8 · 9s · ISO 3200</span>
+        </div>
+        <div class="plan-actions">
+          <button class="btn btn-primary" data-nav="d3">进入决策验证</button>
+          <button class="btn btn-ghost" data-nav="d2">加入规划</button>
+        </div>
+      </div>
+
+      <div class="plan-card">
+        <div class="plan-head">
+          <span class="plan-badge" style="background:var(--bg-overlay);color:var(--text-secondary)">方案 B</span>
+          <span class="src-tag">依据链</span>
+        </div>
+        <p class="plan-desc">周日晚为备选：云量 45%，银河方位更偏西，核心高度略低，适合补拍局部星野。</p>
+        <div class="basis-chain">
+          <span class="chain-node">云量 45% · 可拍</span>
+          <span class="chain-arrow">→</span>
+          <span class="chain-node">银河 23:40 升起</span>
+          <span class="chain-arrow">→</span>
+          <span class="chain-node">14mm · 12s · ISO 4000</span>
+        </div>
+      </div>
+
+      <div class="plan-card">
+        <div class="plan-head">
+          <span class="plan-badge" style="background:var(--bg-overlay);color:var(--text-secondary)">方案 C · 照片反推</span>
+          <span class="src-tag">多模态</span>
+        </div>
+        <p class="plan-desc">从你的参考图识别：火烧云大片、蓝调后期、西向开阔机位。反推为等一个云量 30–50% 的傍晚，带 GND 压光比。</p>
+        <div class="basis-chain">
+          <span class="chain-node">场景识别：火烧云 / 蓝调</span>
+          <span class="chain-arrow">→</span>
+          <span class="chain-node">西向开阔机位</span>
+          <span class="chain-arrow">→</span>
+          <span class="chain-node">24-105mm · GND · 18:00 前就位</span>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</section>
+
+<!-- ============================================================
+     D2 规划页
+     ============================================================ -->
+<section id="page-d2" class="page">
+  <div class="container page-stack">
+
+    <header class="page-head">
+      <div>
+        <p class="eyebrow">规划 · D2</p>
+        <h1>今日机位与天象</h1>
+        <p class="page-sub">选择机位、确认天象时间线，再安排赶场路线。所有时间基于你的常用机位与交通方式。</p>
+      </div>
+    </header>
+
+    <div class="plan-grid">
+      <!-- 机位列表 + 地图 -->
+      <section class="panel">
+        <h3 class="panel-title">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.2-7-11a7 7 0 0114 0c0 5.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>
+          机位列表
+        </h3>
+        <div class="spot-list">
+          <article class="spot-card is-active" role="button" tabindex="0">
+            <div class="spot-head">
+              <h4>西湖断桥 · 逆光</h4>
+              <span class="tag amber">日落</span>
+            </div>
+            <p class="spot-meta">距 4.2 km · 朝西 265° · 无遮挡</p>
+            <div class="spot-score"><span>条件评分</span><div class="prob-bar"><div class="prob-fill amber" style="width:82%"></div></div><span class="data">82</span></div>
+          </article>
+          <article class="spot-card" role="button" tabindex="0">
+            <div class="spot-head">
+              <h4>北山街 · 湖面倒影</h4>
+              <span class="tag blue">蓝调</span>
+            </div>
+            <p class="spot-meta">距 3.1 km · 朝西 250° · 微遮挡</p>
+            <div class="spot-score"><span>条件评分</span><div class="prob-bar"><div class="prob-fill blue" style="width:71%"></div></div><span class="data">71</span></div>
+          </article>
+          <article class="spot-card" role="button" tabindex="0">
+            <div class="spot-head">
+              <h4>宝石山 · 俯瞰</h4>
+              <span class="tag">备选</span>
+            </div>
+            <p class="spot-meta">距 6.8 km · 朝西 260° · 需爬升 15 分钟</p>
+            <div class="spot-score"><span>条件评分</span><div class="prob-bar"><div class="prob-fill" style="width:58%"></div></div><span class="data">58</span></div>
+          </article>
+        </div>
+
+        <div class="map-static" aria-label="机位静态地图示意">
+          <svg viewBox="0 0 400 220" role="img" aria-label="机位地图示意">
+            <rect width="400" height="220" fill="#0d1320"/>
+            <path d="M0 150 Q 90 130 150 155 T 290 148 T 400 160 V 220 H 0 Z" fill="#16233c"/>
+            <path d="M0 160 Q 100 142 160 165 T 300 158 T 400 172" stroke="rgba(255,255,255,.14)" stroke-width="2" fill="none" stroke-dasharray="6 6"/>
+            <g stroke="rgba(255,255,255,.10)" stroke-width="6" stroke-linecap="round" fill="none">
+              <path d="M30 60 L 120 70 L 180 110 L 240 100"/>
+              <path d="M120 20 L 150 70 L 230 160"/>
+              <path d="M20 190 L 120 180 L 200 200"/>
+              <path d="M300 30 L 280 90 L 310 150"/>
+            </g>
+            <circle cx="180" cy="112" r="9" fill="#E8A23B" stroke="#0A0D14" stroke-width="3"/>
+            <circle cx="112" cy="66" r="7" fill="rgba(95,141,242,.8)" stroke="#0A0D14" stroke-width="3"/>
+            <circle cx="300" cy="94" r="7" fill="rgba(255,255,255,.45)" stroke="#0A0D14" stroke-width="3"/>
+            <text x="196" y="106" fill="#E8A23B" font-size="10" font-family="ui-monospace,monospace" font-weight="700">断桥</text>
+            <text x="128" y="60" fill="#7CA6FF" font-size="9" font-family="ui-monospace,monospace">北山街</text>
+            <text x="312" y="90" fill="#9AA7B8" font-size="9" font-family="ui-monospace,monospace">宝石山</text>
+            <text x="290" y="196" fill="#5C6B7F" font-size="8.5" font-family="ui-monospace,monospace">西湖</text>
+          </svg>
+        </div>
+      </section>
+
+      <!-- 天象时间线 -->
+      <section class="panel sky-panel">
+        <h3 class="panel-title">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="4"/><path d="M12 3v2M12 15v2M3 10h2M19 10h2M5.6 5.6l1.4 1.4M17 12.6l1.4 1.4M18.4 5.6L17 7M7 12.6l-1.4 1.4"/><path d="M4 20h16"/></svg>
+          天象时间线
+        </h3>
+
+        <div class="sky-timeline">
+          <div class="sky-band" role="img" aria-label="今日天空从凌晨到深夜的颜色变化时间线">
+            <div class="sky-window" style="left:63%;width:4.5%"></div>
+            <div class="sky-mark sunrise" style="left:11%">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="4"/><path d="M12 3v2M3 11h2M19 11h2M5.6 5.6l1.4 1.4M18.4 5.6L17 7"/><path d="M4 17h16M7 21h10"/></svg>
+              日出 6:12
+            </div>
+            <div class="sky-mark" style="left:40%">正午 · 顶光</div>
+            <div class="sky-mark sunset" style="left:68%">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="11" r="4"/><path d="M12 3v2M3 11h2M19 11h2M5.6 5.6l1.4 1.4M18.4 5.6L17 7"/><path d="M4 17h16M7 21h10"/></svg>
+              日落 17:40
+            </div>
+            <div class="sky-mark blue" style="left:71%">蓝调</div>
+            <div class="sky-mark milky" style="left:88%">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c4-1 7-4 8-8-4 1-7 4-8 8zm0 0c-1 4-4 7-8 8 1-4 4-7 8-8z"/><path d="M9 9l2 2M15 13l2 2M11 16l1.5 1.5"/></svg>
+              银河 21:40
+            </div>
+          </div>
+          <div class="sky-hour-labels">
+            <span>04:00</span><span>08:00</span><span>12:00</span><span>16:00</span><span>20:00</span><span>24:00</span>
+          </div>
+        </div>
+
+        <div class="sky-legend">
+          <span><i class="legend-dot" style="background:var(--accent-amber)"></i>黄金 / 火烧云窗口</span>
+          <span><i class="legend-dot" style="background:var(--accent-blue)"></i>蓝调时刻</span>
+          <span><i class="legend-dot" style="background:#C79BF2"></i>银河可见窗口</span>
+        </div>
+
+        <div class="moon-row">
+          <span class="moon-ico">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/></svg>
+          </span>
+          <div class="moon-info">
+            <strong>月相 24% · 盈凸月</strong>
+            <span>月出 18:30 · 月落 次日 06:10 · 对银河拍摄干扰低</span>
+          </div>
+        </div>
+
+        <div class="panel" style="background:var(--bg-sunken);border-color:var(--border-subtle);padding:var(--sp-3) var(--sp-4);display:flex;align-items:center;gap:10px;">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color:#C79BF2"><path d="M12 12c4-1 7-4 8-8-4 1-7 4-8 8zm0 0c-1 4-4 7-8 8 1-4 4-7 8-8z"/></svg>
+          <span style="font-size:13px;color:var(--text-secondary)"><strong style="color:var(--text-primary)">银河可见窗口 21:40 – 23:50</strong> · 核心高度约 42° · 光污染等级 3</span>
+        </div>
+      </section>
+    </div>
+
+    <!-- 赶场时间轴 -->
+    <section class="panel route-panel">
+      <h3 class="panel-title">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z"/><circle cx="12" cy="13" r="4"/></svg>
+        赶场时间轴
+      </h3>
+      <div class="route-timeline">
+        <div class="route-item">
+          <span class="route-time">16:00</span>
+          <span class="route-dot"></span>
+          <div class="route-body">
+            <strong>出发 · 家中</strong>
+            <p>驾车 25 分钟，走西溪路避开晚高峰</p>
+          </div>
+        </div>
+        <div class="route-item">
+          <span class="route-time">16:25</span>
+          <span class="route-dot"></span>
+          <div class="route-body">
+            <strong>到达断桥机位</strong>
+            <p>架设三脚架，检查云台水平，锁定对焦点</p>
+          </div>
+        </div>
+        <div class="route-item highlight">
+          <span class="route-time">16:42</span>
+          <span class="route-dot"></span>
+          <div class="route-body">
+            <strong>最佳窗口开始</strong>
+            <p>火烧云概率峰值 · 先用 f/8 试拍，再包围曝光 ±1 EV</p>
+          </div>
+        </div>
+        <div class="route-item">
+          <span class="route-time">17:20</span>
+          <span class="route-dot"></span>
+          <div class="route-body">
+            <strong>窗口结束 · 转入蓝调</strong>
+            <p>换 ND64 长曝光，压缩湖面，拍车流光轨</p>
+          </div>
+        </div>
+        <div class="route-item">
+          <span class="route-time">18:10</span>
+          <span class="route-dot"></span>
+          <div class="route-body">
+            <strong>收工</strong>
+            <p>原路返回，预计 18:45 到家</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</section>
+
+<!-- ============================================================
+     D4 复盘页
+     ============================================================ -->
+<section id="page-d4" class="page">
+  <div class="container page-stack">
+
+    <header class="page-head">
+      <div>
+        <p class="eyebrow">复盘 · D4</p>
+        <h1>从成片回到现场</h1>
+        <p class="page-sub">批量上传照片，光迹做多模态分析，并给出下次同样场景的可执行处方，而不是泛泛点评。</p>
+      </div>
+    </header>
+
+    <section class="panel upload-batch">
+      <div class="upload-zone" id="upload-review" role="button" tabindex="0" aria-label="批量上传照片">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>
+        <p>拖入多张照片，开始复盘分析</p>
+        <span>支持 RAW / JPG / HEIC · 可多选 · 原型仅示意</span>
+      </div>
+      <div class="upload-preview" id="review-preview" hidden>
+        <span class="thumb">IMG_0421</span>
+        <span class="thumb">IMG_0422</span>
+        <span class="thumb">IMG_0423</span>
+        <span class="thumb">IMG_0424</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h3 class="panel-title">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z"/><circle cx="12" cy="13" r="4"/></svg>
+        多模态分析结果
+      </h3>
+      <div class="analysis-grid">
+        <div class="analysis-card">
+          <h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></svg>曝光</h4>
+          <div class="analysis-score"><span class="data" style="color:var(--semantic-wait)">78</span><span class="outof">/ 100</span></div>
+          <div class="prob-bar"><div class="prob-fill amber" style="width:78%"></div></div>
+          <p class="analysis-desc">整体偏暗约 0.7 EV，高光保留良好</p>
+        </div>
+        <div class="analysis-card">
+          <h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 14l5-4 4 3 4-5 5 4"/></svg>构图</h4>
+          <div class="analysis-score"><span class="data" style="color:var(--semantic-go)">86</span><span class="outof">/ 100</span></div>
+          <div class="prob-bar"><div class="prob-fill go" style="width:86%"></div></div>
+          <p class="analysis-desc">三分线利用好，前景稍显空</p>
+        </div>
+        <div class="analysis-card">
+          <h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3l4 9-4 9-4-9 4-9z"/></svg>色彩</h4>
+          <div class="analysis-score"><span class="data" style="color:var(--semantic-wait)">74</span><span class="outof">/ 100</span></div>
+          <div class="prob-bar"><div class="prob-fill blue" style="width:74%"></div></div>
+          <p class="analysis-desc">白平衡偏冷 200K，橙青对比略弱</p>
+        </div>
+        <div class="analysis-card">
+          <h4><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>时间信息</h4>
+          <div class="analysis-score"><span class="data" style="color:var(--text-primary)">17:02</span></div>
+          <div class="prob-bar"><div class="prob-fill amber" style="width:64%"></div></div>
+          <p class="analysis-desc">拍摄于日落窗口 · 4 张包围曝光</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h3 class="panel-title">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.2-7-11a7 7 0 0114 0c0 5.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>
+        可执行处方
+      </h3>
+      <div class="prescription-list">
+        <div class="prescription-item">
+          <span class="sev high">高</span>
+          <p>曝光偏暗 0.7 EV<em>下次同场景建议 +0.7 曝光补偿，或改用包围曝光 ±1 EV</em></p>
+          <span class="src-tag">曝光分析</span>
+        </div>
+        <div class="prescription-item">
+          <span class="sev mid">中</span>
+          <p>快门 1/250s 偏快<em>日落窗口建议 1/60s – 1/125s，兼顾手持安全快门与动态模糊</em></p>
+          <span class="src-tag">参数记忆</span>
+        </div>
+        <div class="prescription-item">
+          <span class="sev low">低</span>
+          <p>白平衡偏冷 200K<em>后期统一 +200K，或拍摄时用日光白平衡</em></p>
+          <span class="src-tag">色彩分析</span>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</section>
+
+<!-- ============================================================
+     M1 记忆页
+     ============================================================ -->
+<section id="page-m1" class="page">
+  <div class="container page-stack">
+
+    <header class="page-head">
+      <div>
+        <p class="eyebrow">我的记忆 · M1</p>
+        <h1>记忆与偏好</h1>
+        <p class="page-sub">光迹记住你的器材、事件与偏好，让每次决策越来越懂你。</p>
+      </div>
+    </header>
+
+    <div class="memory-grid">
+      <section class="panel col-4">
+        <h3 class="panel-title">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z"/><circle cx="12" cy="13" r="4"/></svg>
+          器材档案
+        </h3>
+        <div class="gear-list">
+          <div class="gear-card">
+            <span class="gear-ico">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z"/><circle cx="12" cy="13" r="4"/></svg>
+            </span>
+            <div class="gear-info">
+              <strong>Panasonic S5M2</strong>
+              <span>全画幅 · 2400 万像素 · 主力机身</span>
+            </div>
+            <span class="tag go">常用</span>
+          </div>
+          <div class="gear-card">
+            <span class="gear-ico">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v-1M12 21v-1M4 12H3M21 12h-1"/></svg>
+            </span>
+            <div class="gear-info">
+              <strong>契卡 14mm f/2.8</strong>
+              <span>超广角 · 星空 / 建筑</span>
+            </div>
+            <span class="tag blue">星空</span>
+          </div>
+          <div class="gear-card">
+            <span class="gear-ico">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v-1M12 21v-1M4 12H3M21 12h-1"/></svg>
+            </span>
+            <div class="gear-info">
+              <strong>24-105mm f/4</strong>
+              <span>标准变焦 · 风光 / 旅行</span>
+            </div>
+            <span class="tag amber">常用</span>
+          </div>
+          <div class="gear-card">
+            <span class="gear-ico">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v-1M12 21v-1M4 12H3M21 12h-1"/></svg>
+            </span>
+            <div class="gear-info">
+              <strong>ND64 + ND1000</strong>
+              <span>减光镜 · 长曝光专用</span>
+            </div>
+            <span class="tag">滤镜</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel col-8">
+        <h3 class="panel-title">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8"/><path d="M3 3v5h5"/><path d="M12 8v4l3 2"/></svg>
+          事件历史
+        </h3>
+        <div class="event-list">
+          <div class="event-item">
+            <span class="event-date">2025-11-02</span>
+            <span class="event-name">西湖断桥 · 日落火烧云</span>
+            <span class="event-note">f/8 · 1/250 · ISO100</span>
+            <span class="tag go">成功</span>
+          </div>
+          <div class="event-item">
+            <span class="event-date">2025-10-26</span>
+            <span class="event-name">崇明东滩 · 夏季银河</span>
+            <span class="event-note">14mm · 9s · ISO3200</span>
+            <span class="tag go">成功</span>
+          </div>
+          <div class="event-item">
+            <span class="event-date">2025-10-12</span>
+            <span class="event-name">黄浦江边 · 蓝调慢门</span>
+            <span class="event-note">ND1000 · 16s</span>
+            <span class="tag wait">待复盘</span>
+          </div>
+          <div class="event-item">
+            <span class="event-date">2025-09-28</span>
+            <span class="event-name">宝石山 · 城市夜景</span>
+            <span class="event-note">24-105mm · 2s</span>
+            <span class="tag risk">放弃</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <h3 class="panel-title">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10v18l-5-3.6L7 21V3z"/></svg>
+        语义偏好
+      </h3>
+      <div class="pref-chips">
+        <span class="pref-chip"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="4"/><path d="M12 3v2M12 15v2M3 10h2M19 10h2"/><path d="M4 20h16"/></svg>偏好清晨蓝调</span>
+        <span class="pref-chip"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3l4 9-4 9-4-9 4-9z"/></svg>低饱和后期</span>
+        <span class="pref-chip"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>常用 24-105mm</span>
+        <span class="pref-chip"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>喜欢慢门长曝光</span>
+        <span class="pref-chip"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.2-7-11a7 7 0 0114 0c0 5.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>周末机位优先</span>
+      </div>
+      <p class="small">偏好来自最近 12 次拍摄的复盘自动归纳，可随时手动调整。</p>
+    </section>
+
+  </div>
+</section>
+
+</main>
+
+<!-- ============================================================
+     页脚：数据与依据（M2 解释中心入口）
+     ============================================================ -->
+<footer class="app-footer">
+  <div class="container footer-inner">
+    <button class="btn btn-ghost" id="btn-open-data">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>
+      数据与依据 · 解释中心
+    </button>
+    <p class="footer-note">LightTrail 原型 · 示例数据仅用于演示 · 设计系统：彩格调</p>
+  </div>
+</footer>
+
+<!-- ============================================================
+     模态：数据与依据（M2）
+     ============================================================ -->
+<div class="modal" id="modal-data" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal-backdrop" data-close-modal></div>
+  <div class="modal-card">
+    <button class="icon-btn modal-close" data-close-modal aria-label="关闭">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <h2 id="modal-title">数据与依据 · 解释中心</h2>
+    <p>每个决策都可溯源。查看当前判断用到的数据源与更新时间，确保可信、可复核。</p>
+    <div class="data-sources">
+      <h4>
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>
+        数据源清单
+      </h4>
+      <ul>
+        <li>气象预报 — 温度 / 湿度 / 云量 / 风向<span class="src-time">20:00 更新</span></li>
+        <li>天文历 — 日出日落 / 月相 / 银河窗口<span class="src-time">年度</span></li>
+        <li>我的记忆 — 相似场景历史与偏好<span class="src-time">实时</span></li>
+        <li>机位档案 — 朝向 / 遮挡 / 距离<span class="src-time">用户维护</span></li>
+        <li>地图 / 交通 — 赶场时间估算<span class="src-time">实时</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.2l2.4 2.4 4.6-4.8"/></svg>
+  <span id="toast-text">已记录</span>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- 页面切换（模拟 SPA） ---------- */
+  var pages = document.querySelectorAll('.page');
+  var navBtns = document.querySelectorAll('[data-nav]');
+  var activeStep = null;
+
+  function showPage(name){
+    pages.forEach(function(p){
+      p.classList.toggle('is-active', p.id === 'page-' + name);
+    });
+    navBtns.forEach(function(b){
+      var active = (b.dataset.nav === name);
+      b.classList.toggle('is-active', active && b.classList.contains('nav-step'));
+    });
+    window.scrollTo(0,0);
+  }
+
+  navBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){ showPage(btn.dataset.nav); });
+    if(btn.tagName === 'ARTICLE' || btn.classList.contains('plan-mini-item')){
+      btn.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); showPage(btn.dataset.nav); } });
+    }
+  });
+
+  /* 首页日期 */
+  function setDateLabel(){
+    var el = document.getElementById('today-label');
+    if(!el) return;
+    var now = new Date();
+    var h = now.getHours();
+    var greet = h < 6 ? '凌晨' : h < 12 ? '早上' : h < 18 ? '下午' : '晚上';
+    var month = now.getMonth() + 1, day = now.getDate();
+    el.textContent = greet + ' · ' + month + '月' + day + '日';
+  }
+  setDateLabel();
+
+  /* ---------- 倒计时（演示，重置到 1:42:00） ---------- */
+  var CD_TOTAL = 1*3600 + 42*60; // 1小时42分
+  var countdownEl = document.getElementById('countdown');
+  var remaining = CD_TOTAL;
+  function fmtCD(s){
+    var hh = Math.floor(s/3600), mm = Math.floor((s%3600)/60), ss = s%60;
+    function p(n){ return (n<10?'0':'') + n; }
+    return p(hh) + ':' + p(mm) + ':' + p(ss);
+  }
+  if(countdownEl){
+    setInterval(function(){
+      remaining = remaining <= 0 ? CD_TOTAL : remaining - 1;
+      countdownEl.textContent = fmtCD(remaining);
+    }, 1000);
+  }
+
+  /* ---------- 三态决策 ---------- */
+  var stateBtns = document.querySelectorAll('#three-state .state-btn');
+  var verdictTitle = document.getElementById('verdict-title');
+  var verdictMeta = document.getElementById('verdict-meta');
+  var verdictIcon = document.querySelector('.verdict-icon');
+  var VERDICTS = {
+    go:   { title:'值得出门', meta:'最佳拍摄窗口 16:42 – 17:20 · 现在出发可在 16:20 前到位', icon:'M8.5 12.2l2.4 2.4 4.6-4.8', ring:'<circle cx="12" cy="12" r="9"/><path d="M8.5 12.2l2.4 2.4 4.6-4.8"/>' },
+    wait: { title:'再等等', meta:'当前高云不足，云量仍在增加 · 建议 30 分钟后再次确认', icon:'M12 7v5l3 2', ring:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>' },
+    risk: { title:'建议放弃', meta:'气象条件转差，云量预计升至 70%+ · 今天不值得白跑一趟', icon:'M9.5 9.5l5 5M14.5 9.5l-5 5', ring:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5l5 5M14.5 9.5l-5 5"/>' }
+  };
+  stateBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      stateBtns.forEach(function(b){ b.classList.remove('is-active'); b.setAttribute('aria-pressed','false'); });
+      btn.classList.add('is-active');
+      btn.setAttribute('aria-pressed','true');
+      var st = btn.dataset.state;
+      var v = VERDICTS[st];
+      if(verdictTitle && v){ verdictTitle.textContent = v.title; verdictMeta.textContent = v.meta; }
+      if(verdictIcon){
+        verdictIcon.className = 'verdict-icon ' + st;
+        verdictIcon.innerHTML = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + v.ring + '</svg>';
+      }
+      toast(st === 'go' ? '已记录：去 · 现在出门' : st === 'wait' ? '已记录：再等等 · 30 分钟后提醒' : '已记录：放弃 · 今天不出门');
+    });
+  });
+
+  /* ---------- 现场模式 ---------- */
+  var fieldMode = document.getElementById('field-mode');
+  var decisionPanel = document.querySelector('.decision-panel');
+  if(fieldMode && decisionPanel){
+    fieldMode.addEventListener('change', function(){
+      decisionPanel.classList.toggle('field-mode', fieldMode.checked);
+      toast(fieldMode.checked ? '现场模式已开启 · 大按钮布局' : '已退出现场模式');
+    });
+  }
+
+  /* ---------- 为什么这么判断 折叠 ---------- */
+  var whyToggle = document.getElementById('why-toggle');
+  var whyPanel = document.getElementById('why-panel');
+  if(whyToggle && whyPanel){
+    whyToggle.addEventListener('click', function(){
+      var open = whyPanel.classList.toggle('open');
+      whyToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  }
+
+  /* ---------- 曝光三角联动 ---------- */
+  var APERTS = [1.4,2,2.8,4,5.6,8,11,16,22];
+  var SHUTTERS = [1/8000,1/4000,1/2000,1/1000,1/500,1/250,1/125,1/60,1/30,1/15,1/8,1/4,1/2,1,2,4,8,15,30];
+  var ISO_STOPS = [50,64,80,100,125,160,200,250,320,400,500,640,800,1000,1250,1600,2000,2500,3200,4000,5000,6400,8000,10000,12800];
+  var EV = 14;
+  var state = { ap: 5.6, sh: 1/500, iso: 100 };
+
+  function clamp(v,min,max){ return Math.min(max, Math.max(min,v)); }
+  function fmtShutter(t){ return t >= 1 ? t + '″' : '1/' + Math.round(1/t); }
+  function isoFrom(sh, ap){
+    // log2(iso/100) = log2(N^2/t) - EV
+    return clamp(Math.pow(2, Math.log2(ap*ap/sh) - EV) * 100, 50, 12800);
+  }
+  function shutterFrom(ap, iso){
+    // log2(N^2/t) = EV + log2(iso/100)
+    return clamp(ap*ap / Math.pow(2, EV + Math.log2(iso/100)), 1/8000, 30);
+  }
+  function nearestIdx(arr, val){
+    var best = 0, diff = Infinity;
+    for(var i=0;i<arr.length;i++){
+      var d = Math.abs(arr[i] - val);
+      if(d < diff){ diff = d; best = i; }
+    }
+    return best;
+  }
+
+  var apSlider = document.getElementById('ap-slider');
+  var shSlider = document.getElementById('sh-slider');
+  var isoSilder = document.getElementById('iso-slider');
+  var apVal = document.getElementById('ap-val');
+  var shVal = document.getElementById('sh-val');
+  var isoVal = document.getElementById('iso-val');
+  var triAp = document.getElementById('tri-ap');
+  var triSh = document.getElementById('tri-sh');
+  var triIso = document.getElementById('tri-iso');
+
+  function render(){
+    if(apVal){ apVal.textContent = 'f/' + state.ap; triAp.textContent = 'f/' + state.ap; }
+    if(shVal){ shVal.textContent = fmtShutter(state.sh); triSh.textContent = fmtShutter(state.sh); }
+    if(isoVal){ isoVal.textContent = Math.round(state.iso); triIso.textContent = Math.round(state.iso); }
+    if(apSlider){ apSlider.value = nearestIdx(APERTS, state.ap); }
+    if(shSlider){ shSlider.value = nearestIdx(SHUTTERS, state.sh); }
+    if(isoSilder){ isoSilder.value = nearestIdx(ISO_STOPS, state.iso); }
+  }
+  render();
+
+  if(apSlider){
+    apSlider.addEventListener('input', function(){
+      var ap = APERTS[parseInt(apSlider.value,10)];
+      var sh = shutterFrom(ap, state.iso);
+      // 若快门被钳制，用 ISO 补
+      var iso = isoFrom(sh, ap);
+      state.ap = ap; state.sh = sh; state.iso = iso;
+      render();
+    });
+  }
+  if(shSlider){
+    shSlider.addEventListener('input', function(){
+      var sh = SHUTTERS[parseInt(shSlider.value,10)];
+      var iso = isoFrom(sh, state.ap);
+      var ap = state.ap;
+      // 若 ISO 被钳制，反推光圈
+      if(iso >= 12800 || iso <= 50){ ap = Math.sqrt(sh * Math.pow(2, EV + Math.log2(clamp(iso,50,12800)/100))); ap = clamp(ap, 1.4, 22); iso = isoFrom(sh, ap); }
+      state.sh = sh; state.iso = iso; state.ap = ap;
+      render();
+    });
+  }
+  if(isoSilder){
+    isoSilder.addEventListener('input', function(){
+      var iso = ISO_STOPS[parseInt(isoSilder.value,10)];
+      state.iso = iso;
+      state.sh = shutterFrom(state.ap, iso);
+      render();
+    });
+  }
+
+  /* 星空 500 / NPF 示例 */
+  var rule500 = document.getElementById('rule500');
+  var npf = document.getElementById('npf');
+  if(rule500){ rule500.textContent = '20s'; }
+  if(npf){ npf.textContent = '9s'; }
+
+  /* ---------- 上传区（示意） ---------- */
+  function bindUpload(zoneId, previewId){
+    var zone = document.getElementById(zoneId);
+    var preview = document.getElementById(previewId);
+    if(!zone) return;
+    function activate(){
+      if(preview) preview.hidden = false;
+      zone.classList.add('is-hover');
+      zone.querySelector('p').textContent = '已添加文件 · 原型示意';
+      setTimeout(function(){ zone.classList.remove('is-hover'); }, 400);
+    }
+    zone.addEventListener('click', activate);
+    zone.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); activate(); } });
+    zone.addEventListener('dragover', function(e){ e.preventDefault(); zone.classList.add('is-hover'); });
+    zone.addEventListener('dragleave', function(){ zone.classList.remove('is-hover'); });
+    zone.addEventListener('drop', function(e){ e.preventDefault(); activate(); });
+  }
+  bindUpload('upload-inspire', 'inspire-preview');
+  bindUpload('upload-review', 'review-preview');
+
+  /* ---------- 灵感生成按钮 ---------- */
+  var btnInspire = document.getElementById('btn-inspire');
+  var inspireText = document.getElementById('inspire-text');
+  if(btnInspire && inspireText){
+    btnInspire.addEventListener('click', function(){
+      var txt = inspireText.value.trim();
+      if(txt){ toast('已生成方案 · 请查看下方「方案输出」'); }
+      else { toast('请先输入一句话描述'); inspireText.focus(); }
+    });
+    document.querySelectorAll('.example-chips .chip').forEach(function(chip){
+      chip.addEventListener('click', function(){
+        inspireText.value = chip.textContent.trim();
+        inspireText.focus();
+      });
+    });
+  }
+
+  /* ---------- 模态 & Toast ---------- */
+  var modal = document.getElementById('modal-data');
+  var btnOpen = document.getElementById('btn-open-data');
+  var toastEl = document.getElementById('toast');
+  var toastText = document.getElementById('toast-text');
+  var toastTimer = null;
+
+  function toast(msg){
+    if(!toastEl || !toastText) return;
+    toastText.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, 2400);
+  }
+
+  if(btnOpen && modal){
+    btnOpen.addEventListener('click', function(){ modal.classList.add('is-open'); });
+    modal.querySelectorAll('[data-close-modal]').forEach(function(el){
+      el.addEventListener('click', function(){ modal.classList.remove('is-open'); });
+    });
+    document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ modal.classList.remove('is-open'); } });
+  }
+
+  var btnSettings = document.getElementById('btn-settings');
+  if(btnSettings){ btnSettings.addEventListener('click', function(){ toast('全局设置 · 原型占位，后续接入'); }); }
+
+  /* 键盘可访问：stage-card Enter 已由 data-nav 统一处理 */
+})();
+</script>
+</body>
+</html>

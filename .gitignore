@@ -1,0 +1,39 @@
+# 虚拟环境
+.venv/
+venv/
+
+# 密钥与本地配置（API 密钥等，勿提交）
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# Agent / 工作区数据
+.workbuddy/
+
+# 日志
+logs/
+*.log
+
+# 测试覆盖率
+.coverage
+htmlcov/
+
+# 打包产物
+dist/
+build/
+.eggs/

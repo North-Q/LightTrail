@@ -1,0 +1,3 @@
+# LightTrail 运行时依赖
+# 当前最小链路仅依赖 openai SDK（学校开发者平台为 OpenAI 兼容接口）
+openai>=1.40.0
