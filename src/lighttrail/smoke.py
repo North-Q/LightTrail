@@ -57,7 +57,7 @@ def test_registry_and_dispatch() -> None:
     plans = result["等效方案"]
     check("曝光不变：ISO 优先方案 ISO 仍为 400", plans["ISO 优先"]["iso"] == 400)
     check("曝光不变：快门优先方案快门仍为 30s", plans["快门优先"]["shutter_speed"] == 30)
-    check("光圈优先 f/2.8 -> f/4 为 -1 档", abs(plans["光圈优先"]["f_stop"] - 4.0) < 0.01)
+    check("曝光不变：光圈优先方案光圈仍为 f/2.8", abs(plans["光圈优先"]["f_stop"] - 2.8) < 0.01)
 
     err = json.loads(registry.dispatch("no_such_tool", "{}"))
     check("未知工具返回 error", "error" in err)

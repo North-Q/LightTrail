@@ -26,3 +26,64 @@
 - 沟通口语化、简洁直接；正式产出（文档/README/代码注释/邮件）用书面化
 - 涉及外部动作（发邮件、发布、对外提交）必须先经小北确认
 - 当前阶段：Agent 骨架已完成，需求文档 v0.2（决策引擎整合版）已输出，下一步是决策主线工具扩展（参数推荐/天文查询/天气）
+
+## 代码风格（基于现有代码反推，新增代码遵守）
+
+### Python 规范
+- `from __future__ import annotations` + 完整类型注解
+- 模块级 docstring 说明用途和设计要点
+- 函数/类 docstring 用 Google 风格（Args/Returns/Raises）
+- 注释和 docstring 用中文
+- ruff: line-length=100, target-version=py310
+- 常量大写下划线（如 `_SERIAL_LOCK`、`MAX_TOOL_ROUNDS`）
+- 私有方法前缀下划线（如 `_run_loop`、`_build_messages`）
+- 分区注释：`# ------ 对外接口 ------`
+- 日志用 % 占位符：`logger.warning("工具 %s -> %s", name, result)`
+- 异常：自定义异常类（如 `LLMError`），宽泛捕获处标 `# noqa: BLE001`
+
+### 面向用户的工具返回
+- 工具返回值字段名用中文（如 "光圈优先"、"曝光总量变化"）
+- 工具 `description` 用中文，详细说明参数含义和适用场景
+- 参数 `description` 给具体示例（如 "如 2.8 表示 f/2.8"）
+
+## 目录结构
+```
+src/lighttrail/
+├── config.py          # 配置加载（.env）
+├── cli.py             # 命令行入口
+├── llm/client.py      # OpenAI 兼容客户端（串行锁 + 重试）
+├── agent/core.py      # Agent 主循环（多轮 + 工具调用）
+├── agent/tools.py     # 工具注册器（@registry.tool 装饰器）
+├── tools/             # 具体工具实现（basic.py、exposure.py）
+└── smoke.py           # 离线冒烟测试（历史遗留，有断言 bug，优先用 pytest）
+tests/
+├── conftest.py
+├── test_tools.py      # 工具计算正确性 + 边界条件
+└── test_agent.py      # Agent 循环逻辑 + 工具调用链路
+```
+
+## ECNU API 调用模式（见 `llm/client.py`，新增工具遵守）
+- 模块级串行锁：`_SERIAL_LOCK = threading.Lock()`，所有 LLM 调用排队执行
+- 指数退避重试：最多 3 次，基础 1s + 随机抖动
+- 可重试状态码：429、500、502、503、504
+- 超时：连接 30s、读取 120s（容忍 thinking 模式长响应）
+- `temperature=0.2`（工具调用链路用低值保证稳定）
+
+## 测试约定
+- pytest，`testpaths=["tests"]`，`pythonpath=["src"]`
+- 新增工具必须配对应测试，验证计算正确性 + 边界条件
+- Agent 行为测试：验证循环逻辑 + 工具调用链路
+
+## Git 提交规范
+- 分支：main
+- 提交信息用中文，简洁说明改动
+- 涉及 push、PR 等外部动作先确认
+
+## 摄影领域知识（写代码时参考）
+- 题材偏好：风光、火烧云、星空
+- 曝光三角：光圈（f 值）、快门（秒）、ISO，+1 档 = 进光量 ×2
+- 星空摄影：500 法则（500/等效焦距 = 最大曝光秒数）、NPF 法则（更精确，按像素密度算）
+- 长曝光 ND：ND 档位换算（ND8=3 档、ND64=6 档、ND1000=10 档）
+- 天文时刻：蓝调时刻（日出前/日落后天空深蓝）、金色时刻（日出后/日落前低角度暖光）
+- 火烧云：日落前云层被染红，强对流天气傍晚概率更高；反烧是日落后 20-40 分钟东天再染红
+- 器材：松下 S5M2（全画幅）+ 24-105mm F4 / 70-300mm / 契卡 14mm 定焦
