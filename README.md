@@ -24,7 +24,7 @@
   - Base URL：`https://chat.ecnu.edu.cn/open/api/v1`
   - 主模型：`ecnu-max` / `ecnu-plus`
 - 语言：Python（近期主用）
-- 探索大模型在垂直场景（摄影）中的应用方法，产出学位论文相关研究内容
+- 探索大模型在垂直场景（摄影）中的应用方法
 
 ## 目录结构
 
