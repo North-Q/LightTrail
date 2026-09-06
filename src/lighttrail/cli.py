@@ -3,7 +3,8 @@
 用法：
     python -m lighttrail.cli
 
-需先在项目根目录配置 .env（参考 .env.example），填入 ECNU_API_KEY。
+需先在项目根目录配置 .env（参考 .env.example），填入 LLM_API_KEY
+（ECNU_API_KEY 兼容别名亦可）。
 内置命令：/exit 退出；/reset 清空对话历史；/help 帮助。
 """
 
@@ -23,7 +24,7 @@ from lighttrail.tools import (  # noqa: F401  触发全部工具注册
     weather,
 )
 
-BANNER = "LightTrail · 光迹（Agent 骨架 v0.1）—— 输入 /help 查看命令"
+BANNER = "LightTrail · 光迹（拍摄决策引擎）—— 输入 /help 查看命令"
 
 _HELP = """内置命令：
   /exit  退出
@@ -45,10 +46,10 @@ def main() -> int:
 
     settings = load_settings()
     if not settings.has_api_key:
-        print("未检测到有效 API Key。请复制 .env.example 为 .env，填入 ECNU_API_KEY 后重试。")
+        print("未检测到有效 API Key。请复制 .env.example 为 .env，填入 LLM_API_KEY 后重试（ECNU_API_KEY 兼容）。")
         return 1
 
-    client = ChatClient(settings.api_key, settings.base_url)
+    client = ChatClient(settings.api_key, settings.base_url, serial_llm=settings.serial_llm)
     agent = Agent(client, registry, model=settings.model)
 
     print(BANNER)

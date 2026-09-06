@@ -3,7 +3,8 @@
 设计要点：
 - 自 agent/core.py 原样迁出，职责收敛为「循环执行 + 工具结果回传」，
   不再关心上下文组装（context.py）与模型选择（llm/router.py）；
-- 全程串行调用 LLM（平台建议避免并行请求），由 ChatClient 内部锁保证；
+- LLM 并发策略由 ChatClient 的 serial_llm 开关负责（默认串行适配 ECNU，
+  换 API 可关闭），本层不感知、不做假设；
 - `max_tool_rounds` 防止模型陷入无限工具调用。
 """
 

@@ -19,7 +19,7 @@
 ## 技术约定
 - 语言：Python（小北近期主用）
 - LLM：华东师大开发者平台，OpenAI 兼容，Base URL `https://chat.ecnu.edu.cn/open/api/v1`，主模型 `ecnu-max` / `ecnu-plus`
-- 注意：建议串行调用 API；避免并行请求
+- 注意：默认建议串行调用 API（ECNU 平台建议避免并行请求）；并发策略由 `LLM_SERIAL_LLM` 配置（默认 true），换用支持并发的 API 时可关闭，业务代码零改动
 - 项目目录：`D:\Project\LightTrail`（小北所有项目统一放 D:\Project）
 
 ## 协作约定

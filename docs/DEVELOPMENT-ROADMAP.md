@@ -1,11 +1,12 @@
 # LightTrail（光迹）· 开发进程路线图
 
-> **版本**：v2.0
-> **日期**：2026-09-06
+> **版本**：v2.1
+> **日期**：2026-09-07
 > **作者**：架构师 高见远
 > **定位**：指导后续接手的单个 agent 按步骤独立完成每个任务的原子化路线图
-> **依据**：PRD v0.2、架构文档 v2.0（`docs/architecture.md`，演进路径 E1–E8）、现有源码（12 工具已注册）、TODO.md、UI 设计总览
-> **v2.0 变更摘要**：项目已从「741 行骨架 + 2 演示工具」推进到「~2300 行 + 12 个已注册工具 + 28 测试全绿」；阶段划分弃用旧的「按 PRD 功能堆」方式，改为与架构 v2.0 演进路径 **E1–E8** 一一对应，并新增 Web 服务层（E7，SSE 流式）与评估体系（E8）两个阶段。
+> **依据**：PRD v0.3、架构文档 v2.0（`docs/architecture.md`，演进路径 E1–E8）、现有源码（12 工具已注册）、TODO.md、UI 设计总览
+> **v2.0 变更摘要**：项目已从「741 行骨架 + 2 演示工具」推进到「~2300 行 + 12 个已注册工具 + 43 测试全绿」；阶段划分弃用旧的「按 PRD 功能堆」方式，改为与架构 v2.0 演进路径 **E1–E8** 一一对应，并新增 Web 服务层（E7，SSE 流式）与评估体系（E8）两个阶段。
+> **v2.1 变更摘要**（2026-09-07）：同步 PRD v0.3「主动提醒服务」能力族——E3-2 事件记忆增补坐标 + 天气快照字段（复拍提醒 D2.3-07 的数据前提）；§4 待明确事项新增 4.10 主动提醒服务排期。
 
 ---
 
@@ -13,7 +14,7 @@
 
 ### 1.1 项目现状
 
-LightTrail 已完成 Agent 骨架与**决策主线工具层**：`config` / `llm/client` / `agent/core` / `agent/tools` + **12 个已注册工具**（时间、曝光换算、星空 500/NPF、ND 长曝光、太阳时刻/方位、月相、月升月落、银心可见窗口、天气预报、火烧云评分、机位×天象匹配）+ CLI + 28 项 pytest 测试全绿。UI 高保真原型已交付（6 页 SPA，暗色黄昏渐变，移动端双视口验证）。**当前缺口**：记忆与可解释性地基（E3）、模型路由与配额（E4）、决策编排层（E5）、Web 呈现（E7）、评估体系（E8）尚未开始。
+LightTrail 已完成 Agent 骨架与**决策主线工具层**：`config` / `llm/client` / `agent/core` / `agent/tools` + **12 个已注册工具**（时间、曝光换算、星空 500/NPF、ND 长曝光、太阳时刻/方位、月相、月升月落、银心可见窗口、天气预报、火烧云评分、机位×天象匹配）+ CLI + 43 项 pytest 测试全绿。UI 高保真原型已交付（6 页 SPA，暗色黄昏渐变，移动端双视口验证）。**当前缺口**：记忆与可解释性地基（E3）、模型路由与配额（E4）、决策编排层（E5）、Web 呈现（E7）、评估体系（E8）尚未开始。
 
 ### 1.2 阶段划分（对齐架构 v2.0 演进路径）
 
@@ -96,7 +97,7 @@ graph LR
     G1 --> G2
 
     %% 阶段五 E7
-    H1[E7-1 async ChatClient<br/>Semaphore 队列]
+    H1[E7-1 async ChatClient<br/>并发策略可配置]
     H2[E7-2 SessionManager]
     H3[E7-3 FastAPI+SSE]
     H4[E7-4 trace→SSE<br/>桥接]
@@ -188,9 +189,9 @@ graph LR
   3. 新建 `llm/router.py`：实现能力矩阵 `_CAPABILITY_MATRIX = {"ecnu-plus": {"tools": True, "vision": True}, "ecnu-max": {"deep": True}}`；`resolve()` 校验声明意图并返回模型名，非法声明抛 `RouterError`
   4. `core.py` 只留 `Agent` 门面：`__init__` 组装三件套，`run()` / `reason()`（E4-3 落地前先透传）委托
   5. 更新 `agent/__init__.py` 导出
-  6. 测试：现有 28 用例全绿即通过（回归验证门面兼容）；新增 router 能力矩阵用例
+  6. 测试：现有 43 用例全绿即通过（回归验证门面兼容）；新增 router 能力矩阵用例
 - **验收标准**：
-  - `pytest tests/` 28 用例全绿，无改动
+  - `pytest tests/` 43 用例全绿，无改动
   - 新增 `tests/test_router.py`：验证 `resolve(needs_tools=True) == "ecnu-plus"`、`resolve(needs_deep_reasoning=True) == "ecnu-max"`、非法组合抛错
   - `agent/core.py` 行数 < 100
 - **涉及文件**：`agent/{core,loop,context}.py`、`llm/router.py`、`tests/test_router.py`
@@ -285,8 +286,9 @@ graph LR
 - **输出交付物**：
   - `src/lighttrail/memory/events.py`：`EventStore(db_path)`，`add_event(timestamp, location, subject_type, summary, lesson, tags)` / `search_events(query, location, subject_type, limit)`（LIKE 匹配，参数化防注入）/ `to_prompt_section(events)`
   - `MemoryManager.retrieve_events(intent)`：意图含地点/题材时自动检索 top-k 注入（管线入口调用），注册 `search_memory` 工具供 ReAct 主动检索
+  - **事件字段（v0.3 增补，对应 PRD M1.1-05）**：精确坐标（楼栋/公寓级，`coordinates`）、题材（`subject_type`）、次数统计（聚合）、**当时的天气/天象快照**（`weather_snapshot`：云量 / 火烧云评分 / 月相等，复拍对比 D2.3-07 的基线）、器材参数（后可接 EXIF）
 - **实现步骤**：沿用旧路线图 T2.3 的设计，注入点改为 `build_injections()` 的按需块
-- **验收标准**：添加事件后可检索命中；空库返回空注入；SQLite 文件在 `data/events.db`
+- **验收标准**：添加事件后可检索命中；空库返回空注入；SQLite 文件在 `data/events.db`；**事件含坐标与 weather_snapshot 字段（为 D2.3-07 复拍提醒提供数据前提）**
 - **涉及文件**：`memory/events.py`、`memory/manager.py`、`tools/memory_tool.py`（search_memory 工具）、`tests/test_events.py`
 - **难度**：⭐⭐⭐
 
@@ -414,7 +416,7 @@ graph LR
 
 - **目标**：`tools/photo_analysis.py` 注册 `analyze_photo`——工具内部自建 ChatClient 调 ecnu-plus 多模态（EXIF+画面 → 构图/曝光/色彩 + 可执行处方）。
 - **前置依赖**：E4-1（router 记模型）、E4-2（配额记账）
-- **输入上下文**：PRD D4-01~04；架构 v2.0 §2.4 智能工具约束（内部 LLM 深度=1 防递归、走同一把串行锁与配额账本、输出走 schema）
+- **输入上下文**：PRD D4-01~04；架构 v2.0 §2.4 智能工具约束（内部 LLM 深度=1 防递归、走同一个并发边界与配额账本、输出走 schema）
 - **输出交付物**：
   - 依赖：`Pillow>=10.0`、`exifread>=3.0`
   - `tools/photo_analysis.py`：`_encode_image`（最长边 ≤1024px 缩放控 token）、`_read_exif`、`analyze_photo(image_path, focus)`；输出经 `InfectionSchema`（E5-2 的 pydantic 模型）校验
@@ -456,14 +458,14 @@ graph LR
 
 ---
 
-#### E7-1 async ChatClient 与全局 LLM 队列
+#### E7-1 async ChatClient 与并发策略
 
-- **目标**：`ChatClient` 新增 `acall()`（async 通道），`asyncio.Semaphore(1)` 全局 LLM 队列保证串行；同步 `chat()` 保留为薄封装（内部 `asyncio.run` 或事件循环复用）。
+- **目标**：`ChatClient` 新增 `acall()`（async 通道）；并发边界由 `serial_llm` 配置驱动（默认 `asyncio.Semaphore(1)` 串行，适配 ECNU；接入支持并发的 API 时调大/关闭）；同步 `chat()` 保留为薄封装（内部 `asyncio.run` 或事件循环复用）。
 - **前置依赖**：E4-1（模型路由）、E4-2（记账在 acall 返回 usage 时顺带完成）
-- **输入上下文**：架构 v2.0 §2.9（执行层：信号量；串行的只是 LLM，非整个系统）
-- **输出交付物**：`llm/client.py` 增 `acall()` / `MiniAsyncClient` 或基于 `openai.AsyncOpenAI`；请求入队可查询队列位置（供 queued 事件）
-- **实现步骤**：会话级队列项 `(future, req)`；`queue_position()` 返回排队序号；超时与重试策略迁移为 async 版本（asyncio.wait_for + 指数退避）
-- **验收标准**：并发发 3 个请求，断言 LLM 调用严格串行（时间戳无重叠）；工具计算/HTTP 数据请求不受信号量约束
+- **输入上下文**：架构 v2.0 §2.9（执行层：并发策略可配置，默认串行；**串行的只是 LLM，不是整个系统**）
+- **输出交付物**：`llm/client.py` 增 `acall()`（基于 `openai.AsyncOpenAI`）；信号量大小由配置注入（`serial_llm=true` 时为 1）；请求入队可查询队列位置（供 queued 事件）
+- **实现步骤**：并发控制收敛在 acall 一处（默认为串行信号量，配置项驱动）；`queue_position()` 返回排队序号；超时与重试策略迁移为 async 版本（asyncio.wait_for + 指数退避）
+- **验收标准**：`serial_llm=true` 时并发 3 请求断言 LLM 调用严格串行（时间戳无重叠）；`serial_llm=false` 时允许并行；工具计算/HTTP 数据请求不受信号量约束
 - **涉及文件**：`llm/client.py`、`tests/test_client_async.py`
 - **难度**：⭐⭐⭐
 
@@ -474,7 +476,7 @@ graph LR
 - **目标**：`api/session.py`——`session_id → {history, PipelineContext, 记忆工作区}`，进程内字典 + JSON 落盘（A-08 对话持久化）。
 - **前置依赖**：E3（记忆层，工作区）
 - **输出交付物**：`SessionManager`：`create() -> session_id`、`get(session_id)`、`save(session)`（JSON 落盘至 `data/sessions/`）、`restore(session_id)`；内存上限 LRU 淘汰
-- **实现步骤**：单进程模型（架构 v2.0 §2.9 已论证水平扩展零收益），无需分布式会话
+- **实现步骤**：默认单进程模型（默认串行配置下单进程即最优，架构 v2.0 §2.9）；`SessionManager` 以 `session_id` 为键，天然与进程无关，未来多 worker 时更换后端即可，接口不变
 - **验收标准**：创建→写入→重启进程→恢复 完整闭环；多会话相互隔离（各自 history 不串）
 - **涉及文件**：`api/session.py`、`tests/test_session.py`
 - **难度**：⭐⭐
@@ -599,19 +601,19 @@ graph LR
 - 注册方式：`@registry.tool(name, description, parameters)` + `tools/__init__.py` 加 import 触发
 - 工具名小写下划线；返回一律 dict（dispatch 自动 json.dumps）；内部不抛异常（返回 `{"error": ...}` 让模型自修正）；入口参数校验
 - description 写清「何时调用」
-- **新增（架构 v2.0）**：智能工具（内部调 LLM）必须满足深度=1 红线、走同一把串行锁/信号量与配额账本、输出过 pydantic 校验
+- **新增（架构 v2.0）**：智能工具（内部调 LLM）必须满足深度=1 红线、走同一个并发边界（`serial_llm` 开关）与配额账本、输出过 pydantic 校验
 
 ### 3.2 LLM 调用规范（更新）
 
-- **串行约束**：CLI 阶段模块级锁；Web 阶段 `asyncio.Semaphore(1)` 全局队列——串行的只是 LLM，数据请求并发
-- **模型路由**：能力声明驱动（`needs_tools`/`needs_vision`/`needs_deep_reasoning`），规则矩阵硬编码可单测；ecnu-max 不支持工具调用，reason 通道 `tools=None`
+- **并发策略（可配置，默认串行）**：由 `Settings.serial_llm` 驱动——CLI 阶段实例级串行锁（锁只包单次往返、重试在锁外）；Web 阶段 async 并发控制（默认 `asyncio.Semaphore(1)`）。串行的只是 LLM，数据请求并发。**ECNU「避免并行请求」是平台建议，不是产品需求**：接入支持并发的 API 时设 `LLM_SERIAL_LLM=false` 即可，业务代码零改动
+- **模型路由**：能力声明驱动（`needs_tools`/`needs_vision`/`needs_deep_reasoning`），能力矩阵可注入（默认矩阵对应 ECNU 双模型；换 API 注入新矩阵即可，单模型全能也支持）；reason 通道 `tools=None`
 - **配额账本**：所有 LLM 调用过 QuotaLedger 记账；管线入口成本预估；水位 >90% 降级 max→plus+thinking 并标注原因
 - **输出契约**：管线内 LLM 输出（Intent/DecisionCard/诊断）全部走 pydantic schema + 校验错误自愈重试（≤2 次）+ 降级 ReAct
 - 容错/超时沿用（429/5xx 退避 3 次；连接 30s 读取 120s）
 
 ### 3.3 配置管理规范（更新）
 
-- 新增环境变量：`LIGHTTRAIL_QUOTA_WARN_THRESHOLD`（默认 0.9）、`LIGHTTRAIL_DATA_DIR`（已规划）等；同步 `.env.example` 与 `Settings` 字段
+- 新增环境变量：`LIGHTTRAIL_QUOTA_WARN_THRESHOLD`（默认 0.9）、`LIGHTTRAIL_DATA_DIR`（已规划）、**`LLM_SERIAL_LLM`（默认 true，平台并发适配开关；接入支持并发的 API 时设 false）** 等；同步 `.env.example` 与 `Settings` 字段
 
 ### 3.4 架构文档一致性约定（新增）
 
@@ -649,6 +651,7 @@ graph LR
 | 4.7 | 对话自动抽取记忆 | ⏳ 保留 P1 | E6-3 只做规则提炼 + 确认队列，LLM 抽取留后续 |
 | 4.8 | 潮汐数据 | ⏳ 暂缓 | MVP 评分仅综合天文+气象 |
 | 4.9 | **D2.2 多机位赶场调度** | ⏳ **待确认** | PRD P1 但路线图未排期；建议 MVP 后（Web 上线、有真实用户数据）再实现——依赖地图通勤 API，且调度价值需要真实使用场景验证 |
+| 4.10 | **主动提醒服务族（v0.3 新增）** | ⏳ **待确认** | PRD v0.3 §8.4：D2.3-06 休息日提醒 / D2.3-07 复拍提醒 / D3.1-04 就近推荐。共享底座（日程/位置感知 + 短临预报评分 + 触达通道），**作为一个能力族排期**而非三个孤岛功能。依赖 E3 记忆层（档案通勤画像 + 事件坐标/天气快照）、触发调度与推送通道（E7-3 SSE 之上扩展）。建议 MVP 后实现（与 4.9 同理：需真实日程/位置数据验证价值） |
 
 ---
 
@@ -663,7 +666,7 @@ src/lighttrail/
 ├── llm/
 │   ├── __init__.py      # 导出 ChatClient, LLMError
 │   └── client.py        # ChatClient.chat(messages, model, tools, temperature)
-│                        #   模块级 _SERIAL_LOCK 串行锁 + 429/5xx 重试 + 超时
+│                        #   ChatClient（实例串行锁可配置，包单次往返） + 429/5xx 重试 + 超时
 ├── agent/
 │   ├── __init__.py      # 导出 Agent, ToolRegistry, ToolError, registry
 │   ├── core.py          # Agent: run(input)->str, reset(), history
@@ -678,7 +681,7 @@ src/lighttrail/
     ├── weather.py       # weather_forecast / sunset_glow_score
     └── site_match.py    # match_sites
 
-tests/                  # 28 用例全绿（含 _new_tests/ 未合并的 23 个，见遗留）
+tests/                  # 43 用例全绿（含 _new_tests/ 未合并的 23 个，见遗留）
 ```
 
 **关键接口签名**（沿用）：
