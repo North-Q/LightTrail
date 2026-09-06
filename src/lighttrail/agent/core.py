@@ -59,6 +59,7 @@ class Agent:
             max_tool_rounds=max_tool_rounds,
             context=self._context,
             recorder=recorder,
+            router=self._router,
         )
         self._system_prompt = system_prompt
         self._messages: list[dict[str, Any]] = []

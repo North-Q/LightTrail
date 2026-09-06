@@ -18,7 +18,7 @@ class FakeChatClient:
         self.calls: list[dict] = []
 
     def chat(self, messages, *, model=None, tools=None, temperature=0.2) -> dict:
-        self.calls.append({"messages": messages, "tools": tools})
+        self.calls.append({"messages": messages, "model": model, "tools": tools})
         return self._responses.pop(0)
 
 
@@ -54,3 +54,24 @@ def test_agent_loop() -> None:
 
     agent.reset()
     assert agent.history == []
+
+
+def test_agent_loop_routes_tools_to_default_model() -> None:
+    """对话循环未显式指定模型时经路由解析为默认工具模型（ecnu-plus）。"""
+    tool_call_msg = {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [
+            {
+                "id": "call_1",
+                "type": "function",
+                "function": {"name": "get_current_time", "arguments": "{}"},
+            }
+        ],
+    }
+    final_msg = {"role": "assistant", "content": "现在是北京时间 2026-08-12 23:40。"}
+    fake = FakeChatClient([tool_call_msg, final_msg])
+    agent = Agent(fake, registry)  # model 缺省 → 路由解析
+    agent.run("现在几点？")
+    assert fake.calls[0]["model"] == "ecnu-plus"
+    assert fake.calls[1]["model"] == "ecnu-plus"

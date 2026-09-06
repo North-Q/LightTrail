@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from lighttrail.llm.router import ModelRouter, RouterError
+from lighttrail.llm.router import ModelRouter, RouteIntent, RouterError
 
 
 def test_default_no_need() -> None:
@@ -86,3 +86,20 @@ def test_no_model_satisfies_raises() -> None:
     )
     with pytest.raises(RouterError):
         router.resolve(needs_vision=True)
+
+
+def test_route_intent_resolves_default_matrix() -> None:
+    """RouteIntent 在默认矩阵上解析：工具/视觉 → plus，深推理 → max，默认 → plus。"""
+    router = ModelRouter()
+    assert RouteIntent.TOOLS.resolve(router) == "ecnu-plus"
+    assert RouteIntent.VISION.resolve(router) == "ecnu-plus"
+    assert RouteIntent.DEEP_REASONING.resolve(router) == "ecnu-max"
+    assert RouteIntent.DEFAULT.resolve(router) == "ecnu-plus"
+
+
+def test_route_intent_resolves_custom_matrix() -> None:
+    """RouteIntent 在自定义矩阵上解析（不绑定品牌，单模型全能由矩阵表达）。"""
+    router = ModelRouter(default_model="alpha", reason_model="omega")
+    assert RouteIntent.TOOLS.resolve(router) == "alpha"
+    assert RouteIntent.DEEP_REASONING.resolve(router) == "omega"
+    assert RouteIntent.DEFAULT.resolve(router) == "alpha"

@@ -18,6 +18,7 @@ from lighttrail.agent.context import ContextBuilder
 from lighttrail.agent.tools import ToolRegistry
 from lighttrail.infra.trace import Recorder, null_trace
 from lighttrail.llm.client import ChatClient
+from lighttrail.llm.router import ModelRouter, RouteIntent
 
 logger = logging.getLogger("lighttrail.agent")
 
@@ -37,6 +38,7 @@ class ReActLoop:
         max_tool_rounds: int = MAX_TOOL_ROUNDS,
         context: ContextBuilder | None = None,
         recorder: Recorder | None = None,
+        router: ModelRouter | None = None,
     ) -> None:
         self._client = client
         self._registry = registry
@@ -44,6 +46,7 @@ class ReActLoop:
         self._max_tool_rounds = max_tool_rounds
         self._context = context or ContextBuilder()
         self._recorder: Recorder = recorder or null_trace
+        self._router = router
 
     def run(self, messages: list[dict[str, Any]], *, system_prompt: str | None = None) -> str:
         """执行一轮 ReAct 循环，就地追加 messages 历史。
@@ -68,7 +71,7 @@ class ReActLoop:
             started = time.perf_counter()
             resp = self._client.chat(
                 request_messages,
-                model=self._model,
+                model=self._resolve_model(),
                 tools=tools,
             )
             self._recorder.record_llm(
@@ -86,6 +89,14 @@ class ReActLoop:
 
         logger.warning("工具调用超过 %d 轮，终止本轮对话", self._max_tool_rounds)
         return "（工具调用次数过多，本轮对话已终止。请简化问题或换一种问法。）"
+
+    def _resolve_model(self) -> str | None:
+        """解析本轮对话模型：显式指定优先，否则按「需要工具调用」意图走路由。"""
+        if self._model is not None:
+            return self._model
+        if self._router is not None:
+            return RouteIntent.TOOLS.resolve(self._router)
+        return None
 
     def _execute_tool_calls(
         self,

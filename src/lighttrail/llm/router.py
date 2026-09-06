@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from enum import Enum
+
 from lighttrail.config import DEFAULT_MODEL, DEFAULT_MODEL_REASON
 
 # 合法能力名（供声明校验）
@@ -28,6 +30,42 @@ _INTENT_TO_CAP = {
     "needs_vision": "vision",
     "needs_deep_reasoning": "deep",
 }
+
+
+class RouteIntent(Enum):
+    """路由意图声明：调用方按「需要什么能力」声明，不直接点名模型品牌。
+
+    成员：
+        DEFAULT: 默认对话（不小于任何额外能力声明，路由回默认模型）。
+        TOOLS: 需要工具调用。
+        VISION: 需要图像理解。
+        DEEP_REASONING: 需要深推理。
+    """
+
+    DEFAULT = "default"
+    TOOLS = "tools"
+    VISION = "vision"
+    DEEP_REASONING = "deep_reasoning"
+
+    def resolve(self, router: ModelRouter) -> str:
+        """按本意图在指定 router 上解析模型名（组合意图请直接调 resolve 参数版）。
+
+        Args:
+            router: 能力矩阵驱动的选择器。
+
+        Returns:
+            满足本意图的模型名。
+
+        Raises:
+            RouterError: 矩阵中没有任何模型满足声明。
+        """
+        if self is RouteIntent.TOOLS:
+            return router.resolve(needs_tools=True)
+        if self is RouteIntent.VISION:
+            return router.resolve(needs_vision=True)
+        if self is RouteIntent.DEEP_REASONING:
+            return router.resolve(needs_deep_reasoning=True)
+        return router.resolve()
 
 
 class RouterError(Exception):

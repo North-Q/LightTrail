@@ -76,6 +76,20 @@
   pytest 88 全绿；ruff 0 告警；smoke 19 项通过。
 
 
+
+### E4-1 ModelRouter 能力矩阵（收尾）— 已提交
+
+- **能力矩阵可注入已在前序平台中立性重构（ADR-002）中落地，本任务不重做**：
+  - 新增 `RouteIntent` 意图声明枚举（DEFAULT/TOOLS/VISION/DEEP_REASONING），
+    调用方按能力声明路由，不点名模型品牌；
+  - `ReActLoop` 对话路径接路由：`model` 显式指定优先，否则
+    `RouteIntent.TOOLS.resolve(router)` → 默认工具模型（ecnu-plus）——验收「loop 实测走 plus」通过；
+  - `Agent` 把 router 透传给 loop。
+- **平台中立性自查**：未回退品牌硬编码；能力声明、矩阵注入、LLM_ 前缀均沿用 ADR-002；
+  单模型全能（tools+deep 同模型）由矩阵表达，不预设互斥。
+- **测试**：test_router.py 补 RouteIntent 2 用例 + test_agent.py 补 loop 路由 1 用例。
+  pytest 109 全绿；ruff 0 告警。
+
 ### E3-3 语义记忆（精选注入 + double-confirm 写入）— 已提交
 
 - **新增 memory/semantic.py**：`SemanticStore`（data/semantic.json）——`match(intent)`
