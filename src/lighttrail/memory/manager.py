@@ -5,8 +5,9 @@
   ContextBuilder 只关心「有哪些块、各块文本」，不感知具体记忆实现；
 - 四层记忆对应四种注入策略：档案常驻（profile）、事件按需（events，E3-2）、
   语义择优（semantic，E3-3）、短期记忆在对话窗口内由 ContextBuilder 管理；
-- 数据本地化：档案/语义 JSON，事件记忆 SQLite（data/events.db，E3-2）；
-- 事件按需注入：retrieve_events(intent) 由地点/题材规则命中才检索 top-k，不常驻。
+- 数据本地化：档案 JSON / 语义 JSON / 事件 SQLite（data/ 下）；
+- 事件按需注入：retrieve_events(intent) 由地点/题材规则命中才检索 top-k，不常驻；
+- 语义择优注入：SemanticStore.match(intent) 命中规则时注入 1-2 条到档案段旁（第④层）。
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from typing import Any
 
 from lighttrail.memory.events import EventRecord, EventStore, to_prompt_section
 from lighttrail.memory.profile import UserProfile
+from lighttrail.memory.semantic import SemanticStore
 
 
 @dataclass(frozen=True)
@@ -40,6 +42,7 @@ class MemoryManager:
         data_dir: str | Path,
         profile: UserProfile | None = None,
         event_store: EventStore | None = None,
+        semantic_store: SemanticStore | None = None,
     ) -> None:
         """初始化记忆管理器。
 
@@ -47,10 +50,14 @@ class MemoryManager:
             data_dir: 数据目录（profile.json / events.db / semantic.json 所在）。
             profile: 可注入的档案实例；缺省从 data_dir 加载。
             event_store: 可注入的事件存储（测试隔离用）；缺省用 data_dir/events.db。
+            semantic_store: 可注入的语义存储（测试隔离用）；缺省用 data_dir/semantic.json。
         """
         self._data_dir = Path(data_dir)
         self._profile = profile if profile is not None else UserProfile.load(self._data_dir)
         self._events = event_store if event_store is not None else EventStore(self._data_dir / "events.db")
+        self._semantic = (
+            semantic_store if semantic_store is not None else SemanticStore(self._data_dir / "semantic.json")
+        )
 
     # ------ 对外接口 ------
     @property
@@ -98,6 +105,9 @@ class MemoryManager:
         profile_text = self._profile.to_prompt_section()
         if profile_text:
             blocks.append(MemoryBlock("profile", profile_text))
+        semantic_hits = self._semantic.match(intent)
+        if semantic_hits:
+            blocks.append(MemoryBlock("semantic", "\n".join(semantic_hits)))
         events = self.retrieve_events(intent)
         if events:
             blocks.append(MemoryBlock("events", to_prompt_section(events)))
@@ -124,6 +134,40 @@ class MemoryManager:
             subject_type=subject,
             limit=limit,
         )
+
+    def semantic_propose(self, content: str, keywords: list[str] | tuple[str, ...] | None = None) -> int:
+        """暂存一条语义记忆候选（double-confirm 第一步）。
+
+        Args:
+            content: 结论文本。
+            keywords: 命中关键词。
+
+        Returns:
+            候选 ID。
+        """
+        return self._semantic.staged_add(content, keywords)
+
+    def semantic_confirm(self, candidate_id: int) -> bool:
+        """确认候选并落盘（double-confirm 第二步）。
+
+        Args:
+            candidate_id: 候选 ID。
+
+        Returns:
+            是否确认成功。
+        """
+        return self._semantic.confirm(candidate_id)
+
+    def semantic_reject(self, candidate_id: int) -> bool:
+        """否决候选，丢弃不落盘。
+
+        Args:
+            candidate_id: 候选 ID。
+
+        Returns:
+            是否丢弃成功。
+        """
+        return self._semantic.reject(candidate_id)
 
     # ------ 内部实现 ------
     def _extract_location(self, intent: str) -> str | None:

@@ -19,7 +19,7 @@ import pytest
 
 from lighttrail.agent import Agent
 from lighttrail.agent.tools import registry
-from lighttrail.memory import MemoryManager, UserProfile
+from lighttrail.memory import MemoryManager, SemanticStore, UserProfile
 
 
 class _FakeChatClient:
@@ -119,6 +119,92 @@ def test_agent_injects_profile_into_layer_four(memory_dir) -> None:
     system = fake.calls[0]["messages"][0]["content"]
     assert "## 用户档案与语义记忆" in system
     assert "松下 S5M2" in system
+
+
+
+
+# ------ 语义记忆（E3-3）------
+def test_semantic_store_load_and_match(memory_dir) -> None:
+    """semantic.json 存在时按关键词命中注入，无关意图不命中。"""
+    Path(memory_dir, "semantic.json").write_text(
+        json.dumps(
+            {
+                "entries": [
+                    {"content": "偏好低云量+高云为主的晚霞，成功率约 7 成", "keywords": ["火烧云", "晚霞"]},
+                    {"content": "新月前后拍银河出片率最高", "keywords": ["银河", "星空"]},
+                ]
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    store = SemanticStore(memory_dir / "semantic.json")
+    assert store.match("今晚火烧云概率如何") == ["偏好低云量+高云为主的晚霞，成功率约 7 成"]
+    assert store.match("随便聊聊") == []
+
+
+def test_semantic_store_missing_file_returns_empty(memory_dir) -> None:
+    """无 semantic.json：命中为空，不抛错。"""
+    store = SemanticStore(memory_dir / "semantic.json")
+    assert store.match("火烧云") == []
+
+
+def test_semantic_double_confirm_write_flow(memory_dir) -> None:
+    """候选未确认不命中；确认后命中并落盘；重复确认返回 False。"""
+    path = memory_dir / "semantic.json"
+    store = SemanticStore(path)
+    candidate = store.staged_add("低云量火烧云成功率高", ["火烧云"])
+    # 未确认 → 不命中、不落盘
+    assert store.match("火烧云") == []
+    assert not path.exists()
+    # 确认 → 命中 + 落盘
+    assert store.confirm(candidate) is True
+    assert store.match("火烧云") == ["低云量火烧云成功率高"]
+    assert path.exists()
+    # 重复确认同一候选 → False
+    assert store.confirm(candidate) is False
+
+
+def test_semantic_reject_discards_candidate(memory_dir) -> None:
+    """否决候选后不参与命中，也不落盘。"""
+    path = memory_dir / "semantic.json"
+    store = SemanticStore(path)
+    candidate = store.staged_add("污染性结论", ["火烧云"])
+    assert store.reject(candidate) is True
+    assert store.match("火烧云") == []
+    assert not path.exists()
+
+
+def test_semantic_match_limited_to_two(memory_dir) -> None:
+    """命中超过 2 条时只注入前 2 条。"""
+    store = SemanticStore(path=None)
+    for i, kw in enumerate(["火烧云", "晚霞", "霞"]):
+        store.staged_add(f"经验{i}", [kw])
+        store.confirm(i)
+    hits = store.match("火烧云晚霞霞")
+    assert len(hits) == 2
+    assert hits == ["经验0", "经验1"]
+
+
+def test_memory_manager_injections_include_semantic(memory_dir) -> None:
+    """注入顺序：profile → semantic → events；语义未命中时只含 profile/events。"""
+    manager = MemoryManager(memory_dir, semantic_store=SemanticStore(path=None))
+    manager.update_profile({"preferences": ["风光"]})
+    manager.add_event(
+        "2026-07-02T19:05:00+08:00",
+        "临港海边",
+        subject_type="火烧云",
+        summary="晚霞中等偏上",
+    )
+    manager.semantic_propose("低云量火烧云成功率高", ["火烧云"])
+    manager.semantic_confirm(0)
+
+    blocks = manager.build_injections("临港海边拍火烧云")
+    assert [b.name for b in blocks] == ["profile", "semantic", "events"]
+    assert "低云量火烧云成功率高" in blocks[1].text
+
+    uncovered = manager.build_injections("晚上吃饭去哪？")
+    assert [b.name for b in uncovered] == ["profile"]  # 无关意图：无语义、无事件
 
 
 def test_agent_without_memory_omits_layer_four(memory_dir) -> None:

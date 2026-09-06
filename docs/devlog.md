@@ -75,6 +75,18 @@
 - **测试**：新增 tests/test_memory.py 8 用例（读写闭环 / 无档案空注入 / 300 字截断 / 未知字段隔离 / Agent 集成）。
   pytest 88 全绿；ruff 0 告警；smoke 19 项通过。
 
+
+### E3-3 语义记忆（精选注入 + double-confirm 写入）— 已提交
+
+- **新增 memory/semantic.py**：`SemanticStore`（data/semantic.json）——`match(intent)`
+  按关键词规则命中注入最多 2 条；写入走 **double-confirm**（staged_add 候选池 → confirm/reject
+  显式裁决，未确认不计入命中、不落盘；重复确认/空内容防护），防污染；
+- **MemoryManager**：`build_injections` 注入顺序 profile → semantic → events；
+  门面方法 semantic_propose / semantic_confirm / semantic_reject（E6-3 自动提炼挂载点）；
+- **模板**：data/semantic.example.json（结论型经验样例，E6-3 提炼结果格式对齐）。
+- **测试**：test_memory.py 新增 6 个语义用例（命中/空库/双确认/否决/注入上限/块顺序）。
+  pytest 106 全绿；ruff 0 告警；smoke 19 项通过。
+
 ### E3-2 事件记忆（SQLite 按需检索 + search_memory 工具）— 已提交
 
 - **新增 memory/events.py**：`EventStore`（data/events.db）——add_event / search_events
