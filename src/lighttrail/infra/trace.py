@@ -141,6 +141,7 @@ class TraceReport:
     llm_calls: tuple[dict[str, Any], ...] = ()
     tool_calls: tuple[ToolCallRef, ...] = ()
     steps: tuple[StepRef, ...] = ()
+    degradation: str = ""
 
     @property
     def sources(self) -> tuple[SourceRef, ...]:

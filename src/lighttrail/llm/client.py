@@ -23,6 +23,9 @@ from typing import Any
 
 from openai import OpenAI
 
+from lighttrail.config import DEFAULT_MODEL
+from lighttrail.infra.quota import QuotaLedger
+
 logger = logging.getLogger("lighttrail.llm")
 
 # 重试策略：最多 3 次，基础退避 1s（含随机抖动）
@@ -55,11 +58,14 @@ class ChatClient:
         *,
         timeout: tuple[float, float] = (30.0, 120.0),
         serial_llm: bool = True,
+        quota: QuotaLedger | None = None,
     ) -> None:
         self._client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
         self._serial_llm = serial_llm
         # 实例级串行锁：仅当 serial_llm=True 时启用，且只保护单次 API 往返
         self._lock = threading.Lock()
+        # 配额账本（E4-2）：成功响应后按 usage 记账；未注入时零开销不记账
+        self._quota = quota
 
     def chat(
         self,
@@ -93,6 +99,7 @@ class ChatClient:
                 # 串行开关只包住单次往返；重试在锁外，因此并发模式下
                 # 多个调用各自重试互不阻塞
                 resp = self._request_once(payload)
+                self._record_usage(payload, resp)
                 return self._to_message_dict(resp)
             except Exception as exc:  # noqa: BLE001 - 需要统一判定可重试性
                 last_exc = exc
@@ -102,6 +109,22 @@ class ChatClient:
                 logger.warning("LLM 调用失败（第 %d 次），%.1fs 后重试：%s", attempt + 1, backoff, exc)
                 time.sleep(backoff)
         raise LLMError(f"LLM 调用失败：{last_exc}") from last_exc
+
+    def _record_usage(self, payload: dict[str, Any], resp: Any) -> None:
+        """成功响应后把 usage 折算为 credits 记账（配额账本，E4-2）。"""
+        if self._quota is None:
+            return
+        usage = getattr(resp, "usage", None)
+        if usage is None:
+            return
+        details = getattr(usage, "prompt_tokens_details", None)
+        cached_tokens = int(getattr(details, "cached_tokens", 0) or 0)
+        self._quota.record(
+            str(payload.get("model") or DEFAULT_MODEL),
+            int(usage.prompt_tokens or 0),
+            int(usage.completion_tokens or 0),
+            cached_input_tokens=cached_tokens,
+        )
 
     def _request_once(self, payload: dict[str, Any]):
         """发送单次请求：serial_llm=True 时经串行锁，否则直接调用。"""

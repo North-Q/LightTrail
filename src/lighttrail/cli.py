@@ -15,6 +15,7 @@ import sys
 
 from lighttrail.agent import Agent, registry
 from lighttrail.config import load_settings
+from lighttrail.infra.quota import QuotaLedger
 from lighttrail.llm import ChatClient
 from lighttrail.memory import MemoryManager
 from lighttrail.tools import (  # noqa: F401  触发全部工具注册
@@ -50,7 +51,12 @@ def main() -> int:
         print("未检测到有效 API Key。请复制 .env.example 为 .env，填入 LLM_API_KEY 后重试（ECNU_API_KEY 兼容）。")
         return 1
 
-    client = ChatClient(settings.api_key, settings.base_url, serial_llm=settings.serial_llm)
+    client = ChatClient(
+        settings.api_key,
+        settings.base_url,
+        serial_llm=settings.serial_llm,
+        quota=QuotaLedger(warn_threshold=settings.quota_warn_threshold),
+    )
     agent = Agent(
         client,
         registry,

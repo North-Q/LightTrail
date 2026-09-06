@@ -81,6 +81,7 @@ class Settings:
     model_reason: str
     serial_llm: bool
     data_dir: str
+    quota_warn_threshold: float
 
     @property
     def has_api_key(self) -> bool:
@@ -103,4 +104,5 @@ def load_settings() -> Settings:
             DEFAULT_SERIAL_LLM,
         ),
         data_dir=os.getenv("LIGHTTRAIL_DATA_DIR", DEFAULT_DATA_DIR),
+        quota_warn_threshold=float(os.getenv("LIGHTTRAIL_QUOTA_WARN_THRESHOLD", "0.9")),
     )

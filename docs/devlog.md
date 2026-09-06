@@ -77,6 +77,19 @@
 
 
 
+
+### E4-2 QuotaLedger 配额账本 — 已提交
+
+- **新增 infra/quota.py**：`QuotaLedger`——`record(model, in, out, cached_in)` 按计价表折算 credits、
+  `estimate(CallPlan)` 管线成本预估、`check(estimate)` 三窗口放行判定（5h / 日 / 30 天滚动）、
+  `usage()` 水位快照、`degrade(intent, router)` 降级建议文本（随 TraceReport.degradation 输出）。
+- **平台中立性（ADR-002）**：计价表（`Pricing`）与降级链（`degrade_map`，按**能力**表达如 deep→tools+thinking）
+  全部可注入，默认值对齐 ECNU 官方计价；目标模型名由 ModelRouter 矩阵解析，**不硬编码 ecnu-max → ecnu-plus**。
+- **接线**：`ChatClient(quota=)` 成功响应后按 usage 自动记账（含缓存命中价）；
+  `Settings.quota_warn_threshold`（LIGHTTRAIL_QUOTA_WARN_THRESHOLD，默认 0.9）；cli 注入账本。
+- **测试**：新增 tests/test_quota.py 13 用例（记账/预估/窗口/放行/降级可注入/client 集成/参数校验）。
+  pytest 122 全绿；ruff 0 告警；smoke 19 项通过。
+
 ### E4-1 ModelRouter 能力矩阵（收尾）— 已提交
 
 - **能力矩阵可注入已在前序平台中立性重构（ADR-002）中落地，本任务不重做**：
