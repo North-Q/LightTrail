@@ -9,7 +9,13 @@ from __future__ import annotations
 import sys
 
 from lighttrail.agent import Agent, registry
-from lighttrail.tools import basic, exposure  # noqa: F401  触发工具注册
+from lighttrail.tools import (  # noqa: F401  触发全部工具注册
+    astronomy,
+    basic,
+    exposure,
+    site_match,
+    weather,
+)
 
 PASSED = 0
 
@@ -39,10 +45,13 @@ class FakeChatClient:
 def test_registry_and_dispatch() -> None:
     print("1) 工具注册与分发")
     schemas = registry.to_openai_schema()
-    check(f"schema 共 {len(schemas)} 个工具", len(schemas) == 2)
+    check(f"schema 共 {len(schemas)} 个工具", len(schemas) >= 2)
     names = {s["function"]["name"] for s in schemas}
     check("包含 get_current_time", "get_current_time" in names)
     check("包含 equivalent_exposure", "equivalent_exposure" in names)
+    check("包含星空工具（star_shutter_rule）", "star_shutter_rule" in names)
+    check("包含天气工具（weather_forecast）", "weather_forecast" in names)
+    check("包含机位匹配工具（match_sites）", "match_sites" in names)
     check("schema 含 parameters", all("parameters" in s["function"] for s in schemas))
 
     import json

@@ -60,12 +60,8 @@
 
 ## 工程遗留（接手 agent 留意）
 
-- [ ] `_new_tests/` 未并入 `tests/`（pyproject testpaths 只认 tests/，直接 pytest 会漏 23 个用例）
-- [ ] `cli.py` 只 import basic/exposure，`astronomy/weather/site_match` 未在真实 CLI 注册
-- [ ] `.gitignore` 未排除 `data/`（后续记忆数据入库会泄露）
-- [ ] `smoke.py` 第 60 行断言 bug（名实不符，pytest 版已修正，smoke.py 未动）
-- [ ] ruff 13 处告警（12 处可 `--fix`）
-- [ ] `_add_astral.py` 为一次性脚本，可删除（astral 依赖已写入 pyproject）
+> 2026-09-07 已全部清理：`_new_tests/` 已并入 tests/（43 用例全绿）；`cli.py` 全量注册 12 工具；
+> `.gitignore` 已排除 `data/`；`_add_astral.py` 已删除；ruff 无告警；`smoke.py` 断言已修正（离线冒烟 19 项通过）。
 
 ## 灵感池：值得拍摄的窗口推荐
 
