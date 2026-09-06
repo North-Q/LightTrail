@@ -13,6 +13,7 @@ from typing import Any
 from lighttrail.agent.context import DEFAULT_CONDUCT_PROMPT, DEFAULT_ROLE_PROMPT, ContextBuilder
 from lighttrail.agent.loop import MAX_TOOL_ROUNDS, ReActLoop
 from lighttrail.agent.tools import ToolRegistry
+from lighttrail.infra.trace import Recorder
 from lighttrail.llm.client import ChatClient
 from lighttrail.llm.router import ModelRouter
 
@@ -31,6 +32,7 @@ class Agent:
         system_prompt: str = DEFAULT_ROLE_PROMPT,
         max_tool_rounds: int = MAX_TOOL_ROUNDS,
         router: ModelRouter | None = None,
+        recorder: Recorder | None = None,
     ) -> None:
         self._client = client
         self._router = router or ModelRouter()
@@ -46,6 +48,7 @@ class Agent:
             model=model,
             max_tool_rounds=max_tool_rounds,
             context=self._context,
+            recorder=recorder,
         )
         self._system_prompt = system_prompt
         self._messages: list[dict[str, Any]] = []

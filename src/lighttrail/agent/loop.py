@@ -11,10 +11,12 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 from lighttrail.agent.context import ContextBuilder
 from lighttrail.agent.tools import ToolRegistry
+from lighttrail.infra.trace import Recorder, null_trace
 from lighttrail.llm.client import ChatClient
 
 logger = logging.getLogger("lighttrail.agent")
@@ -34,12 +36,14 @@ class ReActLoop:
         model: str | None = None,
         max_tool_rounds: int = MAX_TOOL_ROUNDS,
         context: ContextBuilder | None = None,
+        recorder: Recorder | None = None,
     ) -> None:
         self._client = client
         self._registry = registry
         self._model = model
         self._max_tool_rounds = max_tool_rounds
         self._context = context or ContextBuilder()
+        self._recorder: Recorder = recorder or null_trace
 
     def run(self, messages: list[dict[str, Any]], *, system_prompt: str | None = None) -> str:
         """执行一轮 ReAct 循环，就地追加 messages 历史。
@@ -61,10 +65,16 @@ class ReActLoop:
                 request_messages = self._context.to_openai_messages(messages)
             else:
                 request_messages = self._context.build(system_prompt, messages)
+            started = time.perf_counter()
             resp = self._client.chat(
                 request_messages,
                 model=self._model,
                 tools=tools,
+            )
+            self._recorder.record_llm(
+                self._model or "default",
+                prompt_summary=f"消息数 {len(request_messages)}",
+                duration_s=time.perf_counter() - started,
             )
             messages.append(resp)
 
@@ -85,7 +95,7 @@ class ReActLoop:
         """逐条执行工具调用，并把结果以 tool 消息回传模型。"""
         for tc in tool_calls:
             func = tc["function"]
-            result = self._registry.dispatch(func["name"], func.get("arguments", ""))
+            result = self._registry.dispatch(func["name"], func.get("arguments", ""), recorder=self._recorder)
             logger.debug("工具 %s -> %s", func["name"], result[:200])
             messages.append(
                 {
