@@ -8,8 +8,7 @@ from __future__ import annotations
 
 import sys
 
-from lighttrail.agent import Agent, ToolRegistry, registry
-from lighttrail.llm.client import ChatClient
+from lighttrail.agent import Agent, registry
 from lighttrail.tools import basic, exposure  # noqa: F401  触发工具注册
 
 PASSED = 0

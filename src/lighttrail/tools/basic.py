@@ -29,7 +29,7 @@ def get_current_time(tz: str = "+08:00") -> dict:
         sign = 1 if tz.startswith("+") else -1
         hours, minutes = map(int, tz.lstrip("+-").split(":"))
         tzinfo = timezone(sign * (hours * 3600 + minutes * 60))
-    except Exception:
+    except Exception:  # noqa: BLE001  时区解析失败回退 UTC
         tzinfo = timezone.utc
     now = datetime.now(tzinfo)
     return {

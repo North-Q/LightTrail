@@ -15,7 +15,13 @@ import sys
 from lighttrail.agent import Agent, registry
 from lighttrail.config import load_settings
 from lighttrail.llm import ChatClient
-from lighttrail.tools import basic, exposure  # noqa: F401  触发工具注册
+from lighttrail.tools import (  # noqa: F401  触发全部工具注册
+    astronomy,
+    basic,
+    exposure,
+    site_match,
+    weather,
+)
 
 BANNER = "LightTrail · 光迹（Agent 骨架 v0.1）—— 输入 /help 查看命令"
 
@@ -26,7 +32,11 @@ _HELP = """内置命令：
 
 示例提问：
   · 现在几点？
-  · 我现在是 f/4、1/125s、ISO 100，想在不改变曝光的前提下把快门降到 1/30s 该怎么调？
+  · 14mm f/2.8 拍银河，最大快门多少不拖线？
+  · 1/125s 加 ND64 之后快门是多少？
+  · 明天上海日落几点？蓝调和黄金时刻窗口是多少？
+  · 周五傍晚崇明东滩火烧云概率怎么样？
+  · 帮我对比这两个机位今晚拍日落哪个更好（给出经纬度与朝向）
 """
 
 

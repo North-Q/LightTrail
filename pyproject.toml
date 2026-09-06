@@ -11,6 +11,7 @@ license = {text = "MIT"}
 authors = [{name = "亓孟豪"}]
 dependencies = [
     "openai>=1.40.0",
+    "astral>=3.2",
 ]
 
 [project.optional-dependencies]

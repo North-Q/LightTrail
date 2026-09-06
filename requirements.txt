@@ -1,3 +1,5 @@
 # LightTrail 运行时依赖
 # 当前最小链路仅依赖 openai SDK（学校开发者平台为 OpenAI 兼容接口）
 openai>=1.40.0
+# 天文历法计算（日出日落/月相/晨昏蒙影）
+astral>=3.2

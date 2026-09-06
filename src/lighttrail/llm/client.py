@@ -12,7 +12,7 @@ import logging
 import random
 import threading
 import time
-from typing import Any, Optional
+from typing import Any
 
 from openai import OpenAI
 
@@ -43,8 +43,8 @@ class ChatClient:
         self,
         messages: list[dict[str, Any]],
         *,
-        model: Optional[str] = None,
-        tools: Optional[list[dict[str, Any]]] = None,
+        model: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
         temperature: float = 0.2,
     ) -> dict[str, Any]:
         """发起一次对话补全，返回消息字典（兼容 tool_calls 字段）。
@@ -66,7 +66,7 @@ class ChatClient:
             payload["tools"] = tools
 
         with _SERIAL_LOCK:  # 串行执行，符合平台「避免并行请求」的建议
-            last_exc: Optional[Exception] = None
+            last_exc: Exception | None = None
             for attempt in range(_MAX_RETRIES):
                 try:
                     resp = self._client.chat.completions.create(**payload)

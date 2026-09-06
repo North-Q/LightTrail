@@ -3,7 +3,12 @@
 新增工具模块时，在此处加入 import 语句即可自动挂载。
 """
 
-from lighttrail.tools import basic  # noqa: F401  (注册 get_current_time)
-from lighttrail.tools import exposure  # noqa: F401  (注册 equivalent_exposure)
+from lighttrail.tools import (
+    astronomy,
+    basic,
+    exposure,
+    site_match,
+    weather,
+)
 
-__all__ = ["basic", "exposure"]
+__all__ = ["astronomy", "basic", "exposure", "site_match", "weather"]

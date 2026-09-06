@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from lighttrail.agent.tools import ToolRegistry
 from lighttrail.llm.client import ChatClient
@@ -22,7 +22,10 @@ DEFAULT_SYSTEM_PROMPT = """你是 LightTrail（光迹）摄影助手，一位专
 职责：帮助摄影师完成拍摄前的规划与拍摄中的参数决策。
 当前阶段提供以下能力（通过工具实现）：
 - 获取当前时间，用于判断拍摄时机；
-- 曝光参数换算（等效曝光组合）。
+- 曝光参数推荐：等效曝光换算、星空 500/NPF 法则、ND 长曝光换算；
+- 天文查询：日出日落/蓝调黄金/晨昏蒙影、太阳方位、月相月升月落、银心可见窗口；
+- 天气查询：未来 1-7 天云量/能见度/降水/风力，火烧云概率评分；
+- 机位匹配：多机位 × 天象条件对比排序。
 
 行为要求：
 - 回答简洁、专业，使用中文；
@@ -40,7 +43,7 @@ class Agent:
         client: ChatClient,
         registry: ToolRegistry,
         *,
-        model: Optional[str] = None,
+        model: str | None = None,
         system_prompt: str = DEFAULT_SYSTEM_PROMPT,
         max_tool_rounds: int = MAX_TOOL_ROUNDS,
     ) -> None:

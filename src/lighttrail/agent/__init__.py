@@ -3,4 +3,4 @@
 from lighttrail.agent.core import Agent
 from lighttrail.agent.tools import ToolError, ToolRegistry, registry
 
-__all__ = ["Agent", "ToolRegistry", "ToolError", "registry"]
+__all__ = ["Agent", "ToolError", "ToolRegistry", "registry"]

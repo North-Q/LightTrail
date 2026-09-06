@@ -37,3 +37,7 @@ htmlcov/
 dist/
 build/
 .eggs/
+
+# 用户记忆数据
+.data/
+data/

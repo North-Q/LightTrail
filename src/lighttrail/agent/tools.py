@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 logger = logging.getLogger("lighttrail.tools")
 
@@ -36,9 +37,9 @@ class ToolRegistry:
         self,
         func: Callable[..., Any],
         *,
-        name: Optional[str] = None,
+        name: str | None = None,
         description: str = "",
-        parameters: Optional[dict[str, Any]] = None,
+        parameters: dict[str, Any] | None = None,
     ) -> Callable[..., Any]:
         """注册一个工具函数。
 
@@ -63,9 +64,9 @@ class ToolRegistry:
 
     def tool(
         self,
-        name: Optional[str] = None,
+        name: str | None = None,
         description: str = "",
-        parameters: Optional[dict[str, Any]] = None,
+        parameters: dict[str, Any] | None = None,
     ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """装饰器形式的注册入口，供工具模块声明式使用。"""
 
@@ -110,7 +111,7 @@ class ToolRegistry:
             result = meta["func"](**arguments)
         except TypeError as exc:
             return json.dumps({"error": f"工具参数不合法：{exc}"}, ensure_ascii=False)
-        except Exception as exc:  # noqa: BLE001 - 工具错误需回传模型
+        except Exception as exc:
             logger.exception("工具 %s 执行异常", name)
             return json.dumps({"error": f"工具执行失败：{exc}"}, ensure_ascii=False)
 

@@ -25,7 +25,7 @@
 ## 协作约定
 - 沟通口语化、简洁直接；正式产出（文档/README/代码注释/邮件）用书面化
 - 涉及外部动作（发邮件、发布、对外提交）必须先经小北确认
-- 当前阶段：Agent 骨架已完成，需求文档 v0.2（决策引擎整合版）已输出，下一步是决策主线工具扩展（参数推荐/天文查询/天气）
+- 当前阶段：**工具层已完成（12 个已注册工具）**，需求文档 v0.2、架构 v2.0（Web 化：FastAPI + SSE + SPA）、开发路线图 v2.0（任务 E1-1…E8-2）已输出；下一步按路线图走 E1+E2（地基拆分与 TraceRecorder）；项目将以网页形式呈现（E7 Web 服务层）。项目对话记忆详见 `.workbuddy/memory/`。
 
 ## 代码风格（基于现有代码反推，新增代码遵守）
 
@@ -54,7 +54,7 @@ src/lighttrail/
 ├── llm/client.py      # OpenAI 兼容客户端（串行锁 + 重试）
 ├── agent/core.py      # Agent 主循环（多轮 + 工具调用）
 ├── agent/tools.py     # 工具注册器（@registry.tool 装饰器）
-├── tools/             # 具体工具实现（basic.py、exposure.py）
+├── tools/             # 具体工具实现（basic / exposure / astronomy / weather / site_match，共 12 工具）
 └── smoke.py           # 离线冒烟测试（历史遗留，有断言 bug，优先用 pytest）
 tests/
 ├── conftest.py

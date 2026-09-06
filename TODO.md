@@ -1,13 +1,71 @@
 # TODO · LightTrail（光迹）
 
-> 项目待办 + 灵感收集。更新日期：2026-08-15
+> 项目待办 + 灵感收集。更新日期：2026-09-06
+> 任务编号与 `docs/DEVELOPMENT-ROADMAP.md` v2.0（E1-1 … E8-2）对应；架构见 `docs/architecture.md` v2.0。
 
 ## 待办（当前阶段）
 
-- [ ] 决策主线工具扩展：拍摄参数推荐（曝光三角 / 星空 500·NPF / 长曝光 ND）
-- [ ] 天文查询工具（日出日落 / 蓝调金调 / 月相月升）
-- [ ] 天气工具接入（火烧云概率、通透度、云量预报）
-- [ ] 机位 × 天象匹配（D2 规划）
+### 已基线（工具层 12 工具已注册，28 测试全绿）
+
+- [x] 拍摄参数推荐：曝光换算 / 星空 500·NPF / 长曝光 ND（`equivalent_exposure` / `star_shutter_rule` / `nd_long_exposure`）
+- [x] 天文查询：太阳时刻/方位 / 月相 / 月升月落 / 银心可见窗口（`sun_times` / `sun_position` / `moon_phase` / `moon_events` / `galaxy_visibility`）
+- [x] 天气与火烧云：分层云量预报 / 火烧云评分（`weather_forecast` / `sunset_glow_score`）
+- [x] 机位 × 天象匹配（`match_sites`）
+
+### 阶段一：地基拆分与可观测性（E1+E2）
+
+- [ ] E1-1 核心拆分：agent/core 拆 loop / context / router（`Agent.run` 签名不变）
+- [ ] E1-2 ContextBuilder 五层组装（静态前缀 ★ 缓存命中）
+- [ ] E2-1 TraceRecorder + 事件订阅接口（E7-4 SSE 桥接的底座）
+- [ ] E2-2 trace 注入 prompt + TraceReport（M2 依据/置信度来源）
+
+### 阶段二：记忆层与配额感知（E3+E4）
+
+- [ ] E3-1 用户档案（`data/profile.json` 常驻注入 ≤300 token）
+- [ ] E3-2 事件记忆（SQLite 按需检索 + `search_memory` 工具）
+- [ ] E3-3 语义记忆（精选注入，防污染 double-confirm）
+- [ ] E4-1 ModelRouter 能力矩阵（能力声明驱动 + 单测）
+- [ ] E4-2 QuotaLedger 配额账本（预估 / 记账 / 降级链）
+- [ ] E4-3 reason 通道（ecnu-max 纯推理，tools=None）
+
+### 阶段三：决策编排与输出契约（E5）
+
+- [ ] E5-1 Orchestrator 四管线（灵感 / 规划 / 临场 / 复盘）+ PipelineContext
+- [ ] E5-2 结构化输出契约（Intent / DecisionCard pydantic + 自愈 ≤2 次）
+- [ ] E5-3 一句话出方案闭环（端到端 + 追问回落 ReAct）
+
+### 阶段四：多模态与差异化（E6）
+
+- [ ] E6-1 照片分析智能工具（深度=1 红线，EXIF + 画面 → 可执行处方）
+- [ ] E6-2 照片反推方案（图 → 复刻计划）
+- [ ] E6-3 语义记忆提炼（事件聚合 + 规则 + 确认队列）
+
+### 阶段五：Web 服务层（E7）★ 网页形态落地
+
+- [ ] E7-1 async ChatClient + 全局 LLM 队列（Semaphore(1)，串行只限 LLM）
+- [ ] E7-2 SessionManager 会话持久化（JSON 落盘）
+- [ ] E7-3 FastAPI + SSE 路由（五个端点，事件协议见架构 v2.0 §2.8）
+- [ ] E7-4 trace 事件桥接 SSE（「trace 即 UI」实时轨迹面板）
+- [ ] E7-5 前端 SPA 工程化（Vite + React + TS，接高保真原型）
+
+### 阶段六：评估体系（E8）
+
+- [ ] E8-1 黄金用例集 + 管线回归（L2，cassette 回放，~30 条）
+- [ ] E8-2 LLM-as-judge（L3，rubric 打分 + 「工具即裁判」交叉校验）
+
+### 阶段七：开源发布
+
+- [ ] README 重写（Web 形态 + 双入口）、CONTRIBUTING、.env.example 校验
+
+## 工程遗留（接手 agent 留意）
+
+- [ ] `_new_tests/` 未并入 `tests/`（pyproject testpaths 只认 tests/，直接 pytest 会漏 23 个用例）
+- [ ] `cli.py` 只 import basic/exposure，`astronomy/weather/site_match` 未在真实 CLI 注册
+- [ ] `.gitignore` 未排除 `data/`（后续记忆数据入库会泄露）
+- [ ] `pyproject.toml` 缺 `astral` 依赖声明
+- [ ] `smoke.py` 第 60 行断言 bug（名实不符，pytest 版已修正，smoke.py 未动）
+- [ ] 工作区约 2000 行未提交（astronomy/site_match/weather 未跟踪，核心有改动，先提交防丢）
+- [ ] ruff 13 处告警（12 处可 `--fix`）
 
 ## 灵感池：值得拍摄的窗口推荐
 
