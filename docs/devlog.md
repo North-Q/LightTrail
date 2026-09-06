@@ -79,6 +79,36 @@
 
 
 
+
+
+### E5-1 Orchestrator 四管线 + PipelineContext — 已提交
+
+- **orchestrator 包**：`context.py`（PipelineContext：intent/data/scores/card）、
+  `pipelines.py`（四管线：灵感 / 规划 / 临场 / 复盘骨架 + PipelineEnv 运行环境 +
+  代码化评分 + 题材→采集步骤映射）、`orchestrator.py`（意图理解默认模型强约束 JSON →
+  管线调度 → 失败降级 ReAct；dispatch 可注入 Fake 数据源）。
+- **数据采集直调**（非 ReAct 轮次），每步落 TraceRecorder；评分确定性规则（不让模型自评）；
+  综合走 reason 深推理通道（RouteIntent，不写死模型名）。
+- **cli --pipeline**：「一句话出方案」入口（编排层与 CLI 打通）。
+- **测试**：tests/test_orchestrator.py 9 用例（管线注册/模式映射/灵感管线走通落 trace/
+  评分/复盘骨架/plan 端到端/降级 ReAct/卡片上下文携带/渲染完整性）。Fake 数据源 + FakeChatClient，不触网。
+  pytest 141 全绿；ruff 0 告警。
+
+### E5-2 结构化输出契约（pydantic + 自愈校验）— 已提交
+
+> **提交顺序说明**：E5-2 的 schemas（Intent/DecisionCard）被 E5-1 四条管线
+> 作为前置契约依赖，故契约层先行落地提交，随后提交 E5-1 编排（见下一条）。
+
+- **orchestrator/schemas.py**：`Intent`（subject_type/location/time_hint/mode）、
+  `DecisionCard`（conclusion/evidence/confidence 必填——结构性保证 M2 不落空；
+  time_window/locations/params/alternatives/degraded 可选）+ `Source`/`ParamSuggestion`/
+  `LocationSuggestion`；可作 E7 FastAPI 请求/响应模型（白拿 OpenAPI）。
+- **infra/validation.py**：`parse_with_retry(schema, chat, prompt, max_retries=2)`——
+  LLM 输出 → 剥 markdown 围栏/截取 JSON → pydantic 校验 → 失败把错误回传模型自愈
+  （≤2 次）→ 仍失败抛 `SchemaError`（管线捕获降级 ReAct）。
+- **测试**：新增 tests/test_validation.py 6 用例（一次通过/围栏剥离/自愈重试/耗尽抛错/
+  必要字段强制）。
+
 ### E4-3 reason 通道（深推理，thinking 开启）— 已提交
 
 - **Agent.reason 增强**：`reason(prompt, *, system, model, reasoning_effort, temperature=0.3)`——

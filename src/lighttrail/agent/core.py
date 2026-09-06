@@ -160,3 +160,8 @@ class Agent:
     def history(self) -> list[dict[str, Any]]:
         """当前消息历史（只读视图）。"""
         return list(self._messages)
+
+    @property
+    def router(self) -> ModelRouter:
+        """模型路由（供编排层复用同一能力矩阵）。"""
+        return self._router

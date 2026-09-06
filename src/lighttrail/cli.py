@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import argparse
 import logging
 import sys
 
@@ -18,6 +19,7 @@ from lighttrail.config import load_settings
 from lighttrail.infra.quota import QuotaLedger
 from lighttrail.llm import ChatClient
 from lighttrail.memory import MemoryManager
+from lighttrail.orchestrator import Orchestrator
 from lighttrail.tools import (  # noqa: F401  触发全部工具注册
     astronomy,
     basic,
@@ -43,8 +45,17 @@ _HELP = """内置命令：
 """
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+
+    parser = argparse.ArgumentParser(prog="lighttrail", description="LightTrail · 光迹（拍摄决策引擎）")
+    parser.add_argument(
+        "--pipeline",
+        nargs="*",
+        metavar="REQUEST",
+        help="一句话出方案：走决策管线（灵感/规划/临场），如 --pipeline 这周末想去拍银河",
+    )
+    args = parser.parse_args(argv)
 
     settings = load_settings()
     if not settings.has_api_key:
@@ -57,12 +68,19 @@ def main() -> int:
         serial_llm=settings.serial_llm,
         quota=QuotaLedger(warn_threshold=settings.quota_warn_threshold),
     )
+    memory = MemoryManager(settings.data_dir)
     agent = Agent(
         client,
         registry,
         model=settings.model,
-        memory=MemoryManager(settings.data_dir),
+        memory=memory,
     )
+
+    if args.pipeline:
+        request = " ".join(args.pipeline)
+        orchestrator = Orchestrator(client, registry, agent, memory=memory)
+        print(orchestrator.plan(request))
+        return 0
 
     print(BANNER)
     while True:
