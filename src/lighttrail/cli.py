@@ -16,6 +16,7 @@ import sys
 from lighttrail.agent import Agent, registry
 from lighttrail.config import load_settings
 from lighttrail.llm import ChatClient
+from lighttrail.memory import MemoryManager
 from lighttrail.tools import (  # noqa: F401  触发全部工具注册
     astronomy,
     basic,
@@ -50,7 +51,12 @@ def main() -> int:
         return 1
 
     client = ChatClient(settings.api_key, settings.base_url, serial_llm=settings.serial_llm)
-    agent = Agent(client, registry, model=settings.model)
+    agent = Agent(
+        client,
+        registry,
+        model=settings.model,
+        memory=MemoryManager(settings.data_dir),
+    )
 
     print(BANNER)
     while True:

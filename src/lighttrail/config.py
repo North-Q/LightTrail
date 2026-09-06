@@ -31,6 +31,9 @@ DEFAULT_MODEL_REASON = "ecnu-max"  # 强推理模型（1M 上下文，支持 thi
 # 接入支持并发的 API 时设 LLM_SERIAL_LLM=false 即可关闭。
 DEFAULT_SERIAL_LLM = True
 
+# 数据目录（记忆/会话数据本地存放处，已 gitignore）
+DEFAULT_DATA_DIR = "data"
+
 
 def _get_env(*keys: str, default: str = "") -> str:
     """按顺序取第一个非空环境变量（通用前缀优先，兼容别名兜底）。"""
@@ -77,6 +80,7 @@ class Settings:
     model: str
     model_reason: str
     serial_llm: bool
+    data_dir: str
 
     @property
     def has_api_key(self) -> bool:
@@ -98,4 +102,5 @@ def load_settings() -> Settings:
             os.getenv("LLM_SERIAL_LLM", os.getenv("ECNU_SERIAL_LLM", "")),
             DEFAULT_SERIAL_LLM,
         ),
+        data_dir=os.getenv("LIGHTTRAIL_DATA_DIR", DEFAULT_DATA_DIR),
     )

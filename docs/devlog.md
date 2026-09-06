@@ -49,6 +49,7 @@
   `ReActLoop` 每轮 chat 记录 llm 事件、工具分发传 recorder；`Agent(recorder=...)` 透传。
 - **测试**：新增 `tests/test_trace.py` 12 用例。pytest 69 全绿；ruff 0 告警；smoke 19 项通过。
 
+
 ### E2-2 trace 注入 prompt 第⑤层 + TraceReport — 已提交
 
 - **轨迹注入**：`Agent` 把 recorder 接入 ContextBuilder 第⑤层（trace_provider），
@@ -62,3 +63,13 @@
   按工具主字段映射（sun_times→太阳时刻、weather_forecast→每日预报…），未知工具取结果首个业务键。
 - **测试**：test_trace.py 扩展（注入验证 / run_with_trace 切片 / field 标注）+ 新增
   tests/test_confidence.py 6 用例。pytest 80 全绿；ruff 0 告警；smoke 19 项通过。
+
+### E3-1 用户档案记忆（常驻注入）— 已提交
+
+- **新增 memory 包**：`UserProfile`（load / save / update / to_prompt_section ≤300 字）、
+  `MemoryManager` 门面（`build_injections(intent) -> list[MemoryBlock]`，E3-1 先只有 profile 块）、
+  `data/profile.example.json` 模板（camera_body / lenses / preferences / common_locations / skill_level）。
+- **ContextBuilder 第④层接入**：`Agent(memory=...)` 经 profile_provider 注入档案段；无档案时注入空段（行为不变）。
+- **config**：`Settings.data_dir`（`LIGHTTRAIL_DATA_DIR`，默认 data/），cli 接 MemoryManager。
+- **测试**：新增 tests/test_memory.py 8 用例（读写闭环 / 无档案空注入 / 300 字截断 / 未知字段隔离 / Agent 集成）。
+  pytest 88 全绿；ruff 0 告警；smoke 19 项通过。

@@ -16,6 +16,7 @@ from lighttrail.agent.tools import ToolRegistry
 from lighttrail.infra.trace import Recorder, TraceReport, null_trace
 from lighttrail.llm.client import ChatClient
 from lighttrail.llm.router import ModelRouter
+from lighttrail.memory import MemoryManager
 
 DEFAULT_SYSTEM_PROMPT = DEFAULT_ROLE_PROMPT + "\n\n" + DEFAULT_CONDUCT_PROMPT
 
@@ -33,16 +34,21 @@ class Agent:
         max_tool_rounds: int = MAX_TOOL_ROUNDS,
         router: ModelRouter | None = None,
         recorder: Recorder | None = None,
+        memory: MemoryManager | None = None,
     ) -> None:
         self._client = client
         self._router = router or ModelRouter()
         self._recorder: Recorder = recorder or null_trace
+        self._memory = memory
         # system_prompt 参数语义（E1-2 起）：覆盖第①层「角色与使命」，行为准则固定用默认；
+        # 第④层「用户档案+语义记忆」接 MemoryManager（E3-1 先只有档案常驻块）；
         # 第⑤层「会话轨迹摘要」接 recorder（E2-2）：每轮组装的 system 自动包含已发生轨迹
+        profile_provider = self._memory_injection if self._memory is not None else None
         self._context = ContextBuilder(
             role_prompt=system_prompt,
             conduct_prompt=DEFAULT_CONDUCT_PROMPT,
             registry=registry,
+            profile_provider=profile_provider,
             trace_provider=lambda: self._recorder.to_prompt_section(),
         )
         self._loop = ReActLoop(
@@ -55,6 +61,11 @@ class Agent:
         )
         self._system_prompt = system_prompt
         self._messages: list[dict[str, Any]] = []
+
+    # ------ 内部实现 ------
+    def _memory_injection(self) -> str:
+        """按当前意图组装第④层记忆注入文本（E3-1 为档案常驻块，E3-2 起含事件按需）。"""
+        return "\n".join(block.text for block in self._memory.build_injections())
 
     # ------ 对外接口 ------
     def run(self, user_input: str) -> str:
