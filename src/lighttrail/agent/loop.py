@@ -41,12 +41,13 @@ class ReActLoop:
         self._max_tool_rounds = max_tool_rounds
         self._context = context or ContextBuilder()
 
-    def run(self, messages: list[dict[str, Any]], *, system_prompt: str) -> str:
+    def run(self, messages: list[dict[str, Any]], *, system_prompt: str | None = None) -> str:
         """执行一轮 ReAct 循环，就地追加 messages 历史。
 
         Args:
             messages: 会话消息历史（不含 system），助手与工具消息会追加到该列表。
-            system_prompt: 系统提示文本（经 ContextBuilder 组装后发给模型）。
+            system_prompt: 兼容参数：传入时走旧拼接（ContextBuilder.build），
+                缺省使用分层组装（ContextBuilder.to_openai_messages，E1-2 起默认路径）。
 
         Returns:
             最终纯文本回复。
@@ -56,8 +57,12 @@ class ReActLoop:
         """
         tools = self._registry.to_openai_schema()
         for _ in range(self._max_tool_rounds):
+            if system_prompt is None:
+                request_messages = self._context.to_openai_messages(messages)
+            else:
+                request_messages = self._context.build(system_prompt, messages)
             resp = self._client.chat(
-                self._context.build(system_prompt, messages),
+                request_messages,
                 model=self._model,
                 tools=tools,
             )
