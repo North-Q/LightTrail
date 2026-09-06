@@ -6,10 +6,15 @@
 - 三种消费形态：运行时注入 prompt（to_prompt_section，E2-2 接入第⑤层）、
   实时事件流（subscribe，E7-4 挂 SSE 适配器）、事后结构化报告（to_report，
   M2「建议依据 / 来源与置信度」的数据来源）；
-- 置信度不做模型自评：工具来源按规则映射（天文/纯计算 → high，天气等
-  网络数据 → medium，组合/启发式 → low），E2-2 升级为按字段与时效的规则；
+- 置信度不做模型自评：规则表收敛在 infra/confidence.py（确定性 → high、
+  天气预报按时效 → high/medium、启发式组合 → medium、未知 → low），
+  TraceRecorder 只负责把规则结果落进事件与报告；
+- 每条工具来源带主字段标注（field），TraceReport.sources 输出
+  [{tool, field, confidence}] 三元组，供 M2 依据展示与 E8 评估回归；
 - 可关闭：NullTrace 关闭态零开销（不产生事件、不分配 payload），
-  Agent/注册表默认使用它，行为与未接入时完全一致。
+  Agent/注册表默认使用它，行为与未接入时完全一致；
+- to_report(since=cursor) 支持按调用边界切片报告（Agent.run_with_trace 的
+  「本轮」报告依赖它），cursor 在锁内读取保证线程安全。
 
 线程安全：事件列表与监听器在锁内追加/快照，订阅回调在锁外同步派发。
 """
@@ -23,6 +28,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
+
+from lighttrail.infra.confidence import confidence_for_tool
 
 logger = logging.getLogger("lighttrail.trace")
 
@@ -42,22 +49,23 @@ _SOURCE_KEYS = ("数据来源", "来源", "data_source")
 # 圆圈序号（1-20），用于 to_prompt_section 的「①②③」样式
 _CIRCLED_NUMBERS = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳"
 
-# 确定性来源（天文/曝光计算，结果不依赖外部数据）
-_DETERMINISTIC_TOOLS = frozenset(
-    {
-        "get_current_time",
-        "equivalent_exposure",
-        "star_shutter_rule",
-        "nd_long_exposure",
-        "sun_times",
-        "sun_position",
-        "moon_phase",
-        "moon_events",
-        "galaxy_visibility",
-    }
-)
-# 外部数据来源（天气等网络接口）
-_NETWORK_TOOLS = frozenset({"weather_forecast", "sunset_glow_score", "match_sites"})
+# 工具 → 报告主字段（TraceReport.sources 的 field 标注，供 M2「依据」展示）
+_MAIN_FIELD: dict[str, str] = {
+    "get_current_time": "时间",
+    "equivalent_exposure": "等效方案",
+    "star_shutter_rule": "最大快门",
+    "nd_long_exposure": "曝光快门",
+    "sun_times": "太阳时刻",
+    "sun_position": "太阳方位",
+    "moon_phase": "月相",
+    "moon_events": "月升月落",
+    "galaxy_visibility": "银心可见窗口",
+    "weather_forecast": "每日预报",
+    "sunset_glow_score": "评分",
+    "match_sites": "匹配结果",
+}
+# 结果 dict 中不进入主字段的元信息键
+_META_KEYS = frozenset({"数据来源", "来源", "data_source", "说明", "提示", "位置", "时区"})
 
 
 def _truncate(text: str, limit: int) -> str:
@@ -92,11 +100,12 @@ class TraceEvent:
 
 @dataclass(frozen=True)
 class SourceRef:
-    """M2 来源标注：某条建议依据哪个工具来源、置信度如何。"""
+    """M2 来源标注：某条建议依据哪个工具来源、对应字段、置信度如何。"""
 
     tool: str
     data_source: str = ""
     confidence: str = "low"
+    field: str = ""
 
 
 @dataclass(frozen=True)
@@ -108,6 +117,7 @@ class ToolCallRef:
     result_summary: str = ""
     data_source: str = ""
     confidence: str = "low"
+    field: str = ""
     elapsed_ms: float = 0.0
 
 
@@ -136,24 +146,19 @@ class TraceReport:
     def sources(self) -> tuple[SourceRef, ...]:
         """按调用顺序返回来源标注列表（含 data_source 与置信度）。"""
         return tuple(
-            SourceRef(tool=ref.name, data_source=ref.data_source, confidence=ref.confidence)
+            SourceRef(tool=ref.name, data_source=ref.data_source, confidence=ref.confidence, field=ref.field)
             for ref in self.tool_calls
         )
 
 
-def _confidence_for(name: str, data_source: str) -> str:
-    """按规则派生工具来源置信度（不让模型自评）。
-
-    规则：天文/纯计算 → high；外部网络数据 → medium；启发式组合/未知 → low。
-    E2-2 将升级为「按字段与时效」的细粒度规则。
-    """
-    if name in _DETERMINISTIC_TOOLS:
-        return "high"
-    if name in _NETWORK_TOOLS:
-        return "medium"
-    if data_source:
-        return "medium"
-    return "low"
+def _main_field_for(name: str, result_data: dict[str, Any]) -> str:
+    """确定工具来源的主字段：先查映射表，缺省取结果的首个业务键。"""
+    if name in _MAIN_FIELD:
+        return _MAIN_FIELD[name]
+    for key in result_data:
+        if key not in _META_KEYS and not key.startswith("_"):
+            return key
+    return ""
 
 
 def _extract_source(result_data: dict[str, Any]) -> str:
@@ -249,7 +254,8 @@ class TraceRecorder:
         except (ValueError, TypeError):
             result_data = {}
         data_source = _extract_source(result_data)
-        confidence = _confidence_for(name, data_source)
+        confidence = confidence_for_tool(name, result_data)
+        field = _main_field_for(name, result_data)
         result_summary = _summarize_json(result, _MAX_RESULT_CHARS)
         self._emit(
             KIND_TOOL,
@@ -260,6 +266,7 @@ class TraceRecorder:
                 "结果原文": result_text,
                 "数据来源": data_source,
                 "置信度": confidence,
+                "来源字段": field,
                 "耗时_ms": elapsed_ms,
             },
         )
@@ -304,22 +311,33 @@ class TraceRecorder:
             形如「① 调用 sun_times：日出 05:12」的多行文本；无事件时返回空串。
         """
         rows: list[str] = []
+        row_index = 0  # 只对工具/步骤事件计数，LLM 事件不占序号
         with self._lock:
             events = list(self._events)
-        for index, event in enumerate(events, start=1):
+        for event in events:
             if event.kind == KIND_TOOL:
+                row_index += 1
                 payload = event.payload
                 summary = payload.get("结果摘要") or payload.get("结果原文") or ""
-                rows.append(f"{_numbered(index)} 调用 {event.name}：{summary}")
+                rows.append(f"{_numbered(row_index)} 调用 {event.name}：{summary}")
             elif event.kind == KIND_STEP:
+                row_index += 1
                 output = event.payload.get("输出摘要") or ""
-                rows.append(f"{_numbered(index)} {event.name}：{output}")
+                rows.append(f"{_numbered(row_index)} {event.name}：{output}")
         return "\n".join(rows[-limit:])
 
-    def to_report(self) -> TraceReport:
-        """生成结构化报告（LLM 调用概览 + 工具调用链 + 管线步骤 + 来源标注）。"""
+    def to_report(self, since: int = 0) -> TraceReport:
+        """生成结构化报告（LLM 调用概览 + 工具调用链 + 管线步骤 + 来源标注）。
+
+        Args:
+            since: 事件游标，只汇总该游标之后的事件（配合 cursor() 实现
+                「本轮调用」切片；缺省 0 为全量）。
+
+        Returns:
+            结构化报告快照。
+        """
         with self._lock:
-            events = list(self._events)
+            events = list(self._events[since:])
         llm_calls: list[dict[str, Any]] = []
         tool_calls: list[ToolCallRef] = []
         steps: list[StepRef] = []
@@ -335,6 +353,7 @@ class TraceRecorder:
                         result_summary=payload.get("结果摘要", ""),
                         data_source=payload.get("数据来源", ""),
                         confidence=payload.get("置信度", "low"),
+                        field=payload.get("来源字段", ""),
                         elapsed_ms=payload.get("耗时_ms", 0.0),
                     )
                 )
@@ -352,6 +371,11 @@ class TraceRecorder:
             tool_calls=tuple(tool_calls),
             steps=tuple(steps),
         )
+
+    def cursor(self) -> int:
+        """返回当前事件游标（用于 to_report(since=...) 切片）。"""
+        with self._lock:
+            return len(self._events)
 
     def clear(self) -> None:
         """清空已记录事件（新会话开始时使用）。"""
@@ -396,9 +420,13 @@ class NullTrace:
         """关闭态空实现（返回空串）。"""
         return ""
 
-    def to_report(self) -> TraceReport:
+    def to_report(self, since: int = 0) -> TraceReport:
         """关闭态空实现（返回空报告）。"""
         return TraceReport()
+
+    def cursor(self) -> int:
+        """关闭态空实现（返回 0）。"""
+        return 0
 
     def clear(self) -> None:
         """关闭态空实现。"""
