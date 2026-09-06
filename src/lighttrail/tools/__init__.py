@@ -7,8 +7,9 @@ from lighttrail.tools import (
     astronomy,
     basic,
     exposure,
+    memory_tool,
     site_match,
     weather,
 )
 
-__all__ = ["astronomy", "basic", "exposure", "site_match", "weather"]
+__all__ = ["astronomy", "basic", "exposure", "memory_tool", "site_match", "weather"]

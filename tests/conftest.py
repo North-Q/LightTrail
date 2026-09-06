@@ -6,4 +6,11 @@ pyproject.toml 中配置为 src/，无需手动 sys.path 注入。
 """
 
 # 导入即注册：各工具模块分别在 tools/__init__.py 中统一导入
-from lighttrail.tools import astronomy, basic, exposure, site_match, weather  # noqa: F401
+from lighttrail.tools import (  # noqa: F401
+    astronomy,
+    basic,
+    exposure,
+    memory_tool,
+    site_match,
+    weather,
+)

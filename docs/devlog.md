@@ -64,6 +64,7 @@
 - **测试**：test_trace.py 扩展（注入验证 / run_with_trace 切片 / field 标注）+ 新增
   tests/test_confidence.py 6 用例。pytest 80 全绿；ruff 0 告警；smoke 19 项通过。
 
+
 ### E3-1 用户档案记忆（常驻注入）— 已提交
 
 - **新增 memory 包**：`UserProfile`（load / save / update / to_prompt_section ≤300 字）、
@@ -73,3 +74,16 @@
 - **config**：`Settings.data_dir`（`LIGHTTRAIL_DATA_DIR`，默认 data/），cli 接 MemoryManager。
 - **测试**：新增 tests/test_memory.py 8 用例（读写闭环 / 无档案空注入 / 300 字截断 / 未知字段隔离 / Agent 集成）。
   pytest 88 全绿；ruff 0 告警；smoke 19 项通过。
+
+### E3-2 事件记忆（SQLite 按需检索 + search_memory 工具）— 已提交
+
+- **新增 memory/events.py**：`EventStore`（data/events.db）——add_event / search_events
+  （关键词+地点 LIKE、题材精确，参数化防注入，时间倒序）/ occurrence_counts 地点聚合 /
+  to_prompt_section 注入文本；事件字段含 **coordinates（精确坐标）与 weather_snapshot
+  （天气/天象快照：云量/火烧云评分/月相…）**，是 D2.3-07 复拍提醒的数据前提。
+- **MemoryManager**：`retrieve_events(intent)` 地点/题材规则命中才检索 top-k（不常驻），
+  `build_injections` 在档案块后追加 events 块；`add_event` 门面；Agent.run 携带意图文本注入。
+- **新增 tools/memory_tool.py**：注册 `search_memory`（第 13 个工具）——中文结构字段
+  （坐标/快照/器材），ReAct 主动检索入口；默认存储走 settings.data_dir，测试可注入替换。
+- **测试**：新增 tests/test_events.py 12 用例（增查闭环 / 注入安全 / 聚合 / 注入文本 /
+  意图检索 / 工具返回）。pytest 100 全绿；ruff 0 告警；smoke 19 项通过。

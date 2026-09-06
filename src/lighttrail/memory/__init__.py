@@ -5,7 +5,15 @@ E3-2：事件记忆（events.py，SQLite 按需检索）。
 E3-3：语义记忆（semantic.py，精选注入 + double-confirm）。
 """
 
+from lighttrail.memory.events import EventRecord, EventStore, to_prompt_section
 from lighttrail.memory.manager import MemoryBlock, MemoryManager
 from lighttrail.memory.profile import UserProfile
 
-__all__ = ["MemoryBlock", "MemoryManager", "UserProfile"]
+__all__ = [
+    "EventRecord",
+    "EventStore",
+    "MemoryBlock",
+    "MemoryManager",
+    "UserProfile",
+    "to_prompt_section",
+]
