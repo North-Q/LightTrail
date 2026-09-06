@@ -81,6 +81,20 @@
 
 
 
+
+### E5-3 一句话出方案闭环（端到端）— 已提交
+
+- **端到端串联**：`Orchestrator.plan(user_request)`——一句话 → 意图（默认模型强约束 JSON）
+  → 数据采集（直调工具）→ 代码评分 → reason 深推理综合 → DecisionCard → 中文渲染；
+  追问「参数激进一点」经 `_fallback` 转入 ReAct 自由对话，且把最近卡片结论作为
+  背景上下文一并带入（追问可在此基础上调整）。
+- **cli --pipeline**：「python -m lighttrail.cli --pipeline 这周末想去拍银河」输出结构化
+  方案（有 Key 时真实执行；无 Key 提示配置）。
+- **黄金场景验证（E8 黄金用例集雏形）**：tests/test_pipeline_e2e.py——银河灵感、
+  火烧云临场、黄金用例可解析性、CLI 入口（Fake 编排器）4 用例，全部 Fake 数据源 +
+  FakeChatClient，不触网、不依赖真实 API Key。
+- **测试数量**：pytest 145 全绿；ruff 0 告警；smoke 19 项通过。
+
 ### E5-1 Orchestrator 四管线 + PipelineContext — 已提交
 
 - **orchestrator 包**：`context.py`（PipelineContext：intent/data/scores/card）、
