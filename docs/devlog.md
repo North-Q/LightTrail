@@ -4,6 +4,14 @@
 
 ## 2026-09-07
 
+
+### 收尾：TODO 状态同步 + devlog 总结 — 已提交
+
+- TODO.md：阶段一/二/三全部勾选完成（E6/E7/E8 待办保留）。
+- docs/devlog.md：整理条目顺序（E1→E2→E3→E4→E5）并追加收尾总结（commit hash 清单 /
+  剩余任务 / 遗留问题 / 平台中立性审计）。
+- 最终验证：pytest 145 全绿；ruff 0 告警；smoke 19 项通过；仅 commit 未 push。
+
 ### 平台中立性重构（ADR-002）— 已提交
 
 - **改动**：
@@ -16,14 +24,12 @@
 - **遗留修复（本次一并处理）**：文档（AGENTS.md / architecture / DEVELOPMENT-ROADMAP / PRD）中残留的 `LIGHTTRAIL_SERIAL_LLM` 与 ADR-002 的 `LLM_SERIAL_LLM` 命名不一致（会导致按文档配置失效），已统一为 `LLM_SERIAL_LLM`；config.py / client.py / test_router.py / .env.example 补齐末尾换行。
 - **测试数量**：43 全绿（含新增并发策略 + 能力矩阵用例）。
 
-
 ### 前置工程遗留清理 — 已提交
 
 - **smoke.py 断言修正（名实不符）**：schema 计数断言 `== 2` 过期为 12 工具，改为 `>= 2`；导入改为全量注册（astronomy/basic/exposure/site_match/weather）；补充星空/天气/机位匹配工具族成员校验。离线冒烟 19 项检查全通过。
 - **核对并确认已完成的遗留项**：`cli.py` 全量注册 12 工具、`.gitignore` 已排除 `data/`、`_add_astral.py` 已删除（从未入库）、ruff 无告警。
 - **TODO.md**：工程遗留章节更新为已清理状态。
 - **测试数量**：pytest 43 全绿；ruff 0 告警；smoke 19 项通过。
-
 
 ### E1-2 ContextBuilder 五层分段组装 — 已提交
 
@@ -36,7 +42,6 @@
 - **loop.py / core.py 接线**：`ReActLoop.run` 默认走分层组装（system_prompt 参数改为兼容项）；`Agent` 注入 registry 与静态层常量，`system_prompt` 参数语义改为覆盖第①层。
 - **测试**：新增 `tests/test_context.py` 14 用例（分层顺序 / 静态前缀字节稳定 / 工具层缓存刷新 / 预算截断 / 版本号 / Agent 集成）。pytest 57 全绿；ruff 0 告警；smoke 19 项通过。
 
-
 ### E2-1 TraceRecorder + 事件订阅接口 — 已提交
 
 - **新增 `infra/trace.py`**：TraceRecorder 被动记录三类事件（LLM 调用 / 工具调用 / 管线步骤），
@@ -48,7 +53,6 @@
 - **接线**：`ToolRegistry.__init__(recorder=...)` + `dispatch(..., recorder=...)` 写入 tool 事件（含耗时）；
   `ReActLoop` 每轮 chat 记录 llm 事件、工具分发传 recorder；`Agent(recorder=...)` 透传。
 - **测试**：新增 `tests/test_trace.py` 12 用例。pytest 69 全绿；ruff 0 告警；smoke 19 项通过。
-
 
 ### E2-2 trace 注入 prompt 第⑤层 + TraceReport — 已提交
 
@@ -64,7 +68,6 @@
 - **测试**：test_trace.py 扩展（注入验证 / run_with_trace 切片 / field 标注）+ 新增
   tests/test_confidence.py 6 用例。pytest 80 全绿；ruff 0 告警；smoke 19 项通过。
 
-
 ### E3-1 用户档案记忆（常驻注入）— 已提交
 
 - **新增 memory 包**：`UserProfile`（load / save / update / to_prompt_section ≤300 字）、
@@ -75,25 +78,68 @@
 - **测试**：新增 tests/test_memory.py 8 用例（读写闭环 / 无档案空注入 / 300 字截断 / 未知字段隔离 / Agent 集成）。
   pytest 88 全绿；ruff 0 告警；smoke 19 项通过。
 
+### E3-2 事件记忆（SQLite 按需检索 + search_memory 工具）— 已提交
+
+- **新增 memory/events.py**：`EventStore`（data/events.db）——add_event / search_events
+  （关键词+地点 LIKE、题材精确，参数化防注入，时间倒序）/ occurrence_counts 地点聚合 /
+  to_prompt_section 注入文本；事件字段含 **coordinates（精确坐标）与 weather_snapshot
+  （天气/天象快照：云量/火烧云评分/月相…）**，是 D2.3-07 复拍提醒的数据前提。
+- **MemoryManager**：`retrieve_events(intent)` 地点/题材规则命中才检索 top-k（不常驻），
+  `build_injections` 在档案块后追加 events 块；`add_event` 门面；Agent.run 携带意图文本注入。
+- **新增 tools/memory_tool.py**：注册 `search_memory`（第 13 个工具）——中文结构字段
+  （坐标/快照/器材），ReAct 主动检索入口；默认存储走 settings.data_dir，测试可注入替换。
+- **测试**：新增 tests/test_events.py 12 用例（增查闭环 / 注入安全 / 聚合 / 注入文本 /
+  意图检索 / 工具返回）。pytest 100 全绿；ruff 0 告警；smoke 19 项通过。
 
 
+---
 
+### E3-3 语义记忆（精选注入 + double-confirm 写入）— 已提交
 
+- **新增 memory/semantic.py**：`SemanticStore`（data/semantic.json）——`match(intent)`
+  按关键词规则命中注入最多 2 条；写入走 **double-confirm**（staged_add 候选池 → confirm/reject
+  显式裁决，未确认不计入命中、不落盘；重复确认/空内容防护），防污染；
+- **MemoryManager**：`build_injections` 注入顺序 profile → semantic → events；
+  门面方法 semantic_propose / semantic_confirm / semantic_reject（E6-3 自动提炼挂载点）；
+- **模板**：data/semantic.example.json（结论型经验样例，E6-3 提炼结果格式对齐）。
+- **测试**：test_memory.py 新增 6 个语义用例（命中/空库/双确认/否决/注入上限/块顺序）。
+  pytest 106 全绿；ruff 0 告警；smoke 19 项通过。
 
+### E4-1 ModelRouter 能力矩阵（收尾）— 已提交
 
+- **能力矩阵可注入已在前序平台中立性重构（ADR-002）中落地，本任务不重做**：
+  - 新增 `RouteIntent` 意图声明枚举（DEFAULT/TOOLS/VISION/DEEP_REASONING），
+    调用方按能力声明路由，不点名模型品牌；
+  - `ReActLoop` 对话路径接路由：`model` 显式指定优先，否则
+    `RouteIntent.TOOLS.resolve(router)` → 默认工具模型（ecnu-plus）——验收「loop 实测走 plus」通过；
+  - `Agent` 把 router 透传给 loop。
+- **平台中立性自查**：未回退品牌硬编码；能力声明、矩阵注入、LLM_ 前缀均沿用 ADR-002；
+  单模型全能（tools+deep 同模型）由矩阵表达，不预设互斥。
+- **测试**：test_router.py 补 RouteIntent 2 用例 + test_agent.py 补 loop 路由 1 用例。
+  pytest 109 全绿；ruff 0 告警。
 
-### E5-3 一句话出方案闭环（端到端）— 已提交
+### E4-2 QuotaLedger 配额账本 — 已提交
 
-- **端到端串联**：`Orchestrator.plan(user_request)`——一句话 → 意图（默认模型强约束 JSON）
-  → 数据采集（直调工具）→ 代码评分 → reason 深推理综合 → DecisionCard → 中文渲染；
-  追问「参数激进一点」经 `_fallback` 转入 ReAct 自由对话，且把最近卡片结论作为
-  背景上下文一并带入（追问可在此基础上调整）。
-- **cli --pipeline**：「python -m lighttrail.cli --pipeline 这周末想去拍银河」输出结构化
-  方案（有 Key 时真实执行；无 Key 提示配置）。
-- **黄金场景验证（E8 黄金用例集雏形）**：tests/test_pipeline_e2e.py——银河灵感、
-  火烧云临场、黄金用例可解析性、CLI 入口（Fake 编排器）4 用例，全部 Fake 数据源 +
-  FakeChatClient，不触网、不依赖真实 API Key。
-- **测试数量**：pytest 145 全绿；ruff 0 告警；smoke 19 项通过。
+- **新增 infra/quota.py**：`QuotaLedger`——`record(model, in, out, cached_in)` 按计价表折算 credits、
+  `estimate(CallPlan)` 管线成本预估、`check(estimate)` 三窗口放行判定（5h / 日 / 30 天滚动）、
+  `usage()` 水位快照、`degrade(intent, router)` 降级建议文本（随 TraceReport.degradation 输出）。
+- **平台中立性（ADR-002）**：计价表（`Pricing`）与降级链（`degrade_map`，按**能力**表达如 deep→tools+thinking）
+  全部可注入，默认值对齐 ECNU 官方计价；目标模型名由 ModelRouter 矩阵解析，**不硬编码 ecnu-max → ecnu-plus**。
+- **接线**：`ChatClient(quota=)` 成功响应后按 usage 自动记账（含缓存命中价）；
+  `Settings.quota_warn_threshold`（LIGHTTRAIL_QUOTA_WARN_THRESHOLD，默认 0.9）；cli 注入账本。
+- **测试**：新增 tests/test_quota.py 13 用例（记账/预估/窗口/放行/降级可注入/client 集成/参数校验）。
+  pytest 122 全绿；ruff 0 告警；smoke 19 项通过。
+
+### E4-3 reason 通道（深推理，thinking 开启）— 已提交
+
+- **Agent.reason 增强**：`reason(prompt, *, system, model, reasoning_effort, temperature=0.3)`——
+  模型走 `RouteIntent.DEEP_REASONING` 路由（默认矩阵 → 深推理模型，**不写死模型名**）、
+  `tools=None`、`thinking={"type": "enabled"}`、`reasoning_effort` 透传（平台不支持时不计入 payload）；
+- **ChatClient**：`chat()` 新增 `thinking` / `reasoning_effort` 可选透传参数（None 不携带，
+  保持平台中立）；`_to_message_dict` 提取 reasoning_content/thinking 摘要（≤2000 字符）；
+- **推理可见（M2-04）**：reason 调用记 LLM 事件，thinking 摘要以 reason_thinking 步骤入 TraceReport；
+- **测试**：test_reason.py 重写为 5 用例（深推理路由/无工具/thinking/effort 透传/thinking 入报告）。
+  pytest 126 全绿；ruff 0 告警；smoke 19 项通过。
 
 ### E5-1 Orchestrator 四管线 + PipelineContext — 已提交
 
@@ -123,62 +169,71 @@
 - **测试**：新增 tests/test_validation.py 6 用例（一次通过/围栏剥离/自愈重试/耗尽抛错/
   必要字段强制）。
 
-### E4-3 reason 通道（深推理，thinking 开启）— 已提交
+### E5-3 一句话出方案闭环（端到端）— 已提交
 
-- **Agent.reason 增强**：`reason(prompt, *, system, model, reasoning_effort, temperature=0.3)`——
-  模型走 `RouteIntent.DEEP_REASONING` 路由（默认矩阵 → 深推理模型，**不写死模型名**）、
-  `tools=None`、`thinking={"type": "enabled"}`、`reasoning_effort` 透传（平台不支持时不计入 payload）；
-- **ChatClient**：`chat()` 新增 `thinking` / `reasoning_effort` 可选透传参数（None 不携带，
-  保持平台中立）；`_to_message_dict` 提取 reasoning_content/thinking 摘要（≤2000 字符）；
-- **推理可见（M2-04）**：reason 调用记 LLM 事件，thinking 摘要以 reason_thinking 步骤入 TraceReport；
-- **测试**：test_reason.py 重写为 5 用例（深推理路由/无工具/thinking/effort 透传/thinking 入报告）。
-  pytest 126 全绿；ruff 0 告警；smoke 19 项通过。
+- **端到端串联**：`Orchestrator.plan(user_request)`——一句话 → 意图（默认模型强约束 JSON）
+  → 数据采集（直调工具）→ 代码评分 → reason 深推理综合 → DecisionCard → 中文渲染；
+  追问「参数激进一点」经 `_fallback` 转入 ReAct 自由对话，且把最近卡片结论作为
+  背景上下文一并带入（追问可在此基础上调整）。
+- **cli --pipeline**：「python -m lighttrail.cli --pipeline 这周末想去拍银河」输出结构化
+  方案（有 Key 时真实执行；无 Key 提示配置）。
+- **黄金场景验证（E8 黄金用例集雏形）**：tests/test_pipeline_e2e.py——银河灵感、
+  火烧云临场、黄金用例可解析性、CLI 入口（Fake 编排器）4 用例，全部 Fake 数据源 +
+  FakeChatClient，不触网、不依赖真实 API Key。
+- **测试数量**：pytest 145 全绿；ruff 0 告警；smoke 19 项通过。
 
-### E4-2 QuotaLedger 配额账本 — 已提交
 
-- **新增 infra/quota.py**：`QuotaLedger`——`record(model, in, out, cached_in)` 按计价表折算 credits、
-  `estimate(CallPlan)` 管线成本预估、`check(estimate)` 三窗口放行判定（5h / 日 / 30 天滚动）、
-  `usage()` 水位快照、`degrade(intent, router)` 降级建议文本（随 TraceReport.degradation 输出）。
-- **平台中立性（ADR-002）**：计价表（`Pricing`）与降级链（`degrade_map`，按**能力**表达如 deep→tools+thinking）
-  全部可注入，默认值对齐 ECNU 官方计价；目标模型名由 ModelRouter 矩阵解析，**不硬编码 ecnu-max → ecnu-plus**。
-- **接线**：`ChatClient(quota=)` 成功响应后按 usage 自动记账（含缓存命中价）；
-  `Settings.quota_warn_threshold`（LIGHTTRAIL_QUOTA_WARN_THRESHOLD，默认 0.9）；cli 注入账本。
-- **测试**：新增 tests/test_quota.py 13 用例（记账/预估/窗口/放行/降级可注入/client 集成/参数校验）。
-  pytest 122 全绿；ruff 0 告警；smoke 19 项通过。
+# LightTrail 开发日志
 
-### E4-1 ModelRouter 能力矩阵（收尾）— 已提交
+> 按任务单元记录进度与阻塞，供后续接手者审计。格式：任务编号 / 时间 / commit hash / 测试数量。
 
-- **能力矩阵可注入已在前序平台中立性重构（ADR-002）中落地，本任务不重做**：
-  - 新增 `RouteIntent` 意图声明枚举（DEFAULT/TOOLS/VISION/DEEP_REASONING），
-    调用方按能力声明路由，不点名模型品牌；
-  - `ReActLoop` 对话路径接路由：`model` 显式指定优先，否则
-    `RouteIntent.TOOLS.resolve(router)` → 默认工具模型（ecnu-plus）——验收「loop 实测走 plus」通过；
-  - `Agent` 把 router 透传给 loop。
-- **平台中立性自查**：未回退品牌硬编码；能力声明、矩阵注入、LLM_ 前缀均沿用 ADR-002；
-  单模型全能（tools+deep 同模型）由矩阵表达，不预设互斥。
-- **测试**：test_router.py 补 RouteIntent 2 用例 + test_agent.py 补 loop 路由 1 用例。
-  pytest 109 全绿；ruff 0 告警。
+## 收尾总结（2026-09-07，阶段三完成）
 
-### E3-3 语义记忆（精选注入 + double-confirm 写入）— 已提交
+### 已完成任务（commit hash 清单）
 
-- **新增 memory/semantic.py**：`SemanticStore`（data/semantic.json）——`match(intent)`
-  按关键词规则命中注入最多 2 条；写入走 **double-confirm**（staged_add 候选池 → confirm/reject
-  显式裁决，未确认不计入命中、不落盘；重复确认/空内容防护），防污染；
-- **MemoryManager**：`build_injections` 注入顺序 profile → semantic → events；
-  门面方法 semantic_propose / semantic_confirm / semantic_reject（E6-3 自动提炼挂载点）；
-- **模板**：data/semantic.example.json（结论型经验样例，E6-3 提炼结果格式对齐）。
-- **测试**：test_memory.py 新增 6 个语义用例（命中/空库/双确认/否决/注入上限/块顺序）。
-  pytest 106 全绿；ruff 0 告警；smoke 19 项通过。
+| 任务 | commit | 测试 |
+|---|---|---|
+| 平台中立性重构（ADR-002） | a7924c7 | 43 |
+| 前置工程遗留清理 | 01d2d07 | 43 |
+| E1-2 ContextBuilder 五层组装 | 910f521 | 57 |
+| E2-1 TraceRecorder + 订阅 | e331535 | 69 |
+| E2-2 trace 注入 + TraceReport | a7af5ec | 80 |
+| E3-1 用户档案 | f0948f2 | 88 |
+| E3-2 事件记忆（SQLite + search_memory） | 3045ec6 | 100 |
+| E3-3 语义记忆（double-confirm） | a32a874 | 106 |
+| E4-1 ModelRouter 能力矩阵收尾 | 490c369 | 109 |
+| E4-2 QuotaLedger 配额账本 | 5b5fd5f | 122 |
+| E4-3 reason 深推理通道 | c705749 | 126 |
+| E5-2 结构化输出契约 | 26ca6e3 | 141 |
+| E5-1 Orchestrator 四管线 | ae6b38c | 141 |
+| E5-3 一句话出方案闭环 | 27035d1 | 145 |
 
-### E3-2 事件记忆（SQLite 按需检索 + search_memory 工具）— 已提交
+**最终状态**：pytest **145 全绿**（相对基线 43 新增 102 用例）、ruff 0 告警、smoke 19 项通过；
+仅 commit 未 push（推送需小北确认）。
 
-- **新增 memory/events.py**：`EventStore`（data/events.db）——add_event / search_events
-  （关键词+地点 LIKE、题材精确，参数化防注入，时间倒序）/ occurrence_counts 地点聚合 /
-  to_prompt_section 注入文本；事件字段含 **coordinates（精确坐标）与 weather_snapshot
-  （天气/天象快照：云量/火烧云评分/月相…）**，是 D2.3-07 复拍提醒的数据前提。
-- **MemoryManager**：`retrieve_events(intent)` 地点/题材规则命中才检索 top-k（不常驻），
-  `build_injections` 在档案块后追加 events 块；`add_event` 门面；Agent.run 携带意图文本注入。
-- **新增 tools/memory_tool.py**：注册 `search_memory`（第 13 个工具）——中文结构字段
-  （坐标/快照/器材），ReAct 主动检索入口；默认存储走 settings.data_dir，测试可注入替换。
-- **测试**：新增 tests/test_events.py 12 用例（增查闭环 / 注入安全 / 聚合 / 注入文本 /
-  意图检索 / 工具返回）。pytest 100 全绿；ruff 0 告警；smoke 19 项通过。
+### 剩余任务（下一接手者）
+
+- **E6（多模态与差异化）**：E6-1 照片分析智能工具（Pillow/exifread、深度=1 红线、schema 输出）、
+  E6-2 照片反推方案（reverse_engineer_photo）、E6-3 语义记忆自动提炼（semantic.extract_from_events）。
+- **E7（Web 服务层）**：E7-1 async ChatClient（并发边界由 serial_llm 驱动）、E7-2 SessionManager、
+  E7-3 FastAPI+SSE、E7-4 trace→SSE 桥接（TraceRecorder.subscribe 已预留）、E7-5 SPA。
+- **E8（评估体系）**：黄金用例集雏形已在 tests/test_pipeline_e2e.py（GOLDEN_CASES），扩展为 evals/。
+
+### 遗留问题 / 注意事项
+
+1. **tests/ 目录 ACL**：本沙箱会话下 tests/ 无 CodexSandboxUsers 写权限，测试文件更新需
+   「temp 生成 → escalated copy」；`pytest tmp_path` 亦不可用（pytest-of-North 目录不可扫描），
+   新测试请用 tempfile.mkdtemp 自建房（见 test_memory.py 的 memory_dir fixture）。
+2. **TODO.md 同受目录 ACL 限制**，更新需走「temp → escalated copy」流程。
+3. **管线数据采集**：E5 管线默认坐标写死上海（31.23,121.47），档案常去机位尚无精确坐标字段；
+   E6/E7 阶段可在记忆层补「机位坐标」字段后按档案精确定位。意图 time_hint 的「周末」近似为明日。
+4. **QuotaLedger 默认计价表**：对齐 ECNU 官方计价，换 API 须注入新 pricing（勿改默认表）。
+5. **review 管线为骨架**：输出骨架卡片，E6-1 照片分析接入后填充。
+
+### 平台中立性状态（ADR-002 审计）
+
+- **已收敛**：并发策略可配置（LLM_SERIAL_LLM）、能力矩阵可注入（ModelRouter capability_matrix）、
+  配置 LLM_ 前缀、reason/意图解析全部走 RouteIntent（不写死模型品牌）；E5 编排层零 ECNU 品牌判断。
+- **残留（历史默认值，合规）**：`ecnu-plus`/`ecnu-max` 仅出现在 config.py DEFAULT_*、quota.py
+  默认计价表键、.env.example 注释、docs/adr 历史叙述中——符合 ADR-002「模型名只出现在 config 默认值/.env/能力矩阵」。
+- **本次会话新增修复**：文档中 `LIGHTTRAIL_SERIAL_LLM` 命名残留统一为 `LLM_SERIAL_LLM`（a7924c7）。

@@ -13,27 +13,27 @@
 - [x] 天气与火烧云：分层云量预报 / 火烧云评分（`weather_forecast` / `sunset_glow_score`）
 - [x] 机位 × 天象匹配（`match_sites`）
 
-### 阶段一：地基拆分与可观测性（E1+E2）
+### 阶段一：地基拆分与可观测性（E1+E2）✅ 已完成
 
-- [ ] E1-1 核心拆分：agent/core 拆 loop / context / router（`Agent.run` 签名不变）
-- [ ] E1-2 ContextBuilder 五层组装（静态前缀 ★ 缓存命中）
-- [ ] E2-1 TraceRecorder + 事件订阅接口（E7-4 SSE 桥接的底座）
-- [ ] E2-2 trace 注入 prompt + TraceReport（M2 依据/置信度来源）
+- [x] E1-1 核心拆分：agent/core 拆 loop / context / router（`Agent.run` 签名不变）
+- [x] E1-2 ContextBuilder 五层组装（静态前缀 ★ 缓存命中）
+- [x] E2-1 TraceRecorder + 事件订阅接口（E7-4 SSE 桥接的底座）
+- [x] E2-2 trace 注入 prompt + TraceReport（M2 依据/置信度来源）
 
-### 阶段二：记忆层与配额感知（E3+E4）
+### 阶段二：记忆层与配额感知（E3+E4）✅ 已完成
 
-- [ ] E3-1 用户档案（`data/profile.json` 常驻注入 ≤300 token）
-- [ ] E3-2 事件记忆（SQLite 按需检索 + `search_memory` 工具）
-- [ ] E3-3 语义记忆（精选注入，防污染 double-confirm）
-- [ ] E4-1 ModelRouter 能力矩阵（能力声明驱动 + 单测）
-- [ ] E4-2 QuotaLedger 配额账本（预估 / 记账 / 降级链）
-- [ ] E4-3 reason 通道（ecnu-max 纯推理，tools=None）
+- [x] E3-1 用户档案（`data/profile.json` 常驻注入 ≤300 token）
+- [x] E3-2 事件记忆（SQLite 按需检索 + `search_memory` 工具，含坐标/天气快照字段）
+- [x] E3-3 语义记忆（精选注入，防污染 double-confirm）
+- [x] E4-1 ModelRouter 能力矩阵（能力声明驱动 + 单测；能力矩阵可注入）
+- [x] E4-2 QuotaLedger 配额账本（预估 / 记账 / 降级链可配置）
+- [x] E4-3 reason 通道（深推理纯推理，tools=None，thinking 开启）
 
-### 阶段三：决策编排与输出契约（E5）
+### 阶段三：决策编排与输出契约（E5）✅ 已完成
 
-- [ ] E5-1 Orchestrator 四管线（灵感 / 规划 / 临场 / 复盘）+ PipelineContext
-- [ ] E5-2 结构化输出契约（Intent / DecisionCard pydantic + 自愈 ≤2 次）
-- [ ] E5-3 一句话出方案闭环（端到端 + 追问回落 ReAct）
+- [x] E5-1 Orchestrator 四管线（灵感 / 规划 / 临场 / 复盘）+ PipelineContext
+- [x] E5-2 结构化输出契约（Intent / DecisionCard pydantic + 自愈 ≤2 次）
+- [x] E5-3 一句话出方案闭环（端到端 + 追问回落 ReAct，含黄金用例集雏形）
 
 ### 阶段四：多模态与差异化（E6）
 
