@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from lighttrail.agent.context import DEFAULT_CONDUCT_PROMPT, DEFAULT_ROLE_PROMPT, ContextBuilder
@@ -15,7 +16,7 @@ from lighttrail.agent.loop import MAX_TOOL_ROUNDS, ReActLoop
 from lighttrail.agent.tools import ToolRegistry
 from lighttrail.infra.trace import Recorder, TraceReport, null_trace
 from lighttrail.llm.client import ChatClient
-from lighttrail.llm.router import ModelRouter
+from lighttrail.llm.router import ModelRouter, RouteIntent
 from lighttrail.memory import MemoryManager
 
 DEFAULT_SYSTEM_PROMPT = DEFAULT_ROLE_PROMPT + "\n\n" + DEFAULT_CONDUCT_PROMPT
@@ -102,21 +103,53 @@ class Agent:
             raise
         return text, self._recorder.to_report(since=since)
 
-    def reason(self, prompt: str, *, model: str | None = None) -> str:
-        """纯推理通道（E4-3 落地前为透传：一次不带工具的单轮调用）。
+    def reason(
+        self,
+        prompt: str,
+        *,
+        system: str = "",
+        model: str | None = None,
+        reasoning_effort: str | None = None,
+        temperature: float = 0.3,
+    ) -> str:
+        """纯推理通道：深推理模型单轮调用（不携带工具，thinking 开启）。
 
         Args:
             prompt: 推理问题文本。
-            model: 模型名，缺省由路由按深推理需求解析（默认 ecnu-max）。
+            system: 附加系统提示，缺省用角色层（E5 管线可传入略结构化指令）。
+            model: 模型名覆盖；缺省由路由按深推理意图解析（默认矩阵 → 深推理模型）。
+            reasoning_effort: 推理强度（low/medium/high），None 时按平台默认。
+            temperature: 采样温度（默认 0.3，深推理综合输出用稍高值）。
+
+        Returns:
+            纯文本推理结果（thinking 摘要已记入 TraceReport，供 M2-04 推理可见）。
         """
+        resolved_model = model or RouteIntent.DEEP_REASONING.resolve(self._router)
         messages = [
-            {"role": "system", "content": self._system_prompt},
+            {"role": "system", "content": system or self._system_prompt},
             {"role": "user", "content": prompt},
         ]
+        started = time.perf_counter()
         resp = self._client.chat(
             messages,
-            model=model or self._router.resolve(needs_deep_reasoning=True),
+            model=resolved_model,
+            tools=None,
+            temperature=temperature,
+            thinking={"type": "enabled"},
+            reasoning_effort=reasoning_effort,
         )
+        self._recorder.record_llm(
+            resolved_model,
+            prompt_summary=f"深推理问题（{len(prompt)} 字符）",
+            duration_s=time.perf_counter() - started,
+        )
+        thinking = resp.get("thinking", "")
+        if thinking:
+            self._recorder.record_step(
+                "reason_thinking",
+                input_summary=f"问题：{prompt[:80]}",
+                output_summary=thinking[:120],
+            )
         return resp.get("content", "").strip()
 
     def reset(self) -> None:

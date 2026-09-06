@@ -78,6 +78,18 @@
 
 
 
+
+### E4-3 reason 通道（深推理，thinking 开启）— 已提交
+
+- **Agent.reason 增强**：`reason(prompt, *, system, model, reasoning_effort, temperature=0.3)`——
+  模型走 `RouteIntent.DEEP_REASONING` 路由（默认矩阵 → 深推理模型，**不写死模型名**）、
+  `tools=None`、`thinking={"type": "enabled"}`、`reasoning_effort` 透传（平台不支持时不计入 payload）；
+- **ChatClient**：`chat()` 新增 `thinking` / `reasoning_effort` 可选透传参数（None 不携带，
+  保持平台中立）；`_to_message_dict` 提取 reasoning_content/thinking 摘要（≤2000 字符）；
+- **推理可见（M2-04）**：reason 调用记 LLM 事件，thinking 摘要以 reason_thinking 步骤入 TraceReport；
+- **测试**：test_reason.py 重写为 5 用例（深推理路由/无工具/thinking/effort 透传/thinking 入报告）。
+  pytest 126 全绿；ruff 0 告警；smoke 19 项通过。
+
 ### E4-2 QuotaLedger 配额账本 — 已提交
 
 - **新增 infra/quota.py**：`QuotaLedger`——`record(model, in, out, cached_in)` 按计价表折算 credits、

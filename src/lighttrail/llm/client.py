@@ -74,6 +74,8 @@ class ChatClient:
         model: str | None = None,
         tools: list[dict[str, Any]] | None = None,
         temperature: float = 0.2,
+        thinking: dict[str, Any] | None = None,
+        reasoning_effort: str | None = None,
     ) -> dict[str, Any]:
         """发起一次对话补全，返回消息字典（兼容 tool_calls 字段）。
 
@@ -82,9 +84,12 @@ class ChatClient:
             model: 模型名，缺省由上层（Agent）决定。
             tools: OpenAI 格式工具定义列表，可为 None。
             temperature: 采样温度，工具调用链路使用较低值保证稳定。
+            thinking: 思考模式扩展参数（如 {"type": "enabled"}），供深推理通道使用；
+                None 时不携带（平台不支持时自然降级，不强制）。
+            reasoning_effort: 推理强度（如 low/medium/high），None 时不携带。
 
         Returns:
-            助手消息字典，含 role/content，可能含 tool_calls。
+            助手消息字典，含 role/content；可能含 tool_calls 与 thinking 摘要。
 
         Raises:
             LLMError: 重试耗尽或参数错误。
@@ -92,6 +97,10 @@ class ChatClient:
         payload: dict[str, Any] = {"model": model, "messages": messages, "temperature": temperature}
         if tools:
             payload["tools"] = tools
+        if thinking is not None:
+            payload["thinking"] = thinking
+        if reasoning_effort is not None:
+            payload["reasoning_effort"] = reasoning_effort
 
         last_exc: Exception | None = None
         for attempt in range(_MAX_RETRIES):
@@ -155,9 +164,15 @@ class ChatClient:
 
     @staticmethod
     def _to_message_dict(resp) -> dict[str, Any]:
-        """把 SDK 响应对象转换为纯字典消息（含可选 tool_calls）。"""
+        """把 SDK 响应对象转换为纯字典消息（含可选 tool_calls 与 thinking 摘要）。"""
         msg = resp.choices[0].message
         out: dict[str, Any] = {"role": "assistant", "content": msg.content or ""}
+        # 深推理通道的思考内容摘要（供应商扩展字段：reasoning_content / thinking）
+        for key in ("reasoning_content", "thinking"):
+            raw = getattr(msg, key, None)
+            if raw:
+                out["thinking"] = str(raw)[:2000]
+                break
         if getattr(msg, "tool_calls", None):
             out["tool_calls"] = [
                 {
