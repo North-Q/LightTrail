@@ -12,16 +12,13 @@
 
 ## ⚠️ 重大架构原则：平台中立性（最高优先级，每次动手前先过一遍）
 
-> 本原则来自 2026-09-07 的架构事故教训，已固化为 ADR-002（并发/矩阵/命名）与 **ADR-003（深推理扩展参数的跨 SDK 适配）**。**违反本原则即视为失败。**
+> **核心认知**：模型 API 可以来自任何供应商（ECNU / DeepSeek / OpenAI / 本地模型…），架构与代码绝不假定 API 来自固定提供商；SDK 版本差异同样不能渗透进业务层。**违反本原则即视为失败。**
 
-**核心认知：模型 API 可以来自任何供应商（ECNU / DeepSeek / OpenAI / 本地模型…），架构与代码绝不假定 API 来自固定提供商；SDK 版本差异同样不能渗透进业务层。**
-
-### 编码时必须遵守
-1. **并发策略是配置，不是代码**：LLM 是否串行由 `LLM_SERIAL_LLM`（默认 true，适配 ECNU）控制。新增任何 LLM 调用路径（async 通道、智能工具内部调用、管线 reason）都必须走 `ChatClient` 的并发边界，**禁止**再写模块级锁 / 硬编码串行假设。
-2. **模型路由只认能力声明，不认品牌**：所有跨步骤的模型选择一律通过 `ModelRouter.resolve(needs_*)` / `RouteIntent` + 可注入的能力矩阵，**禁止**写 `if model == "ecnu-max"` 类供应商判断。模型名只出现在 config 默认值 / .env / 能力矩阵 / 计价表键。
-3. **配置命名用通用前缀 `LLM_`**：新增 LLM 相关配置一律 `LLM_*`（如 `LLM_REASON_THINKING`）；`ECNU_*` 只能作兼容别名。非 LLM 的项目配置用 `LIGHTTRAIL_*`。
-4. **扩展参数收敛在适配层（ADR-003）**：thinking / reasoning_effort 等平台扩展字段只能由 `ChatClient` 适配层处理（SDK 能力探测 + extra_body 双路径），业务代码（Agent.reason / 管线）只声明开关；**禁止**在业务层硬编码平台扩展参数。是否发送由 `LLM_REASON_THINKING` 配置控制（默认 true 适配 ECNU ecnu-max；不支持的平台可关，业务零改动）。
-5. **能力互斥是平台特性，不是逻辑定律**：单模型全能（同一模型 tools+deep/vision）合法，由能力矩阵表达。
+> **权威记录在 ADR**，不在本文档展开：
+> - [`docs/adr/ADR-002-platform-neutrality.md`](adr/ADR-002-platform-neutrality.md)——并发策略可配置（`LLM_SERIAL_LLM`）、能力矩阵可注入、配置 `LLM_` 前缀去 ECNU 化、移除「深推理与工具互斥」假设
+> - [`docs/adr/ADR-003-reason-extension-params.md`](adr/ADR-003-reason-extension-params.md)——thinking/reasoning_effort 扩展参数收敛在 `ChatClient` 适配层（SDK 探测 + extra_body 双路径），业务层只声明开关（`LLM_REASON_THINKING`）
+>
+> 改 ADR 时本节无需同步（单一事实源在 ADR）；本节只保留自查清单。
 
 ### 每次提交前自查（checklist）
 - [ ] 新增的 LLM 调用是否经过 `ChatClient` 并发边界 / `ModelRouter` / 适配层，而不是绕过
@@ -31,8 +28,7 @@
 - [ ] 涉及架构决策时，是否先查 `docs/adr/`（ADR-002 / ADR-003 是权威记录，新决策追加 ADR）
 
 ### 发现遗留问题的处理
-若发现平台/SDK 特性仍渗透进架构/代码/文档（硬编码串行锁、模型品牌判断、业务层扩展参数、
-`ECNU` 语义渗入业务层、文档把平台特性当需求），**立即修复**：代码收敛到适配层/能力矩阵/配置项并补测试；文档改平台中立表述；commit message 与 `docs/devlog.md` 注明「平台中立性修复」。不要以「不影响当前功能」为由跳过。
+若发现平台/SDK 特性仍渗透进架构/代码/文档（硬编码串行锁、模型品牌判断、业务层扩展参数、`ECNU` 语义渗入业务层、文档把平台特性当需求），**立即修复**：代码收敛到适配层/能力矩阵/配置项并补测试；文档改平台中立表述；commit message 与 `docs/devlog.md` 注明「平台中立性修复」。不要以「不影响当前功能」为由跳过。
 
 ## 项目基线（先读这些，不要凭猜测动手）
 

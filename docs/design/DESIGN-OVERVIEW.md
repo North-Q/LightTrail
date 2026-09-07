@@ -100,8 +100,7 @@ docs/design/
 ├── delivery/
 │   ├── lighttrail-prototype.html   # 核心交付：单文件高保真原型（129 KB，双击即用）
 │   └── 交付说明.md                  # 交付文档：导航/令牌/数据说明/接入方向/验收清单
-├── prototype.html                  # 工作副本（与 delivery 一致，MD5 校验相同）
-├── _shots/                         # 审查证据链（6 页桌面截图 + 单页快照）
+├── _shots/                         # 审查证据链（6 页桌面截图）
 │   └── mobile/                     # 移动端双视口 12 张截图
 └── DESIGN-OVERVIEW.md              # 本文档
 ```

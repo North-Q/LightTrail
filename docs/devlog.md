@@ -183,11 +183,6 @@
   FakeChatClient，不触网、不依赖真实 API Key。
 - **测试数量**：pytest 145 全绿；ruff 0 告警；smoke 19 项通过。
 
-
-# LightTrail 开发日志
-
-> 按任务单元记录进度与阻塞，供后续接手者审计。格式：任务编号 / 时间 / commit hash / 测试数量。
-
 ### 真实联调修复（reason thinking 配置化 + Open-Meteo 400 + 评分键对齐）
 
 ### ecnu-max think 联调修复（extra_body 兼容 + 默认开启）
