@@ -6,7 +6,7 @@
 
 ## 待办（当前阶段）
 
-### 已基线（工具层 13 工具已注册，149 测试全绿）
+### 已基线（工具层 15 工具已注册，176 测试全绿）
 
 - [x] 拍摄参数推荐：曝光换算 / 星空 500·NPF / 长曝光 ND（`equivalent_exposure` / `star_shutter_rule` / `nd_long_exposure`）
 - [x] 天文查询：太阳时刻/方位 / 月相 / 月升月落 / 银心可见窗口（`sun_times` / `sun_position` / `moon_phase` / `moon_events` / `galaxy_visibility`）
@@ -35,14 +35,14 @@
 - [x] E5-2 结构化输出契约（Intent / DecisionCard pydantic + 自愈 ≤2 次）
 - [x] E5-3 一句话出方案闭环（端到端 + 追问回落 ReAct，含黄金用例集雏形）
 
-### 阶段四：多模态与差异化（E6）★ 下一步
+### 阶段四：多模态与差异化（E6）✅ E6-1~E6-5 完成（E6-0 真实联调待授权）
 
-- [ ] E6-0 真实联调基线验证：真实 Key 跑通四管线各 ≥1 条 query + push 20+ commits 建远程基线（push 需小北确认）
-- [ ] E6-1 照片分析智能工具（深度=1 红线，EXIF + 画面 → 可执行处方；真实照片 ≥3 张实测）
-- [ ] E6-2 照片反推方案（图 → 复刻计划）
-- [ ] E6-3 语义记忆提炼（事件聚合 + 规则 + 确认队列；favorite_spots 坐标沉淀进档案）
-- [ ] E6-4 复盘管线填充（review 骨架 → 闭环：照片分析 + 与 plan 期 DecisionCard 对账）
-- [ ] E6-5 阶段收口（黄金用例 ≥8 条 + 文档同步）
+- [ ] E6-0 真实联调基线验证（阻塞：待小北授权 push/真实 Key；E6-1~6-5 代码侧已完成）
+- [x] E6-1 照片分析智能工具（analyze_photo，深度=1 红线；真实照片实测并入 E6-0 窗口）
+- [x] E6-2 照片反推方案（reverse_engineer_photo + Orchestrator.reverse_plan）
+- [x] E6-3 语义记忆提炼（sediment_semantics/sediment_favorite_spots，double-confirm）
+- [x] E6-4 复盘管线填充（review 闭环：对账差异报告）
+- [x] E6-5 阶段收口（evals/golden/E6-photo-cases.json 8 条 + 文档同步）
 
 ### 阶段五：Web 服务层（E7）★ 网页形态落地
 

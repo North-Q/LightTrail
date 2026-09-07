@@ -1,12 +1,15 @@
 # LightTrail（光迹）· 开发进程路线图
 
-> **版本**：v2.2
+> **版本**：v2.3
 > **日期**：2026-09-07
 > **作者**：架构师 高见远
 > **定位**：指导后续接手的单个 agent 按步骤独立完成每个任务的原子化路线图
 > **依据**：PRD v0.3、架构文档 v2.0（`docs/architecture.md`，演进路径 E1–E8）、现有源码（13 工具已注册）、TODO.md、UI 设计总览
 > **v2.0 变更摘要**：项目已从「741 行骨架 + 2 演示工具」推进到「~2300 行 + 12 个已注册工具 + 43 测试全绿」；阶段划分弃用旧的「按 PRD 功能堆」方式，改为与架构 v2.0 演进路径 **E1–E8** 一一对应，并新增 Web 服务层（E7，SSE 流式）与评估体系（E8）两个阶段。
 > **v2.1 变更摘要**（2026-09-07）：同步 PRD v0.3「主动提醒服务」能力族——E3-2 事件记忆增补坐标 + 天气快照字段（复拍提醒 D2.3-07 的数据前提）；§4 待明确事项新增 4.10 主动提醒服务排期。
+> **v2.3 变更摘要**（2026-09-07 深夜）：**E6 阶段交付**（E6-1 照片分析 / E6-2 照片反推 /
+> E6-3 语义提炼与 favorite_spots / E6-4 复盘闭环 / E6-5 收口），工具 15、pytest 176 全绿；
+> E6-0 真实联调 + push 仍待小北授权。
 > **v2.2 变更摘要**（2026-09-07）：**E1–E5 已全部交付**（20 commits，含 ADR-002 平台中立性重构）：§1.1 现状与 §1.3 PRD 覆盖矩阵同步勾选；E8-1 黄金用例集改为「各阶段增量交付」策略（每阶段新增 5–10 条，E8 本体只做框架与 LLM-as-judge）；新增**阶段八 E9 主动提醒服务**（被动提醒 MVP：D2.3-07 复拍提醒 + D3.1-04 就近推荐，开源后迭代）；新增 E6-0 / E7-0 真实联调基线验证任务（每阶段以真实 Key 跑通开场，禁止仅凭 mock 判定阶段完成）。
 
 ---
@@ -15,7 +18,7 @@
 
 ### 1.1 项目现状
 
-LightTrail 已完成 **E1–E5 全部演进**（20 commits，工作区干净待 push）：地基拆分（loop/context/router + ContextBuilder 五层组装）、可观测性（TraceRecorder + 置信度规则表 + TraceReport）、四层记忆（档案常驻注入 / SQLite 事件记忆含坐标与天气快照 / 语义记忆 double-confirm）、路由与配额（ModelRouter 能力矩阵 + QuotaLedger 三窗口 + reason 深推理通道）、决策编排（四管线端到端闭环 + Intent/DecisionCard pydantic 契约 + 一句话出方案 + 追问回落 ReAct）。**ADR-002 平台中立性重构**已落地（串行可配置、能力矩阵可注入、LLM_ 前缀、模型名只出现在 config 默认值/.env）。当前规模：src+tests ~7900 行，**13 个已注册工具**，pytest **149 全绿**（基线 43 → +106）、ruff 0 告警、smoke 19 项通过。**当前缺口**：多模态（E6，review 管线仍为骨架）、Web 呈现（E7）、评估体系（E8）、真实 Key 联调基线（E6-0）。
+LightTrail 已完成 **E1–E6 演进**（E6 阶段代码侧收口）：地基拆分（loop/context/router + ContextBuilder 五层组装）、可观测性（TraceRecorder + 置信度规则表 + TraceReport）、四层记忆（档案常驻注入 / SQLite 事件记忆含坐标与天气快照 / 语义记忆 double-confirm）、路由与配额（ModelRouter 能力矩阵 + QuotaLedger 三窗口 + reason 深推理通道）、决策编排（四管线端到端闭环 + Intent/DecisionCard pydantic 契约 + 一句话出方案 + 追问回落 ReAct）。**ADR-002 平台中立性重构**已落地（串行可配置、能力矩阵可注入、LLM_ 前缀、模型名只出现在 config 默认值/.env）。当前规模：src+tests ~8700 行，**15 个已注册工具**（含 analyze_photo / reverse_engineer_photo / search_memory），pytest **176 全绿**（基线 43 → +133）、ruff 0 告警、smoke 21 项通过。**当前缺口**：真实 Key 联调基线（E6-0，待授权）、Web 呈现（E7）、评估体系（E8）。
 
 ### 1.2 阶段划分（对齐架构 v2.0 演进路径）
 
@@ -24,7 +27,7 @@ LightTrail 已完成 **E1–E5 全部演进**（20 commits，工作区干净待 
 | 阶段一 | E1+E2 | 地基拆分与可观测性 | `agent/core.py` 拆出 loop/context/router；TraceRecorder 贯穿三层 | ✅ 已完成 |
 | 阶段二 | E3+E4 | 记忆层与配额感知 | 四层记忆注入 + reason 通道 + QuotaLedger 配额账本 | ✅ 已完成 |
 | 阶段三 | E5 | 决策编排与输出契约 | 四管线编排 + Intent/DecisionCard pydantic 契约 + 自愈重试 | ✅ 已完成 |
-| 阶段四 | E6 | 多模态与差异化 | 照片分析（智能工具）+ 反推方案 + 事件/语义记忆 | ⏭️ 下一步 |
+| 阶段四 | E6 | 多模态与差异化 | 照片分析（智能工具）+ 反推方案 + 事件/语义记忆 | ✅ E6-1~E6-5 完成（E6-0 待授权） |
 | 阶段五 | E7 | Web 服务层 | async ChatClient + FastAPI + SSE 流式 + SPA 前端（trace 即 UI） | 未开始 |
 | 阶段六 | E8 | 评估体系 | 三层评估：黄金用例集 + LLM-as-judge，质量回归门禁 | 未开始 |
 | 阶段七 | — | 开源发布 | 文档完善、贡献指南、版本发布 | 未开始 |

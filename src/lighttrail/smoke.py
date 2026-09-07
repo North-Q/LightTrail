@@ -52,6 +52,8 @@ def test_registry_and_dispatch() -> None:
     check("包含星空工具（star_shutter_rule）", "star_shutter_rule" in names)
     check("包含天气工具（weather_forecast）", "weather_forecast" in names)
     check("包含机位匹配工具（match_sites）", "match_sites" in names)
+    check("包含照片分析工具（analyze_photo）", "analyze_photo" in names)
+    check("包含照片反推工具（reverse_engineer_photo）", "reverse_engineer_photo" in names)
     check("schema 含 parameters", all("parameters" in s["function"] for s in schemas))
 
     import json

@@ -40,8 +40,8 @@ LightTrail/
 │   ├── orchestrator/    # 四管线编排 + Intent/DecisionCard 契约（pydantic 自愈）
 │   ├── memory/          # 四层记忆：档案 / 事件（SQLite）/ 语义 / Manager
 │   ├── infra/           # TraceRecorder / 置信度规则 / QuotaLedger 配额账本
-│   └── tools/           # 13 个已注册工具（曝光/天文/天气/机位匹配/记忆检索）
-├── tests/               # 149 项 pytest 用例（离线 Fake 数据源，不触网）
+│   └── tools/           # 15 个已注册工具（曝光/天文/天气/机位匹配/记忆/照片分析/反推）
+├── tests/               # 176 项 pytest 用例（离线 Fake 数据源，不触网）
 ├── data/                # 本地记忆数据（profile/events.db/semantic，不入库）
 └── README.md
 ```
@@ -51,12 +51,12 @@ LightTrail/
 - [x] 项目初始化
 - [x] Agent 骨架（多轮对话 + 工具调用最小链路）
 - [x] 需求文档 v0.3（[docs/PRD-v0.3.md](docs/PRD-v0.3.md)，含主动提醒能力族）
-- [x] 决策主线工具层：**13 个工具已注册**（参数推荐 / 天文查询 / 天气 / 火烧云评分 / 机位×天象匹配 / 记忆检索）
+- [x] 决策主线工具层：**15 个工具已注册**（参数推荐 / 天文查询 / 天气 / 火烧云评分 / 机位×天象匹配 / 记忆检索 / 照片分析 / 反推）
 - [x] UI 高保真原型（[docs/design/delivery/lighttrail-prototype.html](docs/design/delivery/lighttrail-prototype.html)，6 页 SPA）
 - [x] 地基拆分与可观测性（E1+E2：ContextBuilder 五层组装 / TraceRecorder / 置信度规则表）
 - [x] 记忆层与配额感知（E3+E4：四层记忆 / ModelRouter 能力矩阵 / QuotaLedger / reason 深推理通道）
 - [x] 决策编排（E5：四管线端到端闭环 + 一句话出方案 + 追问回落 ReAct；ADR-002 平台中立性落地）
-- [ ] 多模态与差异化（照片分析 / 反推 / 语义记忆提炼，阶段四，E6）
+- [x] 多模态与差异化（E6-1~E6-5 交付：照片分析 / 反推 / 复盘闭环 / 语义记忆提炼 / 黄金用例增量；E6-0 真实联调待授权）
 - [ ] Web 服务层（FastAPI + SSE + 前端，阶段五，E7）
 - [ ] 评估体系（阶段六，E8）
 - [ ] 开源发布

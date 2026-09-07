@@ -25,7 +25,7 @@
 ## 协作约定
 - 沟通口语化、简洁直接；正式产出（文档/README/代码注释/邮件）用书面化
 - 涉及外部动作（发邮件、发布、对外提交）必须先经小北确认
-- 当前阶段：**E1–E5 已全部交付**（20 commits：地基拆分 / TraceRecorder / 四层记忆 / ModelRouter+QuotaLedger / 四管线编排与一句话出方案闭环；pytest 149 全绿、ruff 0 告警、smoke 19 项通过；ADR-002 平台中立性重构已落地）。**下一步 E6 多模态与照片分析**（E6-0 真实联调基线验证 → E6-1 照片分析智能工具 → E6-2 照片反推 → E6-3 语义记忆提炼 → E6-4 复盘管线填充）。项目将以网页形式呈现（E7 Web 服务层）。项目对话记忆详见 `.workbuddy/memory/`。
+- 当前阶段：**E1–E5 已全部交付**（20 commits：地基拆分 / TraceRecorder / 四层记忆 / ModelRouter+QuotaLedger / 四管线编排与一句话出方案闭环；pytest 149 全绿、ruff 0 告警、smoke 19 项通过；ADR-002 平台中立性重构已落地）。**下一步 E7 Web 服务层**（E6-1~E6-5 已交付：照片分析/反推/复盘闭环/语义提炼/黄金增量；E6-0 真实联调基线 + push 待小北授权，属 E7-0 前必做）。项目将以网页形式呈现（E7 Web 服务层）。项目对话记忆详见 `.workbuddy/memory/`。
 
 ## 代码风格（基于现有代码反推，新增代码遵守）
 
@@ -59,9 +59,9 @@ src/lighttrail/
 ├── orchestrator/       # 编排层：四管线（灵感/规划/临场/复盘）+ Intent/DecisionCard 契约
 ├── memory/             # 四层记忆：profile（档案）/ events（SQLite）/ semantic / manager
 ├── infra/              # TraceRecorder / confidence（置信度规则）/ quota（配额账本）/ validation
-├── tools/              # 具体工具实现（basic/exposure/astronomy/weather/site_match/memory_tool，共 13 工具）
+├── tools/              # 具体工具实现（…/memory_tool/photo_analysis，共 15 工具）
 └── smoke.py            # 离线冒烟测试（19 项检查，发布前冒烟入口）
-tests/                  # 19 个测试文件，149 用例（离线 Fake 数据源，不触网）
+tests/                  # 21 个测试文件，176 用例（离线 Fake 数据源，不触网）
 ```
 
 ## ECNU API 调用模式（见 `llm/client.py`，新增工具遵守）

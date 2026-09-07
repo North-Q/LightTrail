@@ -210,3 +210,20 @@ def test_no_registry_dispatch_inside_photo_tool() -> None:
     source = Path(photo.__file__).read_text(encoding="utf-8")
     # 只禁止「调用形式」（带括号）；docstring 中提及红线说明不视为调用
     assert "registry.dispatch(" not in source
+
+
+def test_e6_golden_cases_json_valid() -> None:
+    """E6 黄金用例集文件：≥8 条、id 唯一、字段完整（供 E8-1 增量消费）。"""
+    import json as _json
+    from pathlib import Path as _Path
+
+    golden_path = _Path(__file__).resolve().parents[1] / "evals" / "golden" / "E6-photo-cases.json"
+    raw = _json.loads(golden_path.read_text(encoding="utf-8"))
+    cases = raw["cases"]
+    assert len(cases) >= 8
+    ids = [case["id"] for case in cases]
+    assert len(ids) == len(set(ids))
+    for case in cases:
+        assert case["type"] in {"photo_analyze", "reverse", "review"}
+        assert case["request"] and case["expect"]
+
