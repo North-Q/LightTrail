@@ -106,5 +106,5 @@ def load_settings() -> Settings:
         ),
         data_dir=os.getenv("LIGHTTRAIL_DATA_DIR", DEFAULT_DATA_DIR),
         quota_warn_threshold=float(os.getenv("LIGHTTRAIL_QUOTA_WARN_THRESHOLD", "0.9")),
-        reason_thinking=_parse_bool(os.getenv("LLM_REASON_THINKING", ""), False),
+        reason_thinking=_parse_bool(os.getenv("LLM_REASON_THINKING", ""), True),
     )

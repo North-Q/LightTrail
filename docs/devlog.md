@@ -188,7 +188,27 @@
 
 > 按任务单元记录进度与阻塞，供后续接手者审计。格式：任务编号 / 时间 / commit hash / 测试数量。
 
-### 真实联调修复（reason thinking 配置化 + Open-Meteo 400 + 评分键对齐）— 已提交
+### 真实联调修复（reason thinking 配置化 + Open-Meteo 400 + 评分键对齐）
+
+### ecnu-max think 联调修复（extra_body 兼容 + 默认开启）— 已提交
+
+> **背景**：上一条修复把 reason thinking 默认关闭，但 ECNU 官方文档明确 ecnu-max
+> **支持** `thinking={"type": "enabled"}` + `reasoning_effort`（参数名并无问题）。
+> 实测 TypeError 的真正根因是 **openai SDK 版本**：3.1.0 的 `Completions.create()`
+> 签名没有 thinking 命名参数 → 未知 kwarg 直接拒绝。
+
+- **ChatClient 运行时探测 SDK 能力**：`_NATIVE_REASON_PARAMS` 检查 create() 是否原生支持
+  thinking/reasoning_effort——原生支持走命名参数（规范路径）；否则（如 openai 3.1）经
+  **`extra_body`** 携带扩展参数（OpenAI 兼容网关从请求体读取该字段，与命名参数等价）。
+  普通调用无扩展参数时零污染。这补全了 ADR-002「并发/能力适配收敛在适配层」的一环。
+- **默认开启**：`LLM_REASON_THINKING` 默认 **true**（对齐 ECNU 官方文档，与「默认串行适配
+  ECNU」同一叙事）；不支持思考的平台在 .env 关闭即可，业务代码零改动。
+- **测试**：test_client_serial.py 新增 3 用例——extra_body 路径 / 原生命名参数路径 /
+  无参数零污染（monkeypatch 探测标志强制两条路径）。pytest 149 全绿；ruff 0 告警。
+- **验证方式**：未用真实 Key 联调（遵守约定）；extra_body 为 openai SDK 标准通道 + ECNU
+  网关按文档读取 thinking 字段，组合可信，待小北本机重跑确认。
+
+— 已提交
 
 > **背景**：小北在真实 API 环境执行 `--pipeline` 与自由对话，暴露三处问题。其中
 > thinking 硬编码属于**平台中立性修复**（E4-3 把 ECNU 不支持的扩展参数写死在了 reason 通道）。

@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 import random
 import threading
@@ -22,6 +23,7 @@ import time
 from typing import Any
 
 from openai import OpenAI
+from openai.resources.chat.completions import Completions as _OpenAICompletions
 
 from lighttrail.config import DEFAULT_MODEL
 from lighttrail.infra.quota import QuotaLedger
@@ -34,6 +36,14 @@ _BASE_BACKOFF_SEC = 1.0
 
 # 可重试的错误码（openai SDK 通常已映射为 APIConnectionError / RateLimitError 等）
 _RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+
+# 运行时探测：openai SDK 是否原生支持 thinking / reasoning_effort 命名参数。
+# 不同 SDK 版本签名不同（如 openai 3.1 无 thinking，须经 extra_body 携带），
+# 探测一次即可——这是对「平台/版本能力」的适配，业务代码不感知。
+_NATIVE_REASON_PARAMS = (
+    "thinking" in inspect.signature(_OpenAICompletions.create).parameters
+    and "reasoning_effort" in inspect.signature(_OpenAICompletions.create).parameters
+)
 
 
 class LLMError(Exception):
@@ -97,10 +107,7 @@ class ChatClient:
         payload: dict[str, Any] = {"model": model, "messages": messages, "temperature": temperature}
         if tools:
             payload["tools"] = tools
-        if thinking is not None:
-            payload["thinking"] = thinking
-        if reasoning_effort is not None:
-            payload["reasoning_effort"] = reasoning_effort
+        self._attach_reason_params(payload, thinking, reasoning_effort)
 
         last_exc: Exception | None = None
         for attempt in range(_MAX_RETRIES):
@@ -118,6 +125,32 @@ class ChatClient:
                 logger.warning("LLM 调用失败（第 %d 次），%.1fs 后重试：%s", attempt + 1, backoff, exc)
                 time.sleep(backoff)
         raise LLMError(f"LLM 调用失败：{last_exc}") from last_exc
+
+    @staticmethod
+    def _attach_reason_params(
+        payload: dict[str, Any],
+        thinking: dict[str, Any] | None,
+        reasoning_effort: str | None,
+    ) -> None:
+        """把深推理扩展参数附加到请求体。
+
+        SDK 原生支持时用命名参数（规范路径）；否则经 extra_body 合并——
+        OpenAI 兼容代理（如 ECNU）从请求体中读取 thinking/reasoning_effort 字段，
+        因此 extra_body 与命名参数等价，且兼容任意 SDK 版本。
+        """
+        if _NATIVE_REASON_PARAMS:
+            if thinking is not None:
+                payload["thinking"] = thinking
+            if reasoning_effort is not None:
+                payload["reasoning_effort"] = reasoning_effort
+            return
+        extra: dict[str, Any] = {}
+        if thinking is not None:
+            extra["thinking"] = thinking
+        if reasoning_effort is not None:
+            extra["reasoning_effort"] = reasoning_effort
+        if extra:
+            payload["extra_body"] = extra
 
     def _record_usage(self, payload: dict[str, Any], resp: Any) -> None:
         """成功响应后把 usage 折算为 credits 记账（配额账本，E4-2）。"""

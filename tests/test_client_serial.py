@@ -33,7 +33,10 @@ class _ConcurrencyProbe:
         self.delays = 0.0
         self.fail_times = fail_times  # 前 N 次抛错，之后成功
 
+    last_kwargs: dict | None = None
+
     def create(self, **kwargs):
+        self.last_kwargs = dict(kwargs)
         delay = _RESPONSE_DELAY / 2  # 内部模拟耗时
         with self._lock:
             self.active += 1
@@ -110,3 +113,40 @@ def test_exhaust_retries_raises() -> None:
         client.chat([{"role": "user", "content": "hi"}])
     # 重试次数 = _MAX_RETRIES（3），不多不少
     assert probe.calls == client_mod._MAX_RETRIES
+
+
+# ------ reason 扩展参数：SDK 原生 vs extra_body（平台/SDK 版本中立）------
+def test_reason_params_via_extra_body_when_sdk_lacks_native(monkeypatch) -> None:
+    """SDK 无原生 thinking 参数（如 openai 3.1）：扩展参数经 extra_body 送达请求体。"""
+    monkeypatch.setattr(client_mod, "_NATIVE_REASON_PARAMS", False)
+    client, probe = _make_probed_client(serial=True)
+    client.chat(
+        [{"role": "user", "content": "hi"}],
+        model="ecnu-max",
+        thinking={"type": "enabled"},
+        reasoning_effort="high",
+    )
+    assert probe.last_kwargs["extra_body"]["thinking"] == {"type": "enabled"}
+    assert probe.last_kwargs["extra_body"]["reasoning_effort"] == "high"
+    assert "thinking" not in probe.last_kwargs  # 未占用 SDK 命名参数
+
+
+def test_reason_params_native_when_sdk_supports(monkeypatch) -> None:
+    """SDK 原生支持（探测为 True）：用命名参数，不引入 extra_body。"""
+    monkeypatch.setattr(client_mod, "_NATIVE_REASON_PARAMS", True)
+    client, probe = _make_probed_client(serial=True)
+    client.chat(
+        [{"role": "user", "content": "hi"}],
+        model="ecnu-max",
+        thinking={"type": "enabled"},
+    )
+    assert probe.last_kwargs["thinking"] == {"type": "enabled"}
+    assert "extra_body" not in probe.last_kwargs
+
+
+def test_reason_params_absent_do_not_add_extra_body(monkeypatch) -> None:
+    """无扩展参数时不产生 extra_body（普通调用零污染）。"""
+    monkeypatch.setattr(client_mod, "_NATIVE_REASON_PARAMS", False)
+    client, probe = _make_probed_client(serial=True)
+    client.chat([{"role": "user", "content": "hi"}], model="ecnu-plus")
+    assert "extra_body" not in probe.last_kwargs
