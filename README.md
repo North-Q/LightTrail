@@ -33,7 +33,7 @@
 
 ```
 LightTrail/
-├── docs/                # PRD v0.3 / 架构 v2.0 / 开发路线图 v2.2 / ADR / 设计原型
+├── docs/                # PRD v0.3 / 架构 v2.0 / 开发路线图 v2.3 / ADR / 设计原型
 ├── src/lighttrail/      # 源码
 │   ├── agent/           # ReAct 循环 / ContextBuilder 五层组装 / 工具注册表
 │   ├── llm/             # ChatClient（串行可配置 + 重试）/ ModelRouter 能力矩阵
@@ -41,7 +41,7 @@ LightTrail/
 │   ├── memory/          # 四层记忆：档案 / 事件（SQLite）/ 语义 / Manager
 │   ├── infra/           # TraceRecorder / 置信度规则 / QuotaLedger 配额账本
 │   └── tools/           # 15 个已注册工具（曝光/天文/天气/机位匹配/记忆/照片分析/反推）
-├── tests/               # 176 项 pytest 用例（离线 Fake 数据源，不触网）
+├── tests/               # 177 项 pytest 用例（离线 Fake 数据源，不触网）
 ├── data/                # 本地记忆数据（profile/events.db/semantic，不入库）
 └── README.md
 ```
@@ -56,10 +56,10 @@ LightTrail/
 - [x] 地基拆分与可观测性（E1+E2：ContextBuilder 五层组装 / TraceRecorder / 置信度规则表）
 - [x] 记忆层与配额感知（E3+E4：四层记忆 / ModelRouter 能力矩阵 / QuotaLedger / reason 深推理通道）
 - [x] 决策编排（E5：四管线端到端闭环 + 一句话出方案 + 追问回落 ReAct；ADR-002 平台中立性落地）
-- [x] 多模态与差异化（E6-1~E6-5 交付：照片分析 / 反推 / 复盘闭环 / 语义记忆提炼 / 黄金用例增量；E6-0 真实联调待授权）
+- [x] 多模态与差异化（E6-1~E6-5 + E6-0：照片分析 / 反推 / 复盘闭环 / 语义记忆提炼 / 黄金用例增量；四管线真实 Key 联调通过 + 远程基线已建立；ADR-003 扩展参数适配）
 - [ ] Web 服务层（FastAPI + SSE + 前端，阶段五，E7）
 - [ ] 评估体系（阶段六，E8）
 - [ ] 开源发布
 - [ ] 主动提醒服务（被动提醒 MVP，E9，开源后迭代）
 
-开发进度与任务拆解见 [docs/DEVELOPMENT-ROADMAP.md](docs/DEVELOPMENT-ROADMAP.md)（v2.2，任务编号 E1-1 … E9-2）。
+开发进度与任务拆解见 [docs/DEVELOPMENT-ROADMAP.md](docs/DEVELOPMENT-ROADMAP.md)（v2.3，任务编号 E1-1 … E9-3）。

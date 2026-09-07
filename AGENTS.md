@@ -25,7 +25,7 @@
 ## 协作约定
 - 沟通口语化、简洁直接；正式产出（文档/README/代码注释/邮件）用书面化
 - 涉及外部动作（发邮件、发布、对外提交）必须先经小北确认
-- 当前阶段：**E1–E5 已全部交付**（20 commits：地基拆分 / TraceRecorder / 四层记忆 / ModelRouter+QuotaLedger / 四管线编排与一句话出方案闭环；pytest 149 全绿、ruff 0 告警、smoke 19 项通过；ADR-002 平台中立性重构已落地）。**下一步 E7 Web 服务层**（E6-1~E6-5 已交付：照片分析/反推/复盘闭环/语义提炼/黄金增量；E6-0 真实联调基线 + push 待小北授权，属 E7-0 前必做）。项目将以网页形式呈现（E7 Web 服务层）。项目对话记忆详见 `.workbuddy/memory/`。
+- 当前阶段：**E1–E6 已全部交付**（29 commits 已 push 至 origin/main）：地基拆分 / TraceRecorder / 四层记忆 / ModelRouter+QuotaLedger / 四管线编排与一句话出方案闭环 / 照片分析智能工具（depth=1 红线）+ 照片反推 + 复盘管线闭环 + 语义记忆提炼；pytest **177 全绿**、ruff 0 告警、smoke 21 项通过、**15 个已注册工具**；ADR-002 平台中立性 + ADR-003 扩展参数适配已落地；E6-0 真实 Key 联调四管线通过、远程基线已建立。**下一步 E7 Web 服务层**（E7-0 真实联调开场，async ChatClient + FastAPI + SSE + SPA 前端）。项目将以网页形式呈现。项目对话记忆详见 `.workbuddy/memory/`。
 
 ## 代码风格（基于现有代码反推，新增代码遵守）
 

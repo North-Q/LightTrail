@@ -35,9 +35,9 @@
 - [x] E5-2 结构化输出契约（Intent / DecisionCard pydantic + 自愈 ≤2 次）
 - [x] E5-3 一句话出方案闭环（端到端 + 追问回落 ReAct，含黄金用例集雏形）
 
-### 阶段四：多模态与差异化（E6）✅ E6-1~E6-5 完成（E6-0 真实联调待授权）
+### 阶段四：多模态与差异化（E6）✅ 已完成（含 E6-0 真实联调 + push）
 
-- [ ] E6-0 真实联调基线验证（阻塞：待小北授权 push/真实 Key；E6-1~6-5 代码侧已完成）
+- [x] E6-0 真实联调基线验证（四管线真实 Key 跑通 + 29 commits push 至 origin/main，HEAD 0b502a6）
 - [x] E6-1 照片分析智能工具（analyze_photo，深度=1 红线；真实照片实测并入 E6-0 窗口）
 - [x] E6-2 照片反推方案（reverse_engineer_photo + Orchestrator.reverse_plan）
 - [x] E6-3 语义记忆提炼（sediment_semantics/sediment_favorite_spots，double-confirm）
