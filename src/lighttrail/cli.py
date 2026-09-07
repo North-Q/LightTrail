@@ -17,6 +17,7 @@ import sys
 from lighttrail.agent import Agent, registry
 from lighttrail.config import load_settings
 from lighttrail.infra.quota import QuotaLedger
+from lighttrail.infra.trace import TraceEvent, TraceRecorder
 from lighttrail.llm import ChatClient
 from lighttrail.memory import MemoryManager
 from lighttrail.orchestrator import Orchestrator
@@ -45,6 +46,24 @@ _HELP = """内置命令：
 """
 
 
+def _print_progress(event: TraceEvent) -> None:
+    """把 trace 事件打印为 CLI 进度（stderr，不污染 stdout 结果）。"""
+    name = event.name
+    if event.kind == "step":
+        if name.startswith("采集_"):
+            print(f"[采集] {name[3:]} …", file=sys.stderr, flush=True)
+        elif name == "意图理解":
+            print("[意图] 正在解析请求…", file=sys.stderr, flush=True)
+        elif name == "综合_reason":
+            print("[综合] 深推理中（思考模式，可能需要 30~120 秒），请稍候…", file=sys.stderr, flush=True)
+        elif name == "管线降级":
+            print("[管线] 异常，降级到自由对话…", file=sys.stderr, flush=True)
+        elif name == "reason_thinking":
+            print("[推理] 思考摘要已记录（M2-04）", file=sys.stderr, flush=True)
+    elif event.kind == "tool":
+        print(f"[工具] {name} 完成", file=sys.stderr, flush=True)
+
+
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
@@ -69,17 +88,20 @@ def main(argv: list[str] | None = None) -> int:
         quota=QuotaLedger(warn_threshold=settings.quota_warn_threshold),
     )
     memory = MemoryManager(settings.data_dir)
+    recorder = TraceRecorder()
+    recorder.subscribe(_print_progress)
     agent = Agent(
         client,
         registry,
         model=settings.model,
         memory=memory,
         reason_thinking=settings.reason_thinking,
+        recorder=recorder,
     )
 
     if args.pipeline:
         request = " ".join(args.pipeline)
-        orchestrator = Orchestrator(client, registry, agent, memory=memory)
+        orchestrator = Orchestrator(client, registry, agent, memory=memory, recorder=recorder)
         print(orchestrator.plan(request))
         return 0
 

@@ -190,7 +190,16 @@
 
 ### 真实联调修复（reason thinking 配置化 + Open-Meteo 400 + 评分键对齐）
 
-### ecnu-max think 联调修复（extra_body 兼容 + 默认开启）— 已提交
+### ecnu-max think 联调修复（extra_body 兼容 + 默认开启）
+
+### CLI 管线进度输出（trace 订阅 → stderr 进度）— 已提交
+
+> 真实 `--pipeline` 联调时「一条 200 后长时间无输出」——意图解析成功但后续
+> 天气采集 / ecnu-max 思考模式均无可视反馈。复用 E2-1 预留的 recorder.subscribe，
+> CLI 把 trace 事件打印为 stderr 进度（[意图]/[采集]/[工具]/[综合]/[管线]），
+> 不污染 stdout 结果，等待期可见可诊断（定位卡在采集还是深推理）。
+
+— 已提交
 
 > **背景**：上一条修复把 reason thinking 默认关闭，但 ECNU 官方文档明确 ecnu-max
 > **支持** `thinking={"type": "enabled"}` + `reasoning_effort`（参数名并无问题）。
