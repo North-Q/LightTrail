@@ -13,10 +13,14 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 _SEMANTIC_FILE = "semantic.json"
 # 单次注入最多条数
 _MAX_INJECT = 2
+
+if TYPE_CHECKING:
+    from lighttrail.memory.events import EventRecord
 
 
 @dataclass(frozen=True)
@@ -61,6 +65,15 @@ class SemanticStore:
             return []
         hits = [entry.content for entry in self._entries if any(kw in intent for kw in entry.keywords)]
         return hits[:_MAX_INJECT]
+
+    def contains(self, content: str) -> bool:
+        """正式条目或待确认队列中是否已有同内容（防重复沉淀）。"""
+        text = content.strip()
+        if not text:
+            return False
+        if any(entry.content == text for entry in self._entries):
+            return True
+        return any(entry is not None and entry.content == text for entry in self._pending)
 
     def entries(self) -> list[SemanticEntry]:
         """已确认条目（只读视图）。"""
@@ -145,3 +158,65 @@ class SemanticStore:
             ],
         }
         self._path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+@dataclass(frozen=True)
+class SemanticCandidate:
+    """一条待确认的语义提炼候选（double-confirm 第一步产物）。
+
+    Attributes:
+        content: 候选结论文本。
+        keywords: 命中关键词（题材等）。
+    """
+
+    content: str
+    keywords: tuple[str, ...] = ()
+
+
+def extract_from_events(
+    events: list[EventRecord],
+    *,
+    min_samples: int = 3,
+    min_success_rate: float = 0.7,
+    limit: int = 5,
+) -> list[SemanticCandidate]:
+    """从事件记忆聚合提炼语义候选（E6-3）。
+
+    规则：同题材样本 ≥min_samples 且成功率 ≥min_success_rate → 提炼一条结论
+    （成功率以 outcome ∈ {success/成功/ok} 计）。结果只作**候选**，须经
+    double-confirm（staged_add → confirm）才写入 semantic.json 参与注入，防污染。
+
+    Args:
+        events: 事件记录列表。
+        min_samples: 最小样本数。
+        min_success_rate: 最低成功率（0-1）。
+        limit: 最多返回候选条数。
+
+    Returns:
+        候选语义结论列表。
+    """
+    if not events:
+        return []
+    from collections import defaultdict
+
+    groups: dict[str, dict[str, int]] = defaultdict(lambda: {"success": 0, "total": 0})
+    for event in events:
+        subject = str(event.subject_type or "").strip() or "未标注题材"
+        info = groups[subject]
+        info["total"] += 1
+        if str(event.outcome or "").lower() in {"success", "成功", "ok"}:
+            info["success"] += 1
+    candidates: list[SemanticCandidate] = []
+    for subject, info in sorted(groups.items()):
+        total = info["total"]
+        if total < min_samples:
+            continue
+        rate = info["success"] / total
+        if rate < min_success_rate:
+            continue
+        content = f"{subject}：样本 {total} 次、成功率 {rate:.0%}，可稳定复现该题材"
+        candidates.append(SemanticCandidate(content, (subject,)))
+        if len(candidates) >= limit:
+            break
+    return candidates
+

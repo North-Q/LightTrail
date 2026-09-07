@@ -318,7 +318,25 @@
 
 ### E6-1 照片分析智能工具
 
-### E6-2 照片反推方案（D1.2 图 → 复刻计划）— 已提交
+### E6-2 照片反推方案（D1.2 图 → 复刻计划）
+
+### E6-3 语义记忆提炼（事件聚合 + double-confirm + favorite_spots 沉淀）— 已提交
+
+- **events.py**：事件表新增 `outcome`（success/fail）列 + 轻量迁移（旧库自动 ALTER），
+  成功率统计的数据前提；add_event/search/to_record 全链路支持。
+- **semantic.py**：`extract_from_events(events, min_samples=3, min_success_rate=0.7)`——
+  按题材聚合成功率，命中规则产出 `SemanticCandidate`（候选）；`SemanticStore.contains`
+  防重复沉淀。
+- **manager.py**：
+  - `sediment_semantics()`：全量事件 → 规则提炼 → staged_add 进待确认队列（未确认不注入，
+    须 semantic_confirm 才写入 semantic.json 参与第④层注入——double-confirm 防污染）；
+  - `sediment_favorite_spots(min_count=2)`：高频带坐标机位沉淀进档案 `favorite_spots`
+    （新字段，含 名称/纬度/经度/题材）——为 E9-2 就近推荐与管线按档案定位根治「坐标写死上海」。
+- **profile.py**：`favorite_spots` 字段（_FIELDS/展示/存取整链），注入段输出「常去机位：名(lat,lng)」。
+- **测试**：tests/test_semantic.py 8 用例（outcome/迁移/规则阈值/double-confirm 生效链/防重/
+  favorite 沉淀与去重/无坐标跳过）。pytest 173 全绿；ruff 0 告警；smoke 19 项。
+
+— 已提交
 
 - **tools/photo_analysis.py 增 `reverse_engineer_photo`**（第 15 个工具）：从参考图反推
   场景/光向/推断时段/机位特征/后期风格 + 复刻计划；输出走 `PhotoReverseReport` schema

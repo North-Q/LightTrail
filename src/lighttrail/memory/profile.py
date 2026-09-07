@@ -20,7 +20,14 @@ _PROFILE_FILE = "profile.json"
 _MAX_SECTION_CHARS = 300
 
 # 档案字段（与 data/profile.example.json 模板保持一致）
-_FIELDS = ("camera_body", "lenses", "preferences", "common_locations", "skill_level")
+_FIELDS = (
+    "camera_body",
+    "lenses",
+    "preferences",
+    "common_locations",
+    "skill_level",
+    "favorite_spots",  # E6-3：常去机位（含精确坐标），供 E9-2 就近推荐与管线定位
+)
 
 
 def _truncate(text: str, limit: int) -> str:
@@ -40,6 +47,7 @@ class UserProfile:
     preferences: list[str] = field(default_factory=list)
     common_locations: list[str] = field(default_factory=list)
     skill_level: str = ""
+    favorite_spots: list[dict[str, Any]] = field(default_factory=list)
 
     # ------ 对外接口 ------
     @classmethod
@@ -109,4 +117,16 @@ class UserProfile:
             parts.append("常去机位：" + "、".join(self.common_locations))
         if self.skill_level:
             parts.append(f"水平：{self.skill_level}")
+        if self.favorite_spots:
+            spots = []
+            for spot in self.favorite_spots[:3]:
+                name = str(spot.get("名称") or spot.get("name") or "?")
+                latitude = spot.get("纬度") or spot.get("latitude")
+                longitude = spot.get("经度") or spot.get("longitude")
+                if latitude is not None and longitude is not None:
+                    spots.append(f"{name}({latitude},{longitude})")
+                else:
+                    spots.append(name)
+            if spots:
+                parts.append("常去机位：" + "、".join(spots))
         return _truncate("；".join(parts), _MAX_SECTION_CHARS)

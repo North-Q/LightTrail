@@ -18,7 +18,7 @@ from typing import Any
 
 from lighttrail.memory.events import EventRecord, EventStore, to_prompt_section
 from lighttrail.memory.profile import UserProfile
-from lighttrail.memory.semantic import SemanticStore
+from lighttrail.memory.semantic import SemanticCandidate, SemanticStore, extract_from_events
 
 
 @dataclass(frozen=True)
@@ -158,6 +158,81 @@ class MemoryManager:
         """
         return self._semantic.confirm(candidate_id)
 
+    def sediment_semantics(
+        self,
+        *,
+        min_samples: int = 3,
+        min_success_rate: float = 0.7,
+    ) -> list[SemanticCandidate]:
+        """从事件记忆聚合提炼语义候选（E6-3）。
+
+        成功率命中规则的结论进入语义存储的**待确认队列**（staged_add）；
+        必须经 semantic_confirm 才写入 data/semantic.json 参与注入（double-confirm 防污染）。
+
+        Args:
+            min_samples: 最小样本数。
+            min_success_rate: 最低成功率（0-1）。
+
+        Returns:
+            本次提炼出的候选列表（已入待确认队列）。
+        """
+        all_events = self._events.search_events(limit=500)
+        candidates = extract_from_events(
+            all_events,
+            min_samples=min_samples,
+            min_success_rate=min_success_rate,
+        )
+        for candidate in candidates:
+            if not self._semantic.contains(candidate.content):
+                self._semantic.staged_add(candidate.content, list(candidate.keywords))
+        return candidates
+
+    def sediment_favorite_spots(self, *, min_count: int = 2) -> list[dict[str, Any]]:
+        """把高频常去机位（出现 ≥min_count 且带精确坐标）沉淀进档案 favorite_spots（E6-3）。
+
+        数据前提：事件记忆含 coordinates（E3-2 已落地）；结果供 E9-2 就近推荐
+        与管线按档案精确定位（根治「坐标写死上海」遗留）。
+
+        Args:
+            min_count: 同一地点最少出现次数。
+
+        Returns:
+            本次新增沉淀的机位列表（已写档）。
+        """
+        events = self._events.search_events(limit=500)
+        grouped: dict[str, dict[str, Any]] = {}
+        for event in events:
+            location = event.location.strip()
+            if not location:
+                continue
+            info = grouped.setdefault(location, {"count": 0, "coordinates": "", "subjects": set()})
+            info["count"] += 1
+            if event.coordinates:
+                info["coordinates"] = event.coordinates
+            if event.subject_type:
+                info["subjects"].add(event.subject_type)
+        existing = {str(spot.get("名称") or spot.get("name") or "") for spot in self._profile.favorite_spots}
+        added: list[dict[str, Any]] = []
+        for location, info in grouped.items():
+            if info["count"] < min_count or not info["coordinates"]:
+                continue
+            if location in existing:
+                continue
+            latitude, longitude = _split_coordinates(str(info["coordinates"]))
+            if latitude is None:
+                continue
+            spot = {
+                "名称": location,
+                "纬度": latitude,
+                "经度": longitude,
+                "题材": "、".join(sorted(info["subjects"]))[:40],
+            }
+            self._profile.favorite_spots.append(spot)
+            added.append(spot)
+        if added:
+            self._profile.save(self._data_dir)
+        return added
+
     def semantic_reject(self, candidate_id: int) -> bool:
         """否决候选，丢弃不落盘。
 
@@ -202,3 +277,12 @@ def _extract_subject(intent: str) -> str | None:
         if keyword in intent:
             return canonical
     return None
+
+
+def _split_coordinates(value: str) -> tuple[float | None, float | None]:
+    """把 "lat,lng" 解析为浮点对；非法返回 (None, None)。"""
+    try:
+        latitude_text, longitude_text = str(value).split(",")
+        return float(latitude_text), float(longitude_text)
+    except (ValueError, AttributeError):
+        return None, None

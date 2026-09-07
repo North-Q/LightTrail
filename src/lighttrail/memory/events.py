@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS events (
     tags TEXT NOT NULL DEFAULT '[]',
     weather_snapshot TEXT NOT NULL DEFAULT '{}',
     equipment TEXT NOT NULL DEFAULT '',
+    outcome TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
@@ -53,6 +54,7 @@ class EventRecord:
         subject_type: 题材（如 日出 / 日落 / 火烧云 / 银河 / 星空）。
         summary: 事件结论摘要。
         lesson: 经验教训（D4 复盘产出）。
+        outcome: 结果（success / fail，空串未知）。
         tags: 标签列表。
         weather_snapshot: 当时的天气/天象快照 dict（云量/火烧云评分/月相…）。
         equipment: 器材参数（后可接 EXIF）。
@@ -65,6 +67,7 @@ class EventRecord:
     subject_type: str = ""
     summary: str = ""
     lesson: str = ""
+    outcome: str = ""
     tags: tuple[str, ...] = ()
     weather_snapshot: dict[str, Any] = field(default_factory=dict)
     equipment: str = ""
@@ -84,6 +87,14 @@ class EventStore:
         self._lock = threading.Lock()
         with self._connect() as conn:
             conn.executescript(_SCHEMA)
+            self._migrate(conn)
+
+    @staticmethod
+    def _migrate(conn: sqlite3.Connection) -> None:
+        """轻量迁移：旧库缺 outcome 列时补列（E6-3 成功率统计前提）。"""
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(events)")}
+        if "outcome" not in columns:
+            conn.execute("ALTER TABLE events ADD COLUMN outcome TEXT NOT NULL DEFAULT ''")
 
     # ------ 对外接口：写入 ------
     def add_event(
@@ -94,6 +105,7 @@ class EventStore:
         subject_type: str = "",
         summary: str = "",
         lesson: str = "",
+        outcome: str = "",
         tags: list[str] | tuple[str, ...] | None = None,
         coordinates: str = "",
         weather_snapshot: dict[str, Any] | None = None,
@@ -107,6 +119,7 @@ class EventStore:
             subject_type: 题材。
             summary: 结论摘要。
             lesson: 经验教训。
+            outcome: 结果（success / fail，空串未知；E6-3 成功率统计用）。
             tags: 标签列表。
             coordinates: 精确坐标。
             weather_snapshot: 天气/天象快照 dict（D2.3-07 复拍对比基线）。
@@ -118,15 +131,16 @@ class EventStore:
         with self._lock, self._connect() as conn:
             cursor = conn.execute(
                 "INSERT INTO events"
-                " (timestamp, location, subject_type, summary, lesson, tags,"
+                " (timestamp, location, subject_type, summary, lesson, outcome, tags,"
                 "  coordinates, weather_snapshot, equipment)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     timestamp,
                     location,
                     subject_type,
                     summary,
                     lesson,
+                    outcome,
                     json.dumps(list(tags or []), ensure_ascii=False),
                     coordinates,
                     json.dumps(weather_snapshot or {}, ensure_ascii=False),
@@ -227,6 +241,7 @@ class EventStore:
             subject_type=str(row["subject_type"]),
             summary=str(row["summary"]),
             lesson=str(row["lesson"]),
+            outcome=str(row["outcome"]),
             tags=tuple(json.loads(row["tags"] or "[]")),
             weather_snapshot=json.loads(row["weather_snapshot"] or "{}"),
             equipment=str(row["equipment"]),
