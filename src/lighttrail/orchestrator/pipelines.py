@@ -39,6 +39,7 @@ class PipelineEnv:
     memory: MemoryManager | None = None
     recorder: Recorder = field(default_factory=lambda: null_trace)
     router: ModelRouter | None = None
+    photo_analyze: Callable[[str, str], dict[str, Any]] | None = None
 
 
 # ------ 确定性工具 ------
@@ -259,20 +260,95 @@ class LiveDecisionPipeline(Pipeline):
 
 
 class ReviewPipeline(Pipeline):
-    """复盘管线（D4 骨架）：照片多模态分析由 E6-1 接入，本阶段先产出骨架卡片。"""
+    """复盘管线（D4 闭环，E6-4）：照片分析 + 与计划对账差异 + reason 复盘卡。
+
+    评分键对齐教训（E5 真实联调）：EXIF 与计划参数一律按中文键（光圈/快门/ISO）
+    宽松数值对比，任何一方缺失即跳过该项，不让键名错位导致静默失真。
+    """
 
     name = "review"
-    description = "照片复盘（骨架，E6 接入多模态）"
+    description = "照片复盘（EXIF + 多模态 → 处方，与历史计划对账）"
 
     def run(self, ctx: PipelineContext, env: PipelineEnv) -> DecisionCard:
-        ctx.card = DecisionCard(
-            conclusion="复盘管线骨架已就绪；照片分析（EXIF + 画面多模态）将在 E6 接入后输出处方卡片。",
-            evidence=[],
-            confidence="low",
-            degraded="review_pipeline_skeleton",
-        )
-        env.recorder.record_step("复盘_骨架", input_summary=ctx.user_request, output_summary=ctx.card.conclusion)
+        image_path = str(ctx.data.get("image_path") or "")
+        if not image_path:
+            ctx.card = DecisionCard(
+                conclusion="请提供照片路径后再复盘（image_path 缺失）。",
+                evidence=[],
+                confidence="low",
+                degraded="review_missing_image",
+            )
+            env.recorder.record_step("复盘_缺图", input_summary=ctx.user_request, output_summary="")
+            return ctx.card
+        focus = str(ctx.data.get("focus") or "")
+        analyzer = env.photo_analyze or _default_photo_analyze()
+        env.recorder.record_step("复盘_照片分析", input_summary=image_path[:80], output_summary=focus[:60])
+        report = analyzer(image_path, focus)
+        exif = report.get("已识别EXIF") if isinstance(report, dict) else {}
+        diffs = _diff_exif_vs_plan(exif, ctx.data.get("plan_params"))
+        ctx.scores = {"实拍参数": exif, "对账差异": diffs}
+        prompt = _build_review_prompt(report, exif, diffs)
+        env.recorder.record_step("复盘_综合", input_summary=prompt[:80], output_summary="")
+        ctx.card = parse_with_retry(DecisionCard, lambda p: env.reason(p, ""), prompt)
+        env.recorder.record_step("复盘_卡片", input_summary=ctx.card.conclusion, output_summary="")
         return ctx.card
+
+
+def _default_photo_analyze() -> Callable[[str, str], dict[str, Any]]:
+    """默认照片分析绑定（延迟 import，避免模块级 tools 依赖；测试注入 Fake）。"""
+    from lighttrail.tools import photo_analysis
+
+    def analyze(image_path: str, focus: str) -> dict[str, Any]:
+        return photo_analysis.analyze_photo(image_path, focus=focus)
+
+    return analyze
+
+
+def _diff_exif_vs_plan(exif: dict[str, Any], plan_params: Any) -> list[str]:
+    """把 EXIF 实拍参数与计划参数做宽松数值对账，返回差异行（键名一致化）。"""
+    diffs: list[str] = []
+    if not isinstance(plan_params, list):
+        return diffs
+    plan_map: dict[str, str] = {}
+    for item in plan_params:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("参数") or item.get("name") or "")
+        value = str(item.get("值") or item.get("value") or "")
+        if name:
+            plan_map[name] = value
+    for label in ("光圈", "快门", "ISO"):
+        actual = exif.get(label)
+        if not actual:
+            continue
+        planned = next((value for name, value in plan_map.items() if label in name), None)
+        if planned is None or _values_equivalent(planned, actual):
+            continue
+        diffs.append(f"计划{label} {planned}，实拍 {actual}")
+    return diffs
+
+
+def _values_equivalent(left: str, right: str) -> bool:
+    """数值宽松相等（忽略单位/前缀，如 f/8 vs 8、1/125s vs 1/125）。"""
+    import re
+
+    numbers = lambda text: re.findall(r"\d+\.?\d*", str(text))
+    return bool(numbers(left) and numbers(left) == numbers(right))
+
+
+def _build_review_prompt(report: dict[str, Any], exif: dict[str, Any], diffs: list[str]) -> str:
+    """组装复盘综合 prompt（分析 + 实拍参数 + 对账差异 → DecisionCard JSON）。"""
+    lines = [
+        "照片复盘分析结果：",
+        json.dumps(report, ensure_ascii=False, default=str)[:2000],
+        f"实拍 EXIF 参数：{json.dumps(exif, ensure_ascii=False, default=str)}",
+    ]
+    if diffs:
+        lines.append("与历史计划的参数差异：" + "；".join(diffs))
+    else:
+        lines.append("与历史计划无参数差异（或计划缺失，仅按实拍复盘）。")
+    lines.append("conclusion 须写复盘结论与下次处方；params 给下次拍摄参数建议。")
+    return "\n\n".join(lines) + "\n\n" + _DECISION_CARD_INSTRUCTION
 
 
 # 管线注册表（路由按 intent.mode 选择）

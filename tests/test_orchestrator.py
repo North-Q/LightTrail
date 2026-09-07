@@ -134,12 +134,12 @@ def test_inspiration_pipeline_records_scores() -> None:
     assert ctx.scores["火烧云评分"] == 62
 
 
-def test_review_pipeline_returns_skeleton() -> None:
-    """复盘管线骨架卡片（E6 接入多模态前）。"""
+def test_review_pipeline_missing_image_returns_skeleton() -> None:
+    """复盘管线缺图时返回骨架卡（提示提供照片路径，不触 LLM）。"""
     env = _make_env()
     card = ReviewPipeline().run(PipelineContext(user_request="帮我复盘这张照片"), env)
-    assert "E6" in card.conclusion
-    assert card.degraded == "review_pipeline_skeleton"
+    assert "image_path" in card.conclusion
+    assert card.degraded == "review_missing_image"
 
 
 # ------ Orchestrator 端到端与降级 ------

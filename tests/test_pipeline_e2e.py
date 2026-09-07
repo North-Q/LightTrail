@@ -161,3 +161,84 @@ def test_cli_pipeline_entry_prints_card(monkeypatch, capsys) -> None:
     code = cli_mod.main(["--pipeline", "这周末想去拍银河"])
     assert code == 0
     assert "## 拍摄方案（Fake）" in capsys.readouterr().out
+
+
+# ------ 复盘管线闭环（E6-4）------
+_REVIEW_CARD = json.dumps(
+    {
+        "conclusion": "整体不错，暗部再提一档即可；下次早 20 分钟到位。",
+        "evidence": [{"tool": "analyze_photo", "field": "总体评语", "confidence": "medium", "note": "EXIF 实拍"}],
+        "confidence": "medium",
+        "time_window": "下次日落前 40 分钟",
+        "locations": [],
+        "params": [{"name": "光圈", "value": "f/8", "reason": "景深更实"}],
+        "alternatives": [],
+        "degraded": "",
+    },
+    ensure_ascii=False,
+)
+
+
+def _fake_analyze(image_path: str, focus: str) -> dict:
+    """Fake 照片分析（与 photo_analysis 返回结构一致）。"""
+    return {
+        "场景": "城市日落",
+        "主体": "天际线",
+        "构图评价": "水平线略居中",
+        "曝光评价": "暗部欠一档",
+        "色彩评价": "暖调饱和",
+        "总体评语": "整体不错",
+        "可执行处方": "下次早 20 分钟到位，f/8 ISO 100",
+        "参数建议": [{"参数": "光圈", "值": "f/8", "理由": "景深"}],
+        "已识别EXIF": {"光圈": "f/5.6", "快门": "1/125", "ISO": "100"},
+        "置信度": "medium",
+        "图片摘要": "fake",
+    }
+
+
+def _review_fake_agent_client() -> FakeChatClient:
+    return FakeChatClient([{"role": "assistant", "content": _REVIEW_CARD}])
+
+
+def test_review_pipeline_closed_loop(monkeypatch) -> None:
+    """复盘闭环：照片分析 → 对账 → reason 复盘卡（端到端，Fake 不触网）。"""
+    import lighttrail.tools.photo_analysis as photo_mod
+
+    monkeypatch.setattr(photo_mod, "_get_client", lambda: FakeChatClient([]))
+    fake = _review_fake_agent_client()
+    agent = Agent(fake, registry, model="ecnu-plus")
+    orc = Orchestrator(
+        fake,
+        registry,
+        agent,
+        dispatch=_fake_dispatch,
+        photo_analyze=_fake_analyze,
+    )
+    text = orc.review("D:/photos/sample.jpg", focus="看暗部")
+    assert "## 拍摄方案" in text
+    assert "暗部再提一档" in text
+    assert orc.last_card is not None
+    assert len(fake.calls) == 1
+    assert fake.calls[0]["model"] == "ecnu-max"
+
+
+def test_review_pipeline_reports_plan_diff() -> None:
+    """与历史计划对账：计划 f/8 vs 实拍 f/5.6 → 差异进入综合 prompt。"""
+    fake = _review_fake_agent_client()
+    agent = Agent(fake, registry, model="ecnu-plus")
+    orc = Orchestrator(fake, registry, agent, dispatch=_fake_dispatch, photo_analyze=_fake_analyze)
+    plan_json = json.dumps({"params": [{"name": "光圈", "value": "f/8", "reason": "计划建议"}]}, ensure_ascii=False)
+    orc.review("D:/photos/sample.jpg", plan_reference=plan_json)
+    prompt = fake.calls[0]["messages"][-1]["content"]
+    assert "计划光圈 f/8，实拍 f/5.6" in prompt
+
+
+def test_review_pipeline_missing_image_returns_skeleton() -> None:
+    """缺 image_path → 骨架卡（review_missing_image），不触发 LLM 调用。"""
+    fake = _review_fake_agent_client()
+    agent = Agent(fake, registry, model="ecnu-plus")
+    orc = Orchestrator(fake, registry, agent, dispatch=_fake_dispatch, photo_analyze=_fake_analyze)
+    text = orc.review("")
+    assert "image_path" in text
+    assert fake.calls == []
+

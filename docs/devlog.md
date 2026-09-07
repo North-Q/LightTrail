@@ -320,7 +320,20 @@
 
 ### E6-2 照片反推方案（D1.2 图 → 复刻计划）
 
-### E6-3 语义记忆提炼（事件聚合 + double-confirm + favorite_spots 沉淀）— 已提交
+### E6-3 语义记忆提炼（事件聚合 + double-confirm + favorite_spots 沉淀）
+
+### E6-4 复盘管线填充（review 闭环）— 已提交
+
+- **pipelines.py ReviewPipeline 闭环**：照片（image_path）→ env.photo_analyze（默认绑
+  E6-1 analyze_photo，测试可注 Fake）→ EXIF + 评价 + 处方 → **与历史计划对账**（EXIF
+  光圈/快门/ISO 与计划 params 宽松数值对比，产出差异行，键名统一避免 E5 评分键错位教训）→
+  reason 深推理 → 复盘 DecisionCard；缺图返回 review_missing_image 骨架卡（不触 LLM）。
+- **Orchestrator.review / run_review**：`review(image_path, focus, plan_reference)`——计划
+  引用支持 DecisionCard JSON（取其 params）；失败自动降级自由对话。
+- **测试**：test_pipeline_e2e.py 新增 3 个复盘用例（闭环/对账差异进 prompt/缺图骨架）+
+  test_orchestrator 骨架测试更新为缺图语义。pytest 176 全绿；ruff 0 告警；smoke 19 项。
+
+— 已提交
 
 - **events.py**：事件表新增 `outcome`（success/fail）列 + 轻量迁移（旧库自动 ALTER），
   成功率统计的数据前提；add_event/search/to_record 全链路支持。

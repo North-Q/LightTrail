@@ -36,6 +36,28 @@ _DEFAULT_LAT = 31.23
 _DEFAULT_LON = 121.47
 
 
+def _default_photo_analyze() -> Callable[[str, str], dict]:
+    """默认照片分析绑定（延迟 import tools.photo_analysis；测试注入 Fake）。"""
+    from lighttrail.tools import photo_analysis
+
+    def analyze(image_path: str, focus: str) -> dict:
+        return photo_analysis.analyze_photo(image_path, focus=focus)
+
+    return analyze
+
+
+def _extract_plan_params(plan_reference: str) -> list[dict[str, Any]]:
+    """从历史计划文本中提取参数列表（DecisionCard JSON 的 params；非法返回空）。"""
+    if not plan_reference:
+        return []
+    try:
+        parsed = json.loads(plan_reference)
+    except ValueError:
+        return []
+    params = parsed.get("params") if isinstance(parsed, dict) else None
+    return params if isinstance(params, list) else []
+
+
 def _candidate_sites(memory: MemoryManager | None) -> list[dict[str, Any]]:
     """候选机位：档案常去地点（无坐标时按默认坐标近似偏移兜底）。"""
     sites: list[dict[str, Any]] = []
@@ -117,6 +139,7 @@ class Orchestrator:
         recorder: Recorder | None = None,
         router: ModelRouter | None = None,
         dispatch: Callable[[str, str], str] | None = None,
+        photo_analyze: Callable[[str, str], dict] | None = None,
     ) -> None:
         """初始化编排器。
 
@@ -142,6 +165,7 @@ class Orchestrator:
             memory=memory,
             recorder=self._recorder,
             router=self._router,
+            photo_analyze=photo_analyze or _default_photo_analyze(),
         )
         self.last_card: DecisionCard | None = None
 
@@ -184,6 +208,46 @@ class Orchestrator:
         pipeline = PIPELINES.get(pipeline_name) or PIPELINES[default_mode(intent.subject_type)]
         self._recorder.record_step(f"管线_{pipeline.name}", input_summary=user_request[:80], output_summary="启动")
         return pipeline.run(ctx, self._env)
+
+    def review(self, image_path: str, *, focus: str = "", plan_reference: str = "") -> str:
+        """D4 复盘：照片 → EXIF+画面分析 → 与历史计划对账 → 复盘卡（渲染文本）。
+
+        Args:
+            image_path: 照片路径。
+            focus: 分析重点。
+            plan_reference: 历史计划（DecisionCard JSON 或文本；可空）。
+
+        Returns:
+            复盘卡片文本；失败自动降级自由对话。
+        """
+        try:
+            card = self.run_review(image_path, focus=focus, plan_reference=plan_reference)
+            self.last_card = card
+            return _render_card(card)
+        except Exception as exc:  # noqa: BLE001 - 复盘链路异常统一降级
+            logger.warning("复盘失败，降级 ReAct：%s", exc)
+            return self._fallback(f"帮我复盘这张照片（{image_path}）{focus}")
+
+    def run_review(self, image_path: str, *, focus: str = "", plan_reference: str = "") -> DecisionCard:
+        """执行复盘管线：照片分析 + 对账 + reason 复盘卡。
+
+        Args:
+            image_path: 照片路径。
+            focus: 分析重点。
+            plan_reference: 历史计划（DecisionCard JSON 或文本）。
+
+        Returns:
+            复盘 DecisionCard。
+
+        Raises:
+            照片分析 / rSchema 校验失败向上抛（由 review 捕获降级）。
+        """
+        plan_params = _extract_plan_params(plan_reference)
+        ctx = PipelineContext(
+            user_request=f"复盘照片：{image_path}",
+            data={"image_path": image_path, "focus": focus, "plan_params": plan_params},
+        )
+        return PIPELINES["review"].run(ctx, self._env)
 
     def reverse_plan(
         self,
