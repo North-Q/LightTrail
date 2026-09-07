@@ -285,3 +285,12 @@
 - **残留（历史默认值，合规）**：`ecnu-plus`/`ecnu-max` 仅出现在 config.py DEFAULT_*、quota.py
   默认计价表键、.env.example 注释、docs/adr 历史叙述中——符合 ADR-002「模型名只出现在 config 默认值/.env/能力矩阵」。
 - **本次会话新增修复**：文档中 `LIGHTTRAIL_SERIAL_LLM` 命名残留统一为 `LLM_SERIAL_LLM`（a7924c7）。
+
+## 2026-09-07（晚）· 全面检查与文档同步 — 软件开发团队
+
+> 齐活林（主理人）组织全面盘点 Codex 本轮 E1–E5 交付（20 commits），架构师高见远出后续路线，主理人执行文档同步。
+
+- **验证**：pytest 149 全绿 / ruff 0 告警 / smoke 19 项 / 13 工具注册实测 / 工作区干净（20 commits 待 push）。
+- **后续路线（v2.2）**：E6 多模态（含新增 E6-0 真实联调基线 / E6-4 复盘管线填充 / E6-5 收口）→ E7 Web（E7-0 联调开场，SPA 3+3 页两迭代）→ E8 评估（黄金用例改各阶段增量交付）→ 开源发布 → **新增阶段八 E9 主动提醒被动 MVP**（复拍提醒 + 就近推荐；定时推送延后）。
+- **文档同步**：README（状态勾选/目录结构/13 工具/149 测试）、AGENTS.md（当前阶段/目录/串行策略 ADR-002 化）、DEVELOPMENT-ROADMAP v2.2（§1.1 现状/PRD 矩阵全勾/E9 阶段）、architecture v2.0.1（基线 + ADR-002 补注）、TODO 同步、PRD-v0.2.md 重命名为 PRD-v0.3.md（全局引用替换）。
+- **遗留处置排期**（交叉引用 §收尾总结遗留问题）：push 待小北确认（并入 E6-0）；坐标写死上海 → E6-3 favorite_spots 根治；review 骨架 → E6-4 填充；.env.example 补配置 → 开源发布 J-1。

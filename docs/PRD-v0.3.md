@@ -1,4 +1,4 @@
-# LightTrail · 光迹 — 需求文档（PRD v0.2）
+# LightTrail · 光迹 — 需求文档（PRD v0.3）
 
 > **版本**：v0.3
 > **日期**：2026-09-07
@@ -423,7 +423,7 @@ LightTrail · 拍摄决策引擎
 ```
 LightTrail/
 ├── docs/
-│   ├── PRD-v0.2.md
+│   ├── PRD-v0.3.md
 │   ├── architecture.md        # 架构 v2.0（FastAPI + SSE + SPA）
 │   └── DEVELOPMENT-ROADMAP.md # 路线图 v2.0（E1-1…E8-2）
 ├── src/lighttrail/

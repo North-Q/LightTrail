@@ -33,11 +33,16 @@
 
 ```
 LightTrail/
-├── docs/                # PRD v0.2 / 架构 v2.0 / 开发路线图 v2.0 / 设计原型
-├── src/lighttrail/      # 源码（agent / llm / tools / orchestror / memory / api）
-│   └── tools/           # 12 个已注册工具（曝光/天文/天气/机位匹配）
-├── evals/               # 三层评估体系（golden 用例集 / judge）
-├── frontend/            # Web UI（Vite + React + TS，规划中 E7-5）
+├── docs/                # PRD v0.3 / 架构 v2.0 / 开发路线图 v2.2 / ADR / 设计原型
+├── src/lighttrail/      # 源码
+│   ├── agent/           # ReAct 循环 / ContextBuilder 五层组装 / 工具注册表
+│   ├── llm/             # ChatClient（串行可配置 + 重试）/ ModelRouter 能力矩阵
+│   ├── orchestrator/    # 四管线编排 + Intent/DecisionCard 契约（pydantic 自愈）
+│   ├── memory/          # 四层记忆：档案 / 事件（SQLite）/ 语义 / Manager
+│   ├── infra/           # TraceRecorder / 置信度规则 / QuotaLedger 配额账本
+│   └── tools/           # 13 个已注册工具（曝光/天文/天气/机位匹配/记忆检索）
+├── tests/               # 149 项 pytest 用例（离线 Fake 数据源，不触网）
+├── data/                # 本地记忆数据（profile/events.db/semantic，不入库）
 └── README.md
 ```
 
@@ -45,14 +50,16 @@ LightTrail/
 
 - [x] 项目初始化
 - [x] Agent 骨架（多轮对话 + 工具调用最小链路）
-- [x] 需求文档 v0.2（[docs/PRD-v0.2.md](docs/PRD-v0.2.md)）
-- [x] 决策主线工具层：**12 个工具已注册**（参数推荐 / 天文查询 / 天气 / 火烧云评分 / 机位×天象匹配）
+- [x] 需求文档 v0.3（[docs/PRD-v0.3.md](docs/PRD-v0.3.md)，含主动提醒能力族）
+- [x] 决策主线工具层：**13 个工具已注册**（参数推荐 / 天文查询 / 天气 / 火烧云评分 / 机位×天象匹配 / 记忆检索）
 - [x] UI 高保真原型（[docs/design/delivery/lighttrail-prototype.html](docs/design/delivery/lighttrail-prototype.html)，6 页 SPA）
-- [ ] 记忆与可解释性地基（路线图阶段二，E3+E4）
-- [ ] 决策编排（一句话方案 / 计划 / 临场赌注，路线图阶段三，E5）
-- [ ] 多模态与差异化（照片分析 / 反推 / 语义记忆，阶段四，E6）
+- [x] 地基拆分与可观测性（E1+E2：ContextBuilder 五层组装 / TraceRecorder / 置信度规则表）
+- [x] 记忆层与配额感知（E3+E4：四层记忆 / ModelRouter 能力矩阵 / QuotaLedger / reason 深推理通道）
+- [x] 决策编排（E5：四管线端到端闭环 + 一句话出方案 + 追问回落 ReAct；ADR-002 平台中立性落地）
+- [ ] 多模态与差异化（照片分析 / 反推 / 语义记忆提炼，阶段四，E6）
 - [ ] Web 服务层（FastAPI + SSE + 前端，阶段五，E7）
 - [ ] 评估体系（阶段六，E8）
 - [ ] 开源发布
+- [ ] 主动提醒服务（被动提醒 MVP，E9，开源后迭代）
 
-开发进度与任务拆解见 [docs/DEVELOPMENT-ROADMAP.md](docs/DEVELOPMENT-ROADMAP.md)（v2.0，任务编号 E1-1 … E8-2）。
+开发进度与任务拆解见 [docs/DEVELOPMENT-ROADMAP.md](docs/DEVELOPMENT-ROADMAP.md)（v2.2，任务编号 E1-1 … E9-2）。

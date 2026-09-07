@@ -1,12 +1,12 @@
 # TODO · LightTrail（光迹）
 
 > 项目待办 + 灵感收集。更新日期：2026-09-07
-> 任务编号与 `docs/DEVELOPMENT-ROADMAP.md` v2.1（E1-1 … E8-2）对应；架构见 `docs/architecture.md` v2.0。
-> PRD 已升至 v0.3（新增「主动提醒服务」能力族，见 PRD §8.4 / D2.3-06 / D2.3-07 / D3.1-04 / M1.1-04 / M1.1-05 / NF-16）。
+> 任务编号与 `docs/DEVELOPMENT-ROADMAP.md` v2.2（E1-1 … E9-3）对应；架构见 `docs/architecture.md` v2.0.1。
+> PRD 已升至 v0.3（新增「主动提醒服务」能力族，见 PRD §8.4 / D2.3-06 / D2.3-07 / D3.1-04 / M1.1-04 / M1.1-05 / NF-16）——主动提醒以「查询时被动提醒」MVP 形式排 E9，定时推送延后。
 
 ## 待办（当前阶段）
 
-### 已基线（工具层 12 工具已注册，28 测试全绿）
+### 已基线（工具层 13 工具已注册，149 测试全绿）
 
 - [x] 拍摄参数推荐：曝光换算 / 星空 500·NPF / 长曝光 ND（`equivalent_exposure` / `star_shutter_rule` / `nd_long_exposure`）
 - [x] 天文查询：太阳时刻/方位 / 月相 / 月升月落 / 银心可见窗口（`sun_times` / `sun_position` / `moon_phase` / `moon_events` / `galaxy_visibility`）
@@ -35,28 +35,40 @@
 - [x] E5-2 结构化输出契约（Intent / DecisionCard pydantic + 自愈 ≤2 次）
 - [x] E5-3 一句话出方案闭环（端到端 + 追问回落 ReAct，含黄金用例集雏形）
 
-### 阶段四：多模态与差异化（E6）
+### 阶段四：多模态与差异化（E6）★ 下一步
 
-- [ ] E6-1 照片分析智能工具（深度=1 红线，EXIF + 画面 → 可执行处方）
+- [ ] E6-0 真实联调基线验证：真实 Key 跑通四管线各 ≥1 条 query + push 20+ commits 建远程基线（push 需小北确认）
+- [ ] E6-1 照片分析智能工具（深度=1 红线，EXIF + 画面 → 可执行处方；真实照片 ≥3 张实测）
 - [ ] E6-2 照片反推方案（图 → 复刻计划）
-- [ ] E6-3 语义记忆提炼（事件聚合 + 规则 + 确认队列）
+- [ ] E6-3 语义记忆提炼（事件聚合 + 规则 + 确认队列；favorite_spots 坐标沉淀进档案）
+- [ ] E6-4 复盘管线填充（review 骨架 → 闭环：照片分析 + 与 plan 期 DecisionCard 对账）
+- [ ] E6-5 阶段收口（黄金用例 ≥8 条 + 文档同步）
 
 ### 阶段五：Web 服务层（E7）★ 网页形态落地
 
+- [ ] E7-0 真实 Key + SSE 长连接联调验证（阶段开场任务）
 - [ ] E7-1 async ChatClient + 全局 LLM 队列（Semaphore(1)，串行只限 LLM）
 - [ ] E7-2 SessionManager 会话持久化（JSON 落盘）
 - [ ] E7-3 FastAPI + SSE 路由（五个端点，事件协议见架构 v2.0 §2.8）
 - [ ] E7-4 trace 事件桥接 SSE（「trace 即 UI」实时轨迹面板）
-- [ ] E7-5 前端 SPA 工程化（Vite + React + TS，接高保真原型）
+- [ ] E7-5 前端 SPA 工程化（Vite + React + TS，接高保真原型；首迭代 3 核心页：对话/会话列表/DecisionCard，第二迭代 Trace 时间线/设置页）
 
 ### 阶段六：评估体系（E8）
 
-- [ ] E8-1 黄金用例集 + 管线回归（L2，cassette 回放，~30 条）
+> 黄金用例改为各阶段增量交付（每阶段收口 +5~10 条）；E8 本体做框架与 LLM-as-judge。
+
+- [ ] E8-1 黄金用例集 + 管线回归（L2，cassette 回放，~30 条集中补齐；E6-5 已含 ≥8 条）
 - [ ] E8-2 LLM-as-judge（L3，rubric 打分 + 「工具即裁判」交叉校验）
 
 ### 阶段七：开源发布
 
-- [ ] README 重写（Web 形态 + 双入口）、CONTRIBUTING、.env.example 校验
+- [ ] README 重写（Web 形态 + 双入口）、CONTRIBUTING、.env.example 校验（补 LLM_SERIAL_LLM / LLM_REASON_THINKING / LIGHTTRAIL_QUOTA_WARN_THRESHOLD）、CHANGELOG.md（从 20 commits 梳理 E1–E5）
+
+### 阶段八：主动提醒服务（E9，被动 MVP，开源后迭代）
+
+- [ ] E9-1 复拍机会被动提醒（D2.3-07：事件坐标 + 天气快照匹配 → 查询时注入提醒卡片）
+- [ ] E9-2 就近快速推荐（D3.1-04：haversine 5km 过滤 favorite_spots）
+- [ ] E9-3（可选）定时推送骨架（APScheduler，视社区反馈）
 
 ## 工程遗留（接手 agent 留意）
 

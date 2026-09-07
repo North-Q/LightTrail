@@ -14,7 +14,7 @@
 3. D3 决策：临场赌注决策（火烧云等）、拍摄参数推荐（曝光三角/星空 500·NPF/长曝光 ND）
 4. D4 复盘：照片智能分析（多模态 + 可执行处方）
 - 决策地基：M1 个性化记忆（档案/事件/语义）、M2 可解释性（数据透明/依据/来源）
-- 需求详见 `docs/PRD-v0.2.md`
+- 需求详见 `docs/PRD-v0.3.md`
 
 ## 技术约定
 - 语言：Python（小北近期主用）
@@ -25,7 +25,7 @@
 ## 协作约定
 - 沟通口语化、简洁直接；正式产出（文档/README/代码注释/邮件）用书面化
 - 涉及外部动作（发邮件、发布、对外提交）必须先经小北确认
-- 当前阶段：**工具层已完成（12 个已注册工具）**，需求文档 v0.2、架构 v2.0（Web 化：FastAPI + SSE + SPA）、开发路线图 v2.0（任务 E1-1…E8-2）已输出；下一步按路线图走 E1+E2（地基拆分与 TraceRecorder）；项目将以网页形式呈现（E7 Web 服务层）。项目对话记忆详见 `.workbuddy/memory/`。
+- 当前阶段：**E1–E5 已全部交付**（20 commits：地基拆分 / TraceRecorder / 四层记忆 / ModelRouter+QuotaLedger / 四管线编排与一句话出方案闭环；pytest 149 全绿、ruff 0 告警、smoke 19 项通过；ADR-002 平台中立性重构已落地）。**下一步 E6 多模态与照片分析**（E6-0 真实联调基线验证 → E6-1 照片分析智能工具 → E6-2 照片反推 → E6-3 复盘管线填充 → E6-4 语义记忆提炼）。项目将以网页形式呈现（E7 Web 服务层）。项目对话记忆详见 `.workbuddy/memory/`。
 
 ## 代码风格（基于现有代码反推，新增代码遵守）
 
@@ -49,25 +49,28 @@
 ## 目录结构
 ```
 src/lighttrail/
-├── config.py          # 配置加载（.env）
-├── cli.py             # 命令行入口
-├── llm/client.py      # OpenAI 兼容客户端（串行锁 + 重试）
-├── agent/core.py      # Agent 主循环（多轮 + 工具调用）
-├── agent/tools.py     # 工具注册器（@registry.tool 装饰器）
-├── tools/             # 具体工具实现（basic / exposure / astronomy / weather / site_match，共 12 工具）
-└── smoke.py           # 离线冒烟测试（历史遗留，有断言 bug，优先用 pytest）
-tests/
-├── conftest.py
-├── test_tools.py      # 工具计算正确性 + 边界条件
-└── test_agent.py      # Agent 循环逻辑 + 工具调用链路
+├── config.py           # 配置加载（.env，LLM_ 前缀通用配置 + ECNU_ 兼容别名）
+├── cli.py              # CLI 入口（自由对话 + --pipeline 管线模式，trace 进度走 stderr）
+├── llm/client.py       # OpenAI 兼容客户端（串行可配置 + 重试 + thinking extra_body 兼容）
+├── llm/router.py       # ModelRouter 能力矩阵（RouteIntent 能力声明，可注入）
+├── agent/loop.py       # ReAct 循环（多轮 + 工具调用）
+├── agent/context.py    # ContextBuilder 五层分层组装（静态前缀稳定，利于缓存命中）
+├── agent/tools.py      # 工具注册器（@registry.tool 装饰器）
+├── orchestrator/       # 编排层：四管线（灵感/规划/临场/复盘）+ Intent/DecisionCard 契约
+├── memory/             # 四层记忆：profile（档案）/ events（SQLite）/ semantic / manager
+├── infra/              # TraceRecorder / confidence（置信度规则）/ quota（配额账本）/ validation
+├── tools/              # 具体工具实现（basic/exposure/astronomy/weather/site_match/memory_tool，共 13 工具）
+└── smoke.py            # 离线冒烟测试（19 项检查，发布前冒烟入口）
+tests/                  # 19 个测试文件，149 用例（离线 Fake 数据源，不触网）
 ```
 
 ## ECNU API 调用模式（见 `llm/client.py`，新增工具遵守）
-- 模块级串行锁：`_SERIAL_LOCK = threading.Lock()`，所有 LLM 调用排队执行
+- 串行策略可配置：`LLM_SERIAL_LLM`（默认 true 适配 ECNU），锁只包单次 API 往返，重试在锁外（ADR-002 平台中立）
 - 指数退避重试：最多 3 次，基础 1s + 随机抖动
 - 可重试状态码：429、500、502、503、504
 - 超时：连接 30s、读取 120s（容忍 thinking 模式长响应）
 - `temperature=0.2`（工具调用链路用低值保证稳定）
+- 模型选择一律走 `ModelRouter`（RouteIntent 能力声明），禁止业务代码写模型品牌判断
 
 ## 测试约定
 - pytest，`testpaths=["tests"]`，`pythonpath=["src"]`
