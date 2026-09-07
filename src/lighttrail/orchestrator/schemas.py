@@ -73,6 +73,23 @@ class PhotoAnalysisReport(BaseModel):
     confidence: str = "low"
 
 
+class PhotoReverseReport(BaseModel):
+    """照片反推输出契约（E6-2，PRD D1.2）。
+
+    从参考图识别「场景 / 光向 / 时段 / 机位特征 / 后期风格」并给复刻计划；
+    replication_plan 必填——结构性保证「在哪 / 什么时候 / 怎么拍」三要素不落空。
+    """
+
+    scene: str = ""
+    light_direction: str = ""
+    estimated_time: str = ""
+    site_features: str = ""
+    post_style: str = ""
+    replication_plan: str
+    suggestions: list[ParamSuggestion] = Field(default_factory=list)
+    confidence: str = "low"
+
+
 class DecisionCard(BaseModel):
     """决策卡片：管线的最终结构化输出（M2 结构性必填 evidence / confidence）。
 

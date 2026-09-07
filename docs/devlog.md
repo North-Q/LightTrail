@@ -316,7 +316,21 @@
 
 ### E6-0 真实联调基线验证 + 远程基线 — 阻塞：待小北授权（外部动作）
 
-### E6-1 照片分析智能工具 — 已提交
+### E6-1 照片分析智能工具
+
+### E6-2 照片反推方案（D1.2 图 → 复刻计划）— 已提交
+
+- **tools/photo_analysis.py 增 `reverse_engineer_photo`**（第 15 个工具）：从参考图反推
+  场景/光向/推断时段/机位特征/后期风格 + 复刻计划；输出走 `PhotoReverseReport` schema
+  （schemas.py 新增契约，replication_plan 必填保证「在哪/什么时候/怎么拍」三要素）；
+  复用 E6-1 的编码/EXIF/器材/VISION 路由/自愈机制。
+- **Orchestrator.reverse_plan(image_path, note, equipment)**：参考图 → 多模态反推 →
+  候选日采集（未来 3 天取云量最低日 + sun_times/moon_phase + 档案候选机位）→
+  reason 深推理综合 → 复刻计划 DecisionCard → 渲染；失败自动降级自由对话。
+- **测试**：tests/test_reverse_plan.py 5 用例（工具消息含 image_url/note/VISION 路由、
+  自愈、注册、Orchestrator 端到端、失败降级）。pytest 165 全绿；ruff 0 告警；smoke 19 项。
+
+ — 已提交
 
 - **tools/photo_analysis.py**：注册 `analyze_photo`（第 14 个工具）——EXIF + 画面多模态 →
   构图/曝光/色彩评价 + **结合器材的可执行处方**（D4-04）；

@@ -29,7 +29,7 @@ from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.validation import _extract_json
 from lighttrail.llm.client import ChatClient
 from lighttrail.llm.router import ModelRouter, RouteIntent
-from lighttrail.orchestrator.schemas import PhotoAnalysisReport
+from lighttrail.orchestrator.schemas import PhotoAnalysisReport, PhotoReverseReport
 
 logger = logging.getLogger("lighttrail.tools.photo")
 
@@ -283,3 +283,100 @@ def _report_to_result(report: PhotoAnalysisReport, exif: dict[str, str], size_kb
         "置信度": report.confidence,
         "图片摘要": f"编码后约 {size_kb:.0f}KB（最长边≤1024px）",
     }
+
+
+_REVERSE_SYSTEM = (
+    "你是 LightTrail（光迹）的拍摄方案反推专家：从参考照片反推它的拍摄条件"
+    "（场景 / 光线方向 / 时段与季节 / 机位特征 / 后期风格），并给出可执行的复刻计划"
+    "（在哪 / 什么时候 / 怎么拍），供用户『我也想要这种』时照着去拍。"
+)
+
+
+@registry.tool(
+    name="reverse_engineer_photo",
+    description=(
+        "照片反推拍摄方案：从一张参考图反推场景/光线方向/时段/机位特征/后期风格，"
+        "并给出复刻计划（在哪、什么时候、怎么拍）。"
+        "当用户丢一张照片/参考图说『我也想要这种』『这张怎么拍的』时调用。"
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "image_path": {
+                "type": "string",
+                "description": "参考图片文件路径，如 D:/photos/reference.jpg",
+            },
+            "note": {
+                "type": "string",
+                "description": "补充说明，如『我在杭州，只能周末去』『想要更广的视角』",
+                "default": "",
+            },
+            "equipment": {
+                "type": "string",
+                "description": "器材覆盖，如『松下 S5M2 + 24-105mm F4』；缺省读用户档案",
+                "default": "",
+            },
+        },
+        "required": ["image_path"],
+    },
+)
+def reverse_engineer_photo(image_path: str, note: str = "", equipment: str = "") -> dict:
+    """反推一张参考图的拍摄方案并给复刻计划。
+
+    Args:
+        image_path: 参考图片文件路径。
+        note: 用户补充约束（时间/地点/器材限制等）。
+        equipment: 器材覆盖（缺省读用户档案）。
+
+    Returns:
+        中文结构字段（场景/光向/推断时段/机位特征/后期风格/复刻计划/参数建议/置信度）。
+
+    Raises:
+        PhotoError: 图片读取或输出解析失败（重试后）。
+    """
+    gear = equipment.strip() or _read_gear()
+    exif = _read_exif(image_path)
+    encoded = _encode_image(image_path)
+    prompt = _build_reverse_prompt(exif, gear, note)
+    last_error = ""
+    for attempt in range(_MAX_RETRIES + 1):
+        raw = _multimodal_call(encoded, prompt, last_error)
+        try:
+            report = PhotoReverseReport.model_validate_json(_extract_json(raw))
+            return {
+                "场景": report.scene,
+                "光向": report.light_direction,
+                "推断时段": report.estimated_time,
+                "机位特征": report.site_features,
+                "后期风格": report.post_style,
+                "复刻计划": report.replication_plan,
+                "参数建议": [{"参数": item.name, "值": item.value, "理由": item.reason} for item in report.suggestions],
+                "已识别EXIF": exif,
+                "置信度": report.confidence,
+            }
+        except Exception as exc:  # noqa: BLE001 - 校验失败回传模型自愈
+            last_error = str(exc)
+            if attempt >= _MAX_RETRIES:
+                break
+    raise PhotoError(f"照片反推输出解析失败（重试 {_MAX_RETRIES} 次）：{last_error}")
+
+
+def _build_reverse_prompt(exif: dict[str, str], gear: str, note: str) -> str:
+    """组装反推指令文本（要求输出 PhotoReverseReport JSON 结构）。"""
+    lines = ["请反推这张参考图并只输出一个 JSON 对象（不要任何其他文字），结构如下：", "{",
+             "  \"scene\": \"场景识别（如海边日落/城市悬日/银河拱桥）\",",
+             "  \"light_direction\": \"光线方向（顺/侧/逆光，日出或日落侧）\",",
+             "  \"estimated_time\": \"推断拍摄时段与季节（如夏季傍晚日落前 20 分钟）\",",
+             "  \"site_features\": \"机位特征（海拔/前景/朝向/遮挡）\",",
+             "  \"post_style\": \"后期风格（色彩/对比/合成）\",",
+             "  \"replication_plan\": \"复刻计划：在哪拍、什么时候去、怎么拍（必填三要素）\",",
+             "  \"suggestions\": [{\"name\": \"焦段\", \"value\": \"24mm\", \"reason\": \"…\"}],",
+             "  \"confidence\": \"high|medium|low\"",
+             "}"]
+    if exif:
+        lines.append(f"参考图 EXIF 参数：{json.dumps(exif, ensure_ascii=False)}")
+    if gear:
+        lines.append(f"用户器材（复刻计划须按此给参数）：{gear}")
+    if note:
+        lines.append(f"用户补充约束：{note}")
+    return "\n".join(lines)

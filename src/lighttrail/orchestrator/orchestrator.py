@@ -11,8 +11,11 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Callable
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from lighttrail.agent import Agent
 from lighttrail.agent.tools import ToolRegistry
@@ -24,8 +27,51 @@ from lighttrail.memory import MemoryManager
 from lighttrail.orchestrator.context import PipelineContext
 from lighttrail.orchestrator.pipelines import PIPELINES, PipelineEnv, default_mode
 from lighttrail.orchestrator.schemas import DecisionCard, Intent
+from lighttrail.tools.astronomy import _parse_date  # noqa: F401  日期校验辅助（供 reverse 采集）
 
 logger = logging.getLogger("lighttrail.orchestrator")
+
+# 反推采集默认坐标（上海）；E6-3 favorite_spots 落地后按档案精确定位
+_DEFAULT_LAT = 31.23
+_DEFAULT_LON = 121.47
+
+
+def _candidate_sites(memory: MemoryManager | None) -> list[dict[str, Any]]:
+    """候选机位：档案常去地点（无坐标时按默认坐标近似偏移兜底）。"""
+    sites: list[dict[str, Any]] = []
+    if memory is not None:
+        for index, name in enumerate(memory.profile.common_locations):
+            sites.append(
+                {"名称": name, "纬度": _DEFAULT_LAT + index * 0.01, "经度": _DEFAULT_LON + index * 0.01, "题材": ""}
+            )
+    if not sites:
+        sites.append({"名称": "默认机位（上海）", "纬度": _DEFAULT_LAT, "经度": _DEFAULT_LON, "题材": ""})
+    return sites
+
+
+def _build_reverse_plan_prompt(reverse: dict[str, Any], date_iso: str, data: dict[str, Any]) -> str:
+    """组装复刻计划综合 prompt：反推结论 + 候选日数据 + 机位，要求输出 DecisionCard JSON。"""
+    lines = [
+        "用户在照片反推中想要复刻一张参考图，反推结论如下：",
+        json.dumps(reverse, ensure_ascii=False, default=str)[:2000],
+        f"候选参考日期（未来 3 天云量最低）：{date_iso}",
+        "候选日数据（JSON）：" + json.dumps(data, ensure_ascii=False, default=str)[:2000],
+        "请给复刻计划决策卡片：conclusion 须回答『去哪 / 什么时候去 / 怎么拍』三要素。",
+    ]
+    return "\n\n".join(lines) + "\n\n" + _REVERSE_CARD_INSTRUCTION
+
+_REVERSE_CARD_INSTRUCTION = """请只输出如下 JSON 对象（不要任何其他文字）：
+
+{
+  "conclusion": "复刻计划一句话（去哪 + 什么时候去 + 怎么拍）",
+  "evidence": [{"tool": "reverse_engineer_photo", "field": "复刻计划", "confidence": "medium", "note": "参考图反推"}],
+  "confidence": "high|medium|low",
+  "time_window": "建议到场时间窗口",
+  "locations": [{"name": "机位", "reason": "为何符合参考图特征"}],
+  "params": [{"name": "参数", "value": "值", "reason": "理由"}],
+  "alternatives": ["备选方案"],
+  "degraded": ""
+}"""
 
 _INTENT_INSTRUCTION = """请把用户的一句话请求解析为规范意图，只输出如下 JSON（不要任何其他文字）：
 
@@ -138,6 +184,95 @@ class Orchestrator:
         pipeline = PIPELINES.get(pipeline_name) or PIPELINES[default_mode(intent.subject_type)]
         self._recorder.record_step(f"管线_{pipeline.name}", input_summary=user_request[:80], output_summary="启动")
         return pipeline.run(ctx, self._env)
+
+    def reverse_plan(
+        self,
+        image_path: str,
+        *,
+        note: str = "",
+        equipment: str = "",
+    ) -> str:
+        """D1.2 照片反推：参考图 → 复刻计划（渲染文本）；失败自动降级自由对话。
+
+        Args:
+            image_path: 参考图路径。
+            note: 用户补充约束（时间/地点/器材等）。
+            equipment: 器材覆盖（缺省读档案）。
+
+        Returns:
+            复刻计划卡片文本；失败时返回自由对话回复（降级标注）。
+        """
+        try:
+            card = self.run_reverse(image_path, note=note, equipment=equipment)
+            self.last_card = card
+            return _render_card(card)
+        except Exception as exc:  # noqa: BLE001 - 反推链路任何异常统一降级
+            logger.warning("照片反推失败，降级 ReAct：%s", exc)
+            return self._fallback(f"这张参考图我想复刻（{image_path}）{note}")
+
+    def run_reverse(
+        self,
+        image_path: str,
+        *,
+        note: str = "",
+        equipment: str = "",
+    ) -> DecisionCard:
+        """执行照片反推：多模态识别 → 候选日数据 → 深推理综合复刻计划卡。
+
+        Args:
+            image_path: 参考图路径。
+            note: 用户补充约束。
+            equipment: 器材覆盖。
+
+        Returns:
+            复刻计划 DecisionCard。
+
+        Raises:
+            多模态/数据采集/rSchema 校验失败向上抛（由 reverse_plan 捕获降级）。
+        """
+        import lighttrail.tools.photo_analysis as photo
+
+        self._recorder.record_step("反推_多模态", input_summary=image_path[:80], output_summary="")
+        reverse = photo.reverse_engineer_photo(image_path, note=note, equipment=equipment)
+        date_iso, data = self._collect_candidate_day()
+        self._recorder.record_step(
+            "反推_候选日", input_summary=date_iso, output_summary=json.dumps(data, ensure_ascii=False)[:120]
+        )
+        prompt = _build_reverse_plan_prompt(reverse, date_iso, data)
+        self._recorder.record_step("反推_综合", input_summary=prompt[:80], output_summary="")
+        return parse_with_retry(DecisionCard, lambda p: self._agent.reason(p, system=""), prompt)
+
+    def _collect_candidate_day(self) -> tuple[str, dict[str, Any]]:
+        """为复刻选候选日：未来 3 天取平均云量最低（通透优先）作为基准日并采集数据。"""
+        lat, lon = _DEFAULT_LAT, _DEFAULT_LON  # 反推阶段默认坐标，档案精确定位在 E6-3 接 favorite_spots
+        weather_raw = self._env.dispatch(
+            "weather_forecast",
+            json.dumps({"latitude": lat, "longitude": lon, "days": 3, "tz_offset": "+08:00"}, ensure_ascii=False),
+        )
+        try:
+            weather: dict[str, Any] = json.loads(weather_raw or "{}")
+        except ValueError:
+            weather = {}
+        daily = weather.get("每日预报") or []
+        valid = [d for d in daily if isinstance(d, dict) and d.get("平均云量（%）") is not None]
+        best = min(valid, key=lambda d: int(d["平均云量（%）"])) if valid else None
+        date_iso = str(best["日期"]) if best else datetime.now(timezone(timedelta(hours=8))).date().isoformat()
+        data: dict[str, Any] = {"weather_forecast": weather}
+        if best:
+            data["sun_times"] = json.loads(
+                self._env.dispatch(
+                    "sun_times",
+                    json.dumps({"latitude": lat, "longitude": lon, "date": date_iso}, ensure_ascii=False),
+                )
+                or "{}"
+            )
+        moon_raw = self._env.dispatch("moon_phase", json.dumps({"date": date_iso}, ensure_ascii=False))
+        try:
+            data["moon_phase"] = json.loads(moon_raw or "{}")
+        except ValueError:
+            data["moon_phase"] = {}
+        data["候选机位"] = _candidate_sites(self._env.memory)
+        return date_iso, data
 
     def parse_intent(self, user_request: str) -> Intent:
         """意图理解：默认模型强约束 JSON 解析（parse_with_retry 自愈）。
