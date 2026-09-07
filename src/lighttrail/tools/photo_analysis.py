@@ -133,7 +133,10 @@ def _read_exif(image_path: str | Path) -> dict[str, str]:
     try:
         with open(image_path, "rb") as stream:
             tags = exifread.process_file(stream, details=False)
-    except Exception as exc:  # noqa: BLE001 - EXIF 读取异常不阻塞分析
+    except exifread.ExifNotFound:
+        # 无 EXIF（截图/部分格式）是常态：静默返回空，不阻塞分析
+        return {}
+    except Exception as exc:  # noqa: BLE001 - 其它 EXIF 读取异常不阻塞分析
         logger.warning("EXIF 读取失败：%s", exc)
         return {}
     result: dict[str, str] = {}

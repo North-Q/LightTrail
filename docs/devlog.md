@@ -316,6 +316,24 @@
 
 ### E6-0 真实联调基线验证 + 远程基线 — 阻塞：待小北授权（外部动作）
 
+### E6-0 真实联调基线验证（授权后执行）— 已提交修复
+
+> 小北授权（2026-09-07 深夜）后执行 devlog E6-0 清单。
+
+- **四管线真实 query 全部跑通**（ECNU 真实 Key + Open-Meteo）：
+  - 灵感「这周末想去拍银河」→ 9/12 首选 / 9/13 云量大否，机位（天荒坪/太子尖/南汇嘴）+ 参数（14-24mm f/2.8 20-25s ISO1600-3200）✓（reason ~3.5min，thinking 摘要入报告）；
+  - 规划「周末两天三机位对比」→ 9/12 崇明日落+夜景双保险，逐时云量依据 ✓；
+  - 临场「今晚火烧云值得冲吗」→ 评分 43，建议不专程，若在附近守黄金时刻 ✓；
+  - 复盘（UI 稿 d2.png 走多模态链路）→ 识别画面计划并给处方 ✓；TraceReport 落点正常。
+- **真实链路验证结论**：thinking extra_body 兼容生效（reason_thinking 步骤出现）、
+  Open-Meteo 修复生效、评分键对齐生效；未发现结构性架构问题。
+- **真实联调修复 1 项**：exifread 对无 EXIF 文件抛 ExifNotFound → 原代码打 warning 噪音；
+  改为静默返回空 dict（截图/无 EXIF 是常态），其它读取异常仍 warning。
+- **遗留（待小北）**：真实摄影照片 ≥3 张的视觉处方实测——本机暂无摄影样张，已用 UI 稿
+  验证链路；请放图到 data/photos/ 后补测（analyze_photo/reverse_engineer_photo）。
+
+
+
 > **授权前就绪核查（2026-09-07 深夜，goal continuation）**：
 > - git remote 已配置：`origin = https://github.com/North-Q/LightTrail.git`，upstream=origin/main；
 > - f344eb7 之后 **26 个 commit 未推送**（E5/E6 全量 + 文档）；
