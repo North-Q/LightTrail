@@ -316,6 +316,20 @@
 
 ### E6-0 真实联调基线验证 + 远程基线 — 阻塞：待小北授权（外部动作）
 
+> **授权前就绪核查（2026-09-07 深夜，goal continuation）**：
+> - git remote 已配置：`origin = https://github.com/North-Q/LightTrail.git`，upstream=origin/main；
+> - f344eb7 之后 **26 个 commit 未推送**（E5/E6 全量 + 文档）；
+> - .env 已含 API Key（LLM_ 或 ECNU_ 别名），真实联调开箱即可用；
+> - data/events.db 已存在（联调会写入事件记忆，无害）。
+>
+> **授权后执行清单（E6-0）**：
+> 1. 灵感/规划/临场/复盘四管线各 ≥1 条真实 query（CLI `--pipeline` 与 `Orchestrator.review`，
+>    需 1 张真实照片走 analyze_photo）；
+> 2. 真实照片 ≥3 张验证视觉调用 + 视觉单价计入 QuotaLedger 预估；
+> 3. TraceReport/进度输出留档（stderr 已输出 [意图]/[采集]/[综合] 阶段）；
+> 4. 发现的问题按「真实联调修复」流程修（commit + devlog 标注）；
+> 5. `git push` 建远程基线（26 commits），推后核对 origin/main 与本地一致。
+
 ### E6-1 照片分析智能工具
 
 ### E6-2 照片反推方案（D1.2 图 → 复刻计划）
