@@ -309,3 +309,33 @@
 - **TODO 头**：任务编号范围精确为 E1-1…E9-2（E9-3 定时推送为可选待议，未入路线图）。
 - 未动（无需更新）：architecture v2.0.1（df63d9e 已同步基线；E9 无新架构演进）、
   PRD-v0.3（重命名已完成）、devlog 历史条目。
+
+## 2026-09-07（深夜）· E6 阶段启动（长期目标 v2）
+
+> 依据 docs/codex-longterm-goal.md v2（E6 起点）推进阶段四。
+
+### E6-0 真实联调基线验证 + 远程基线 — 阻塞：待小北授权（外部动作）
+
+### E6-1 照片分析智能工具 — 已提交
+
+- **tools/photo_analysis.py**：注册 `analyze_photo`（第 14 个工具）——EXIF + 画面多模态 →
+  构图/曝光/色彩评价 + **结合器材的可执行处方**（D4-04）；
+  - 深度=1 红线：内部不调用 registry.dispatch（测试断言调用形式不存在）；
+  - 走同一并发边界与配额账本（模块级 ChatClient = settings 串行 + QuotaLedger；set_client 可注入 Fake）；
+  - 多模态模型按 `RouteIntent.VISION` 路由（默认矩阵 → plus）；tools=None；
+  - 图片控 token：最长边 ≤1024 缩放 + JPEG q88 + base64 data URL（体积 <500KB 验证）；
+  - EXIF 经 exifread 提取，tag 尾部完整匹配避免 Model/LensModel 误中；无 EXIF 空 dict 不阻塞；
+  - 输出走 **PhotoAnalysisReport schema**（schemas.py 新增契约，E5-2 自愈机制复用，
+    首轮外 ≤2 次纠错重试，仍失败抛 PhotoError）；
+  - 器材来源：显式 equipment 参数优先，缺省读 data/profile.json 档案。
+- **依赖**：Pillow>=10.0、exifread>=3.0（pyproject + requirements 声明，装进项目 .venv）。
+- **测试**：tests/test_photo_analysis.py 11 用例（编码/EXIF/多模态消息含 image_url 与 VISION 路由/
+  自愈重试/连续失败/器材档案与显式覆盖/注册/红线）。pytest 160 全绿；ruff 0 告警；smoke 19 项。
+- **待授权窗口**：真实照片 ≥3 张实测 + 视觉调用单价入 QuotaLedger 预估（并入 E6-0 真实联调）。
+
+
+
+- **状态**：未开始。前置为「真实 Key 联调 + push 20+ commits 建远程基线」，均属需小北确认的外部动作。
+- **记录**：按长期目标阻塞规则如实记录，跳到下一个不依赖它的任务（E6-1 代码侧 Fake/mock 可先行；
+  E6-1 的「真实照片 ≥3 张实测」验收项并入 E6-0 授权窗口执行）。
+- **建议**：小北授权后按 roadmap v2.2 E6-0 验收执行（四管线真实 query + trace 留档 + push）。

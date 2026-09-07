@@ -55,6 +55,24 @@ class LocationSuggestion(BaseModel):
     reason: str = ""
 
 
+class PhotoAnalysisReport(BaseModel):
+    """照片分析输出契约（E6-1，PRD D4-01~04）。
+
+    模型输出经本 schema 校验（复用 E5-2 自愈机制）；assessment / prescription 必填——
+    结构性保证「点评」与「可执行处方」不落空（D4-04 区别于泛泛点评）。
+    """
+
+    scene: str = ""
+    subject: str = ""
+    composition: str = ""
+    exposure: str = ""
+    color: str = ""
+    assessment: str
+    prescription: str
+    suggestions: list[ParamSuggestion] = Field(default_factory=list)
+    confidence: str = "low"
+
+
 class DecisionCard(BaseModel):
     """决策卡片：管线的最终结构化输出（M2 结构性必填 evidence / confidence）。
 

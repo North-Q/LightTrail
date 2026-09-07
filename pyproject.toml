@@ -12,6 +12,8 @@ authors = [{name = "亓孟豪"}]
 dependencies = [
     "openai>=1.40.0",
     "astral>=3.2",
+    "Pillow>=10.0",
+    "exifread>=3.0",
 ]
 
 [project.optional-dependencies]

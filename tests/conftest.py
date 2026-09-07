@@ -11,6 +11,7 @@ from lighttrail.tools import (  # noqa: F401
     basic,
     exposure,
     memory_tool,
+    photo_analysis,
     site_match,
     weather,
 )
