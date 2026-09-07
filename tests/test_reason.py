@@ -47,7 +47,7 @@ class FakeChatClient:
 
 
 def test_reason_default_uses_deep_model_without_tools() -> None:
-    """reason 缺省：路由深推理模型、tools=None、thinking 开启、temperature=0.3。"""
+    """reason 缺省：路由深推理模型、tools=None、temperature=0.3、不携带扩展参数。"""
     fake = FakeChatClient()
     agent = Agent(fake, registry)
     reply = agent.reason("分析一下这个场景")
@@ -56,15 +56,27 @@ def test_reason_default_uses_deep_model_without_tools() -> None:
     assert call["model"] == "ecnu-max"
     assert call["tools"] is None
     assert call["temperature"] == 0.3
+    # 平台中立：默认不发送 thinking/reasoning_effort（通用 OpenAI 兼容接口直接可用）
+    assert call["thinking"] is None
+    assert call["reasoning_effort"] is None
+
+
+def test_reason_thinking_enabled_when_configured() -> None:
+    """reason_thinking=True 时携带 thinking 扩展参数与 reasoning_effort。"""
+    fake = FakeChatClient()
+    agent = Agent(fake, registry, reason_thinking=True)
+    agent.reason("综合判断", reasoning_effort="high")
+    call = fake.calls[0]
     assert call["thinking"] == {"type": "enabled"}
+    assert call["reasoning_effort"] == "high"
 
 
-def test_reason_passes_reasoning_effort() -> None:
-    """reasoning_effort 透传给平台。"""
+def test_reason_thinking_disabled_ignores_effort() -> None:
+    """reason_thinking 关闭时即便传入 reasoning_effort 也不发送（平台中立）。"""
     fake = FakeChatClient()
     agent = Agent(fake, registry)
     agent.reason("综合判断", reasoning_effort="high")
-    assert fake.calls[0]["reasoning_effort"] == "high"
+    assert fake.calls[0]["reasoning_effort"] is None
 
 
 def test_reason_custom_model_and_system() -> None:

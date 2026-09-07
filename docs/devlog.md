@@ -12,6 +12,7 @@
   剩余任务 / 遗留问题 / 平台中立性审计）。
 - 最终验证：pytest 145 全绿；ruff 0 告警；smoke 19 项通过；仅 commit 未 push。
 
+
 ### 平台中立性重构（ADR-002）— 已提交
 
 - **改动**：
@@ -186,6 +187,24 @@
 # LightTrail 开发日志
 
 > 按任务单元记录进度与阻塞，供后续接手者审计。格式：任务编号 / 时间 / commit hash / 测试数量。
+
+### 真实联调修复（reason thinking 配置化 + Open-Meteo 400 + 评分键对齐）— 已提交
+
+> **背景**：小北在真实 API 环境执行 `--pipeline` 与自由对话，暴露三处问题。其中
+> thinking 硬编码属于**平台中立性修复**（E4-3 把 ECNU 不支持的扩展参数写死在了 reason 通道）。
+
+- **【平台中立性修复】reason 通道 thinking 配置化**：`Agent.reason` 原先总是发送
+  `thinking={"type": "enabled"}` 与 `reasoning_effort`，真实 OpenAI 兼容接口（ECNU 实测）不支持 →
+  SDK `TypeError` → 管线必挂。现改为 `Settings.reason_thinking`（`LLM_REASON_THINKING`，默认 false）
+  控制，关闭时 reason 与普通调用同构（不带扩展参数），通用接口开箱即用；支持的平台在 .env 开启。
+- **Open-Meteo 400 修复**：上游 hourly 变量 `cloud_cover_medium` 已失效（实测 400 且报变量损坏），
+  从 weather_forecast / sunset_glow_score 两处请求中移除；`_fetch_json` 对 4xx 不再盲目重试 2 次，
+  立即抛 `WeatherError` 并携带服务端 reason（模型/用户可见可读原因）。
+- **评分键对齐**：pipeline 代码化评分读取 `"评分"`，真实工具返回键为 `"评分（0-100）"`（月相为
+  `月相名称`/`月光影响建议`）→ 评分从不进入 ctx.scores。改为按真实键提取并前缀匹配；测试假数据
+  同步为真实键名防回归。
+- **测试**：test_reason.py 改为「默认不带扩展参数 + 配置开启时携带」；test_orchestrator / e2e 假数据
+  键名与真实工具对齐。pytest 146 全绿；ruff 0 告警。
 
 ## 收尾总结（2026-09-07，阶段三完成）
 

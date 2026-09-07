@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import urllib.error
 import urllib.request
 from datetime import datetime, timedelta
 from typing import Any
@@ -43,13 +44,30 @@ def _base_url() -> str:
 
 
 def _fetch_json(url: str) -> dict[str, Any]:
-    """GET 请求并解析 JSON，失败时重试并抛出 WeatherError。"""
+    """GET 请求并解析 JSON；5xx/网络错误按退避重试，4xx 立即失败并带服务端原因。
+
+    Raises:
+        WeatherError: 请求失败（含 4xx 参数错误与重试耗尽的 5xx/网络错误）。
+    """
     request = urllib.request.Request(url, headers={"User-Agent": "lighttrail/0.1"})
     last_error: Exception | None = None
     for attempt in range(_MAX_RETRIES + 1):
         try:
             with urllib.request.urlopen(request, timeout=_REQUEST_TIMEOUT) as response:
                 return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            # 4xx 为请求/参数错误，重试无意义：立即失败并携带服务端原因（如变量名失效）
+            status = exc.code
+            reason = ""
+            try:
+                reason = exc.read().decode("utf-8", "replace")[:200]
+            except Exception:  # noqa: BLE001 - 错误体解析失败不影响主错误
+                reason = ""
+            if 400 <= status < 500:
+                detail = f"HTTP {status}" + (f"：{reason}" if reason else "")
+                raise WeatherError(f"天气接口请求无效：{detail}") from exc
+            last_error = exc
+            logger.warning("天气请求失败（第 %d 次）：HTTP %s", attempt + 1, status)
         except Exception as exc:  # noqa: BLE001 - 网络层各类异常统一处理
             last_error = exc
             logger.warning("天气请求失败（第 %d 次）：%s", attempt + 1, exc)
@@ -123,7 +141,7 @@ def weather_forecast(
 
     url = (
         f"{_base_url()}?latitude={latitude}&longitude={longitude}"
-        f"&hourly=cloud_cover,cloud_cover_high,cloud_cover_medium,cloud_cover_low,"
+        f"&hourly=cloud_cover,cloud_cover_high,cloud_cover_low,"
         f"visibility,precipitation_probability,wind_speed_10m"
         f"&timezone=auto&forecast_days={days}"
     )
@@ -137,7 +155,6 @@ def weather_forecast(
     fields = [
         "cloud_cover",
         "cloud_cover_high",
-        "cloud_cover_medium",
         "cloud_cover_low",
         "visibility",
         "precipitation_probability",
@@ -268,7 +285,7 @@ def sunset_glow_score(
     # 拉取预报（含目标日，多取 1 天以防时区边界）
     url = (
         f"{_base_url()}?latitude={latitude}&longitude={longitude}"
-        f"&hourly=cloud_cover,cloud_cover_high,cloud_cover_medium,cloud_cover_low,"
+        f"&hourly=cloud_cover,cloud_cover_high,cloud_cover_low,"
         f"visibility,precipitation_probability,wind_speed_10m"
         f"&timezone=auto&forecast_days={days_ahead + 2 if days_ahead < 6 else 7}"
     )

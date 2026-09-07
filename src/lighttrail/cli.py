@@ -74,6 +74,7 @@ def main(argv: list[str] | None = None) -> int:
         registry,
         model=settings.model,
         memory=memory,
+        reason_thinking=settings.reason_thinking,
     )
 
     if args.pipeline:

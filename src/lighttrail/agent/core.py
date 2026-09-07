@@ -36,11 +36,15 @@ class Agent:
         router: ModelRouter | None = None,
         recorder: Recorder | None = None,
         memory: MemoryManager | None = None,
+        reason_thinking: bool = False,
     ) -> None:
         self._client = client
         self._router = router or ModelRouter()
         self._recorder: Recorder = recorder or null_trace
         self._memory = memory
+        # reason 通道是否发送 thinking/reasoning_effort 扩展参数（平台中立：默认关闭，
+        # 通用 OpenAI 兼容接口不带这些字段即可用；支持的平台在 .env 设 LLM_REASON_THINKING=true）
+        self._reason_thinking = reason_thinking
         self._pending_intent = ""  # 当前用户输入的意图文本（供记忆按需检索）
         # system_prompt 参数语义（E1-2 起）：覆盖第①层「角色与使命」，行为准则固定用默认；
         # 第④层「用户档案+语义记忆」接 MemoryManager（E3-1 先只有档案常驻块）；
@@ -118,8 +122,12 @@ class Agent:
             prompt: 推理问题文本。
             system: 附加系统提示，缺省用角色层（E5 管线可传入略结构化指令）。
             model: 模型名覆盖；缺省由路由按深推理意图解析（默认矩阵 → 深推理模型）。
-            reasoning_effort: 推理强度（low/medium/high），None 时按平台默认。
+            reasoning_effort: 推理强度（low/medium/high）；仅当 reason_thinking 开启时透传。
             temperature: 采样温度（默认 0.3，深推理综合输出用稍高值）。
+
+        Raises:
+            LLMError: 调用失败（上游 SDK 不支持扩展参数时，请关闭 reason_thinking）。
+        
 
         Returns:
             纯文本推理结果（thinking 摘要已记入 TraceReport，供 M2-04 推理可见）。
@@ -135,8 +143,8 @@ class Agent:
             model=resolved_model,
             tools=None,
             temperature=temperature,
-            thinking={"type": "enabled"},
-            reasoning_effort=reasoning_effort,
+            thinking={"type": "enabled"} if self._reason_thinking else None,
+            reasoning_effort=reasoning_effort if self._reason_thinking else None,
         )
         self._recorder.record_llm(
             resolved_model,

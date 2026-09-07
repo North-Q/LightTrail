@@ -66,11 +66,11 @@ def _card_json(conclusion: str = "周末银河可见，建议 20:30-23:00 前往
 def _fake_dispatch(name: str, args: str) -> str:
     """Fake 数据源（不触网）。"""
     data = {
-        "moon_phase": {"月相": "新月", "照亮比例": 2, "月光干扰": "低"},
+        "moon_phase": {"月相名称": "新月", "照亮比例（%）": 2, "月光影响建议": "低"},
         "galaxy_visibility": {"可见窗口": [{"开始": "20:10", "结束": "23:50"}], "最高高度角": 55, "提示": "好"},
         "weather_forecast": {"每日预报": [{"日期": "2026-09-08", "平均云量（%）": 30}], "数据来源": "Open-Meteo（免费）"},
         "sun_times": {"日出": "05:42", "日落": "18:06"},
-        "sunset_glow_score": {"评分": 62, "等级": "中等（可看趋势再定）", "数据来源": "Open-Meteo（免费）"},
+        "sunset_glow_score": {"评分（0-100）": 62, "等级": "中等（可看趋势再定）", "数据来源": "Open-Meteo（免费）"},
     }
     return json.dumps(data.get(name, {"error": f"未知工具 {name}"}), ensure_ascii=False)
 
@@ -141,6 +141,7 @@ def test_cli_pipeline_entry_prints_card(monkeypatch, capsys) -> None:
         serial_llm = False
         data_dir = "data"
         quota_warn_threshold = 0.9
+        reason_thinking = False
 
         @property
         def has_api_key(self) -> bool:

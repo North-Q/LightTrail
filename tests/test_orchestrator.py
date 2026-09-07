@@ -66,11 +66,11 @@ _CARD_JSON = json.dumps(
 def _fake_dispatch(name: str, args: str) -> str:
     """Fake 数据源：按工具名回罐装 JSON（不触网）。"""
     data = {
-        "moon_phase": {"月相": "新月", "照亮比例": 2, "月光干扰": "低"},
+        "moon_phase": {"月相名称": "新月", "照亮比例（%）": 2, "月光影响建议": "低"},
         "galaxy_visibility": {"可见窗口": [{"开始": "20:10", "结束": "23:50"}], "最高高度角": 55, "提示": "好"},
         "weather_forecast": {"每日预报": [{"日期": "2026-09-08", "平均云量（%）": 30}], "数据来源": "Open-Meteo（免费）"},
         "sun_times": {"日出": "05:42", "日落": "18:06"},
-        "sunset_glow_score": {"评分": 62, "等级": "中等（可看趋势再定）", "数据来源": "Open-Meteo（免费）"},
+        "sunset_glow_score": {"评分（0-100）": 62, "等级": "中等（可看趋势再定）", "数据来源": "Open-Meteo（免费）"},
     }
     return json.dumps(data.get(name, {"error": f"未知工具 {name}"}), ensure_ascii=False)
 
@@ -112,7 +112,8 @@ def test_inspiration_pipeline_walks_steps_and_records_trace() -> None:
 
     assert card.conclusion.startswith("周末银河可见")
     assert card.evidence[0].tool == "galaxy_visibility"
-    assert ctx.data["moon_phase"]["月光干扰"] == "低"
+    assert ctx.data["moon_phase"]["月相名称"] == "新月"
+    assert ctx.scores["月相"] == "新月"
     step_names = [s.name for s in recorder.to_report().steps]
     assert "采集_moon_phase" in step_names
     assert "采集_galaxy_visibility" in step_names
@@ -165,7 +166,8 @@ def test_orchestrator_plan_full_flow() -> None:
     reason_call = fake.calls[1]
     assert reason_call["model"] == "ecnu-max"
     assert reason_call["tools"] is None
-    assert reason_call.get("thinking") == {"type": "enabled"}
+    # 默认不携带 thinking 扩展参数（真实 OpenAI 兼容接口可用）
+    assert reason_call.get("thinking") is None
     # 管线启动/降级步骤记录
     step_names = [s.name for s in recorder.to_report().steps]
     assert "管线_inspiration" in step_names or "管线_live" in step_names

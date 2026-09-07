@@ -115,20 +115,37 @@ def _collect(env: PipelineEnv, ctx: PipelineContext, steps: list[tuple[str, str]
 
 
 def _score(data: dict[str, Any]) -> dict[str, Any]:
-    """代码化评分（确定性规则，替代模型自评）。"""
+    """代码化评分（确定性规则，替代模型自评）。
+
+    注意：键名与工具返回保持对齐（评分键实际为「评分（0-100）」，月相为
+    「月相名称」+「月光影响建议」）——取键用前缀匹配，避免工具改键名即静默失效。
+    """
     scores: dict[str, Any] = {}
     glow = data.get("sunset_glow_score")
-    if isinstance(glow, dict) and "评分" in glow:
-        scores["火烧云评分"] = glow["评分"]
+    if isinstance(glow, dict):
+        score_value = _first_value_of(glow, ("评分（0-100）",))
+        if score_value is not None:
+            scores["火烧云评分"] = score_value
         level = glow.get("等级", "")
         if level:
             scores["火烧云等级"] = level.split("（")[0]
     moon = data.get("moon_phase")
     if isinstance(moon, dict):
-        moon_light = moon.get("月光干扰", "")
-        if moon_light:
-            scores["月光干扰"] = moon_light
+        phase = moon.get("月相名称", "")
+        if phase:
+            scores["月相"] = phase
+        advice = moon.get("月光影响建议", "")
+        if advice:
+            scores["月光影响建议"] = advice
     return scores
+
+
+def _first_value_of(mapping: dict[str, Any], keys: tuple[str, ...]) -> Any:
+    """按键名列表返回首个存在的值（None 表示均不存在）。"""
+    for key in keys:
+        if key in mapping:
+            return mapping[key]
+    return None
 
 
 _DECISION_CARD_INSTRUCTION = """请基于以上数据输出一份决策卡片，严格只输出如下 JSON 对象（不要任何其他文字）：
