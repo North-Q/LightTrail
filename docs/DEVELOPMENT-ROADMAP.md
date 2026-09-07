@@ -624,7 +624,7 @@ graph LR
 
 #### J-1 文档完善与开源准备
 
-- **目标**：README 重写（现状：12 工具 + Web 形态）、CONTRIBUTING、架构文档链接、.env.example 校验（新增 `LIGHTTRAIL_QUOTA_WARN_THRESHOLD` 等）、评估入口纳入贡献流程。
+- **目标**：README 重写（届时随进度核对工具数，当前 13）、CONTRIBUTING、架构文档链接、.env.example 校验（含 `LLM_REASON_THINKING` / `LIGHTTRAIL_QUOTA_WARN_THRESHOLD` 等）、评估入口纳入贡献流程。
 - **前置依赖**：E7-5、E8-2
 - **输入上下文**：`README.md`（当前过时）、`LICENSE`（MIT）、`AGENTS.md`、`docs/architecture.md`（v2.0）
 - **输出交付物**：README（安装/Web 启动/CLI 双入口/架构图/工具清单/评估入口）、`CONTRIBUTING.md`（含**新增工具三步走**：注册 → import 触发 → 黄金用例）、`evals` 使用说明
@@ -682,7 +682,7 @@ graph LR
 
 ### 3.4 架构文档一致性约定（新增）
 
-- 本路线图的任务编号（E1-1 … E8-2）与 `docs/architecture.md` 的演进路径**一一对应**；任何架构决策变更必须先更新架构文档 v2.0，再更新本路线图对应任务
+- 本路线图的任务编号（E1-1 … E9-2）与 `docs/architecture.md` 的演进路径**一一对应**（E9 为产品化增量，被动提醒无新架构演进，可后置）；任何架构决策变更必须先更新架构文档 v2.0，再更新本路线图对应任务
 - Web API 端点与 SSE 事件协议以架构 v2.0 §2.8 为唯一权威，前后端共享一份事件类型声明
 
 ### 3.5 测试与评估规范（更新）

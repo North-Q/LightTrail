@@ -1,7 +1,7 @@
 # TODO · LightTrail（光迹）
 
 > 项目待办 + 灵感收集。更新日期：2026-09-07
-> 任务编号与 `docs/DEVELOPMENT-ROADMAP.md` v2.2（E1-1 … E9-3）对应；架构见 `docs/architecture.md` v2.0.1。
+> 任务编号与 `docs/DEVELOPMENT-ROADMAP.md` v2.2（E1-1 … E9-2）对应（E9-3 定时推送为可选待议项，未入路线图）；架构见 `docs/architecture.md` v2.0.1。
 > PRD 已升至 v0.3（新增「主动提醒服务」能力族，见 PRD §8.4 / D2.3-06 / D2.3-07 / D3.1-04 / M1.1-04 / M1.1-05 / NF-16）——主动提醒以「查询时被动提醒」MVP 形式排 E9，定时推送延后。
 
 ## 待办（当前阶段）
