@@ -160,6 +160,14 @@ class Agent:
             )
         return resp.get("content", "").strip()
 
+    def load_history(self, messages: list[dict[str, Any]]) -> None:
+        """用已有历史替换当前会话历史（Web 会话恢复用，CLI 不受影响）。
+
+        Args:
+            messages: 要载入的消息历史（user/assistant/tool 字典列表，不含 system）。
+        """
+        self._messages = [dict(message) for message in messages]
+
     def reset(self) -> None:
         """清空对话历史（保留系统提示）。"""
         self._messages = []
