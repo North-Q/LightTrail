@@ -33,6 +33,41 @@
   覆盖更新/快照往返/JSON 兜底/边界）。pytest 186 → **198 全绿**；ruff 0 告警。
 - **commit**：3a4fd15（含 api/__init__.py）。
 
+### E7-3 FastAPI + SSE 路由（五端点）— 已提交
+
+- **依赖**：fastapi>=0.110 / uvicorn>=0.29 / python-multipart（pyproject 主依赖），
+  httpx>=0.27（dev，测试用）。
+- **api/app.py**：`create_app(deps=...)` 工厂（测试注入 Fake；默认真实 Settings）+
+  `app = create_app()`（uvicorn lighttrail.api.app:app 可启动）；CORS 本地放开；
+  工具全量注册。uvicorn 实测启动成功，/docs 200 且 OpenAPI 含全部五端点。
+- **api/routes.py**：五端点 `/api/chat` `/api/decide` `/api/photos/review`
+  `/api/profile` `/api/sessions/{id}`；请求模型 pydantic（白拿 OpenAPI）；
+  SSE 事件流按 §2.8 协议（queued/step/tool_call/tool_result/token/card/error/done）；
+  同步 ReAct/管线经 asyncio.to_thread 在线程池执行 + asyncio.Queue 桥回事件循环，
+  不阻塞事件循环（§2.9 线程模型）；Agent 历史从 SessionManager 恢复（新增
+  Agent.load_history，CLI 不受影响）；照片上传限 jpg/png、≤10MB。
+- **说明**：当前 token 事件按「每轮完整文本」发送（同步通道无流式 SDK），
+  逐 token 流式留待后续 streaming 通道。
+- **测试**：`tests/test_api.py` 8 用例（chat 全协议/error/decide card/照片 review
+  与类型校验/profile 读写/会话 404/OpenAPI）。pytest 198 → **206 全绿**；
+  ruff 0 告警；smoke 21 项通过。
+- **commit**：ee49bdc。
+
+### E7-4 trace→SSE 桥接（trace 即 UI）— 已提交
+
+- **api/events.py**：事件协议单一事实源——`map_trace_event`（step → SSE step；
+  tool → tool_call + tool_result 两条；llm 不入协议）、`sse_text` 帧编码、
+  `pump` 队列泵、`TraceBridge`（挂 TraceRecorder.subscribe，经
+  call_soon_threadsafe 线程安全入队 asyncio.Queue，attach/detach 生命周期）。
+- **api/routes.py 重构**：三处 SSE 端点统一走 TraceBridge + pump；注入型 dispatch
+  （测试 Fake）补记 record_tool，使 Web 事件流中工具调用可见（与生产
+  registry.dispatch 记录行为一致）。
+- **验收**：decide 管线 SSE 收到 step → tool_call → tool_result → card → done
+  全序列且顺序正确（tests/test_api_events.py 断言相对顺序 + call/result 成对）。
+- **测试**：`tests/test_api_events.py` 6 用例（事件映射 ×3 / SSE 帧 / 线程桥
+  转发与 detach / decide 全序列）。pytest 206 → **212 全绿**；ruff 0 告警。
+- **commit**：4140df0（含 test_api.py 诊断断言增强）。
+
 ## 2026-09-07
 
 
