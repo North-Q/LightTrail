@@ -15,14 +15,16 @@
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import logging
 import random
 import threading
 import time
+from collections import deque
 from typing import Any
 
-from openai import OpenAI
+from openai import AsyncOpenAI, OpenAI
 from openai.resources.chat.completions import Completions as _OpenAICompletions
 
 from lighttrail.config import DEFAULT_MODEL
@@ -48,6 +50,65 @@ _NATIVE_REASON_PARAMS = (
 
 class LLMError(Exception):
     """LLM 调用失败的统一异常。"""
+
+
+class _AsyncGate:
+    """异步并发闸门：acall 的 LLM 串行边界（容量 1），支持排队位置查询。
+
+    设计要点：
+    - 公平 FIFO：按到达顺序放行（先到先得），避免并发请求饿死；
+    - 只保护单次 API 往返（acall 内部 acquire/release），重试在闸门外；
+    - 线程安全：内部状态由锁保护；跨事件循环唤醒经 future 所属 loop 的
+      call_soon_threadsafe（默认单进程单事件循环部署下即等价于普通
+      asyncio.Semaphore，这里做得更通用，兼容 CLI/Web 混合复用场景）。
+    """
+
+    def __init__(self, capacity: int) -> None:
+        if capacity < 1:
+            raise LLMError("并发闸门容量必须 >= 1")
+        self._capacity = capacity
+        self._active = 0
+        self._waiting = 0
+        self._waiters: deque[asyncio.Future[None]] = deque()
+        self._lock = threading.Lock()
+
+    def position(self) -> int:
+        """当前占用 + 排队中的请求数（0 表示闸门空闲）。"""
+        with self._lock:
+            return self._active + self._waiting
+
+    async def acquire(self) -> None:
+        """进入临界区；容量已满时排队等待（FIFO 放行）。"""
+        with self._lock:
+            if self._active < self._capacity and not self._waiters:
+                self._active += 1
+                return
+            self._waiting += 1
+            future: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+            self._waiters.append(future)
+        try:
+            await future
+        except asyncio.CancelledError:
+            # 被取消时若尚未放行，把自己移出队列，避免闸门计数泄漏
+            with self._lock:
+                if not future.done():
+                    self._waiting -= 1
+                    try:
+                        self._waiters.remove(future)
+                    except ValueError:
+                        pass
+            raise
+
+    def release(self) -> None:
+        """退出临界区；有等待者时把队首放行进闸（占用位直接转移给后者）。"""
+        with self._lock:
+            if self._waiters:
+                self._waiting -= 1
+                next_future = self._waiters.popleft()
+                loop = next_future.get_loop()
+                loop.call_soon_threadsafe(next_future.set_result, None)
+            else:
+                self._active -= 1
 
 
 class ChatClient:
@@ -76,6 +137,13 @@ class ChatClient:
         self._lock = threading.Lock()
         # 配额账本（E4-2）：成功响应后按 usage 记账；未注入时零开销不记账
         self._quota = quota
+        # async 通道（E7-1）：AsyncOpenAI 惰性创建；并发边界由 serial_llm 驱动——
+        # True 时建容量 1 的 asyncio 闸门（只串行 LLM 往返），False 时不设闸门直接并行
+        self._api_key = api_key
+        self._base_url = base_url
+        self._timeout = timeout
+        self._async_client: AsyncOpenAI | None = None
+        self._async_gate = _AsyncGate(capacity=1) if serial_llm else None
 
     def chat(
         self,
@@ -125,6 +193,89 @@ class ChatClient:
                 logger.warning("LLM 调用失败（第 %d 次），%.1fs 后重试：%s", attempt + 1, backoff, exc)
                 time.sleep(backoff)
         raise LLMError(f"LLM 调用失败：{last_exc}") from last_exc
+
+    async def acall(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        model: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        temperature: float = 0.2,
+        thinking: dict[str, Any] | None = None,
+        reasoning_effort: str | None = None,
+    ) -> dict[str, Any]:
+        """async 对话通道（E7-1）：语义与 chat() 一致，供 FastAPI/SSE 事件循环使用。
+
+        并发边界由 serial_llm 配置驱动：
+        - True 时经 asyncio 闸门（容量 1）严格串行——**只串行 LLM 往返**，工具计算
+          与 HTTP 数据请求（天气/地图等非 LLM 请求）不进闸门，可并发执行；
+        - False 时不设闸门，调用直接并行（接入支持并发的 API 时关闭即可，
+          业务代码零改动——ADR-002 平台中立）。
+        排队位置经 queue_position() 查询（供 SSE queued 事件展示「排队第 N 位」）。
+
+        Args:
+            messages: OpenAI 格式消息列表。
+            model: 模型名，缺省由上层（Agent）决定。
+            tools: OpenAI 格式工具定义列表，可为 None。
+            temperature: 采样温度，工具调用链路使用较低值保证稳定。
+            thinking: 思考模式扩展参数（如 {"type": "enabled"}），None 时不携带。
+            reasoning_effort: 推理强度（low/medium/high），None 时不携带。
+
+        Returns:
+            助手消息字典（与 chat() 同一转换逻辑，含 role/content/tool_calls/thinking）。
+
+        Raises:
+            LLMError: 重试耗尽或参数错误。
+        """
+        payload: dict[str, Any] = {"model": model, "messages": messages, "temperature": temperature}
+        if tools:
+            payload["tools"] = tools
+        self._attach_reason_params(payload, thinking, reasoning_effort)
+
+        last_exc: Exception | None = None
+        for attempt in range(_MAX_RETRIES):
+            try:
+                # 串行闸门只包住单次往返；重试在闸门外——并发模式下多个调用各自重试互不阻塞
+                resp = await self._request_once_async(payload)
+                self._record_usage(payload, resp)
+                return self._to_message_dict(resp)
+            except Exception as exc:  # noqa: BLE001 - 同 chat()：统一判定可重试性
+                last_exc = exc
+                if not self._should_retry(exc) or attempt == _MAX_RETRIES - 1:
+                    break
+                backoff = _BASE_BACKOFF_SEC * (2**attempt) + random.uniform(0, 0.5)
+                logger.warning("LLM async 调用失败（第 %d 次），%.1fs 后重试：%s", attempt + 1, backoff, exc)
+                await asyncio.sleep(backoff)
+        raise LLMError(f"LLM async 调用失败：{last_exc}") from last_exc
+
+    async def _request_once_async(self, payload: dict[str, Any]) -> Any:
+        """发送单次异步请求：serial_llm=True 时经串行闸门，否则直接调用。"""
+        if self._async_gate is None:
+            return await self._get_async_client().chat.completions.create(**payload)
+        gate = self._async_gate
+        await gate.acquire()
+        try:
+            return await self._get_async_client().chat.completions.create(**payload)
+        finally:
+            gate.release()
+
+    def queue_position(self) -> int:
+        """查询闸门上「执行中 + 排队中」的请求数（0 = 空闲；供 SSE queued 事件）。
+
+        serial_llm=False 时无闸门，恒为 0（无需排队）；新请求的排队位置
+        = queue_position() + 1。
+        """
+        if self._async_gate is None:
+            return 0
+        return self._async_gate.position()
+
+    def _get_async_client(self) -> AsyncOpenAI:
+        """惰性创建 AsyncOpenAI 客户端（首次 acall 时建立，避免占用无用连接）。"""
+        if self._async_client is None:
+            self._async_client = AsyncOpenAI(
+                api_key=self._api_key, base_url=self._base_url, timeout=self._timeout
+            )
+        return self._async_client
 
     @staticmethod
     def _attach_reason_params(
