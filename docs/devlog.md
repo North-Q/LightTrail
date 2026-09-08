@@ -68,6 +68,20 @@
   转发与 detach / decide 全序列）。pytest 206 → **212 全绿**；ruff 0 告警。
 - **commit**：4140df0（含 test_api.py 诊断断言增强）。
 
+### E7-0 真实 Key + SSE 长连接联调（阶段开场任务）— ✅ 已完成
+
+> 执行时机说明：E7-0 需 SSE 基础设施（E7-3/4），故在 E7-4 之后执行——同 E6-0
+> 先例（阶段开场任务在依赖就绪后验证，禁止仅凭 mock 判定阶段完成）。
+
+- **验证**：uvicorn 启动真实服务（127.0.0.1:8766）→ `POST /api/chat`
+  「现在几点？」最小 query（1.8s 完成，消耗极小）→ SSE 长连接事件序列：
+  **queued(position=1) → tool_call(get_current_time) → tool_result → token → done**，
+  session_id 正常返回且已落盘——「现有 CLI 链路在 Web 侧可跑」验证通过，
+  协议（§2.8）真实链路无结构性缺陷。
+- **说明**：token 文本为真实模型回复（终端 GBK 显示乱码仅为控制台编码问题，
+  数据本身 UTF-8 正常）；本轮只发 1 条真实 query，未烧配额。
+- **commit**：本条为文档记录（无代码改动）。
+
 ## 2026-09-07
 
 
