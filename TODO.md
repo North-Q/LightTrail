@@ -47,7 +47,7 @@
 ### 阶段五：Web 服务层（E7）★ 网页形态落地
 
 - [ ] E7-0 真实 Key + SSE 长连接联调验证（阶段开场任务）
-- [ ] E7-1 async ChatClient + 全局 LLM 队列（Semaphore(1)，串行只限 LLM）
+- [x] E7-1 async ChatClient + 全局 LLM 队列（Semaphore(1)，串行只限 LLM）
 - [ ] E7-2 SessionManager 会话持久化（JSON 落盘）
 - [ ] E7-3 FastAPI + SSE 路由（五个端点，事件协议见架构 v2.0 §2.8）
 - [ ] E7-4 trace 事件桥接 SSE（「trace 即 UI」实时轨迹面板）

@@ -2,6 +2,23 @@
 
 > 按任务单元记录进度与阻塞，供后续接手者审计。格式：任务编号 / 时间 / commit hash / 测试数量。
 
+## 2026-09-08（E7 Web 服务层）
+
+### E7-1 async ChatClient + 全局 LLM 队列（acall + _AsyncGate 串行闸门）— 已提交
+
+- **llm/client.py**：新增 `ChatClient.acall()` async 通道（基于 `openai.AsyncOpenAI`，惰性创建）；
+  - 并发边界由 `serial_llm` 配置驱动：True 时经 `_AsyncGate`（容量 1）严格串行——**只串行 LLM
+    往返**，工具计算/HTTP 数据请求不进闸门；False 时不设闸门直接并行（ADR-002 平台中立，
+    业务代码零改动）；
+  - `_AsyncGate`：公平 FIFO 放行（先到先得），线程安全 + 跨事件循环唤醒，支持排队位置查询
+    `queue_position()`（供 SSE queued 事件）；
+  - 重试/超时迁移为 async 版本（asyncio.sleep 指数退避，不阻塞事件循环）；
+  - 同步 `chat()` 路径保持不变（CLI 零改动，旧锁语义不变）。
+- **pyproject.toml**：dev 依赖增 `pytest-asyncio>=0.23`，ini 增 `asyncio_mode = "auto"`。
+- **测试**：`tests/test_client_async.py` 9 用例（串行/并行/排队位置/重试/重试耗尽/扩展参数
+  extra_body/配额记账）。pytest 177 → **186 全绿**；ruff 0 告警；smoke 21 项通过。
+- **commit**：371a8af（已 push：1dd6ea4..371a8af）。
+
 ## 2026-09-07
 
 
