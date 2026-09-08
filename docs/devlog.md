@@ -19,6 +19,20 @@
   extra_body/配额记账）。pytest 177 → **186 全绿**；ruff 0 告警；smoke 21 项通过。
 - **commit**：371a8af（已 push：1dd6ea4..371a8af）。
 
+### E7-2 SessionManager 会话持久化（JSON 落盘 + LRU 缓存）— 已提交
+
+- **新增 `api/session.py`**（E7-2，A-08 对话持久化）：
+  - `SessionRecord`：{history（消息历史）, pipeline（管线上下文快照）, workspace（记忆工作区）,
+    user_id（预留）}；`snapshot_context` / `restore_context` 做 Intent/DecisionCard 的
+    JSON 安全快照往返（pydantic → dict → 还原，兼容缺失字段）；
+  - `SessionManager`：`create()` / `get()` / `restore()` / `save()`——内存缓存（LRU 上限，
+    淘汰只移出内存不删磁盘）+ JSON 落盘 `data/sessions/{id}.json`，重启进程可恢复；
+  - 默认单进程模型：接口以 session_id 为键、与进程无关，未来多 worker 换后端即可（架构
+    v2.0 §2.9）；非法 session_id / 损坏落盘 / 非 JSON 对象均有兜底。
+- **测试**：`tests/test_session.py` 12 用例（创建落盘/重启恢复/多会话隔离/LRU 淘汰留盘/
+  覆盖更新/快照往返/JSON 兜底/边界）。pytest 186 → **198 全绿**；ruff 0 告警。
+- **commit**：3a4fd15（含 api/__init__.py）。
+
 ## 2026-09-07
 
 
