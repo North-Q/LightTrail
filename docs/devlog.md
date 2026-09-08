@@ -82,6 +82,44 @@
   数据本身 UTF-8 正常）；本轮只发 1 条真实 query，未烧配额。
 - **commit**：本条为文档记录（无代码改动）。
 
+### E7-5 前端 SPA 工程化 — 已提交
+
+- **frontend/**（Vite + React + TS）：首迭代严格 3 核心页（裁剪原则）——
+  对话（ReAct + 一句话决策，SSE 流式渲染 token/工具事件 + 右侧轨迹面板
+  trace 即 UI）/ 会话列表（本地记录 → GET /api/sessions/{id} 回放历史与
+  最近决策卡）/ 决策卡片渲染（读取 workspace.last_card 结构化渲染：结论 /
+  置信度区间条 / 机位 chips / 参数表 / 依据来源标签）。
+- **api/client.ts**：fetch 封装 + SSE 帧解析（postSSE）+ EventSource 封装
+  （connectSSE）；**api/events.ts** 与后端 api/events.py 映射保持一致（共享
+  schema，E7-4 约定同步落地）。设计令牌在 styles.css（黄昏渐变 #E8A23B →
+  #5F8DF2 品牌时刻）；移动端特化：≤760px 单列布局 + 触控目标 ≥44px（双视口
+  390×844 / 360×780 自检）。
+- **验证**：`npm run build`（tsc 严格 + vite）通过；`npm run dev` 启动后 /
+  index 200、/api 反向代理到后端 8765 实测（profile 200）；3 页可切换由
+  hash 路由实现（构建期 TS 校验）。
+- **commit**：ead1e8e（含 package-lock.json；tsbuildinfo 已 .gitignore）。
+
+### E7 阶段总结（2026-09-08）
+
+- **交付**：E7-1 async ChatClient（acall + _AsyncGate 串行闸门）→ E7-2
+  SessionManager（JSON 落盘 + LRU）→ E7-3 FastAPI + SSE 五端点 → E7-4
+  trace→SSE 桥接（TraceBridge，「trace 即 UI」）→ E7-0 真实 Key SSE 最小
+  query 联调通过 → E7-5 SPA 三核心页。
+- **测试**：177 → **212**（+35：async 9 + session 12 + api 8 + events 6）；
+  ruff 0 告警；smoke 21 项；前端 npm build 通过。
+- **平台中立性审计（ADR-002/003）**：新增代码无 ECNU 品牌判断（并发边界仍由
+  LLM_SERIAL_LLM 配置驱动；acall 闸门与 sync 锁同为配置驱动，双通道并存）；
+  thinking/reasoning_effort 仍收敛在 ChatClient 适配层；API 层零平台语义。
+- **Web 形态可演示**：uvicorn + npm run dev 双进程即可演示——对话页 SSE
+  流式渲染 + 轨迹面板实时滚动 + 决策卡片（真实/伪造 Key 均可，Fake 由测试
+  覆盖，真实链路 E7-0 已验证）。
+- **剩余**：E8 评估体系（黄金用例 runner/cassette + LLM-as-judge）→ 开源发布
+  → E9 主动提醒被动 MVP。
+- **遗留（建议）**：① token 逐字流式（当前为每轮完整文本，需 ChatClient
+  流式通道）；② GET /api/sessions 列表端点未加（前端会话列表已用本地记录
+  兜底，多端同步时需补）；③ AGENTS.md/长期目标文档的「下一步」待主理人更新
+  至 E8（AGENTS.md 修改需小北同意）。
+
 ## 2026-09-07
 
 

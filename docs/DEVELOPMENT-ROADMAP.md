@@ -18,7 +18,7 @@
 
 ### 1.1 项目现状
 
-LightTrail 已完成 **E1–E6 全部交付**（含 E6-0 真实联调 + push）：地基拆分（loop/context/router + ContextBuilder 五层组装）、可观测性（TraceRecorder + 置信度规则表 + TraceReport）、四层记忆（档案常驻注入 / SQLite 事件记忆含坐标与天气快照 / 语义记忆 double-confirm）、路由与配额（ModelRouter 能力矩阵 + QuotaLedger 三窗口 + reason 深推理通道）、决策编排（四管线端到端闭环 + Intent/DecisionCard pydantic 契约 + 一句话出方案 + 追问回落 ReAct）、多模态与差异化（照片分析智能工具 depth=1 红线 + 照片反推 + 复盘管线闭环 + 语义记忆提炼 + favorite_spots 沉淀）。**ADR-002 平台中立性 + ADR-003 扩展参数适配**已落地。当前规模：src+tests ~8700 行，**15 个已注册工具**（含 analyze_photo / reverse_engineer_photo / search_memory），pytest **177 全绿**（基线 43 → +134）、ruff 0 告警、smoke 21 项通过。**E6-0 真实 Key 四管线联调通过 + 29 commits push 至 origin/main**（HEAD 0b502a6）。**当前缺口**：Web 呈现（E7）、评估体系（E8）。
+LightTrail 已完成 **E1–E6 全部交付**（含 E6-0 真实联调 + push）：地基拆分（loop/context/router + ContextBuilder 五层组装）、可观测性（TraceRecorder + 置信度规则表 + TraceReport）、四层记忆（档案常驻注入 / SQLite 事件记忆含坐标与天气快照 / 语义记忆 double-confirm）、路由与配额（ModelRouter 能力矩阵 + QuotaLedger 三窗口 + reason 深推理通道）、决策编排（四管线端到端闭环 + Intent/DecisionCard pydantic 契约 + 一句话出方案 + 追问回落 ReAct）、多模态与差异化（照片分析智能工具 depth=1 红线 + 照片反推 + 复盘管线闭环 + 语义记忆提炼 + favorite_spots 沉淀）。**ADR-002 平台中立性 + ADR-003 扩展参数适配**已落地。当前规模：src+tests ~1.1w 行 + `frontend/`（Vite + React + TS），**15 个已注册工具**（含 analyze_photo / reverse_engineer_photo / search_memory），pytest **212 全绿**（基线 43 → +169）、ruff 0 告警、smoke 21 项通过、前端 `npm run build` 通过。**E6-0 真实 Key 四管线联调 + E7-0 真实 Key SSE 联调均通过**（HEAD ead1e8e）。**E7 阶段已完成**（async ChatClient + SessionManager + FastAPI 五端点 SSE + trace→SSE 桥 + SPA 三核心页），**当前缺口**：评估体系（E8）。
 
 ### 1.2 阶段划分（对齐架构 v2.0 演进路径）
 
@@ -28,7 +28,7 @@ LightTrail 已完成 **E1–E6 全部交付**（含 E6-0 真实联调 + push）�
 | 阶段二 | E3+E4 | 记忆层与配额感知 | 四层记忆注入 + reason 通道 + QuotaLedger 配额账本 | ✅ 已完成 |
 | 阶段三 | E5 | 决策编排与输出契约 | 四管线编排 + Intent/DecisionCard pydantic 契约 + 自愈重试 | ✅ 已完成 |
 | 阶段四 | E6 | 多模态与差异化 | 照片分析（智能工具）+ 反推方案 + 事件/语义记忆 | ✅ 已完成（E6-0~E6-5，联调通过 + push） |
-| 阶段五 | E7 | Web 服务层 | async ChatClient + FastAPI + SSE 流式 + SPA 前端（trace 即 UI） | 未开始 |
+| 阶段五 | E7 | Web 服务层 | async ChatClient + FastAPI + SSE 流式 + SPA 前端（trace 即 UI） | ✅ 已完成（E7-0~E7-5，真实联调 + push） |
 | 阶段六 | E8 | 评估体系 | 三层评估：黄金用例集 + LLM-as-judge，质量回归门禁 | 未开始 |
 | 阶段七 | — | 开源发布 | 文档完善、贡献指南、版本发布 | 未开始 |
 | 阶段八 | E9 | 主动提醒服务（被动 MVP） | 复拍机会提醒 + 就近快速推荐（查询时被动触发，非定时推送） | 未开始 |

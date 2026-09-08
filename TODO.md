@@ -51,7 +51,7 @@
 - [x] E7-2 SessionManager 会话持久化（JSON 落盘）
 - [x] E7-3 FastAPI + SSE 路由（五个端点，事件协议见架构 v2.0 §2.8）
 - [x] E7-4 trace 事件桥接 SSE（「trace 即 UI」实时轨迹面板）
-- [ ] E7-5 前端 SPA 工程化（Vite + React + TS，接高保真原型；首迭代 3 核心页：对话/会话列表/DecisionCard，第二迭代 Trace 时间线/设置页）
+- [x] E7-5 前端 SPA 工程化（Vite + React + TS，接高保真原型；首迭代 3 核心页：对话/会话列表/DecisionCard，第二迭代 Trace 时间线/设置页）
 
 ### 阶段六：评估体系（E8）
 
