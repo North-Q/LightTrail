@@ -1,24 +1,21 @@
-"""FastAPI SSE 路由（E7-3）：五端点 + 事件协议（架构 v2.0 §2.8）。
+"""FastAPI SSE 路由（E7-3/E7-4）：五端点 + 事件协议（架构 v2.0 §2.8）。
 
 设计要点：
 - 薄服务层：只做协议转换与会话管理，业务逻辑在 Agent/Orchestrator（§1 边界原则）；
-- 线程模型（§2.9）：同步 ReAct/管线在 worker 线程执行（anyio.to_thread），
-  TraceRecorder 事件经 asyncio.Queue 桥接回事件循环（call_soon_threadsafe），
-  事件循环不被同步 LLM/工具调用阻塞；顺带把「trace 即 UI」的基础管道打通；
+- 线程模型（§2.9）：同步 ReAct/管线在 worker 线程执行（asyncio.to_thread），
+  TraceBridge（api/events.py）把 trace 事件经 asyncio.Queue 桥接回事件循环
+  （call_soon_threadsafe）——「trace 即 UI」：排队 → 步骤 → 工具 → 卡片 实时推送；
 - 会话恢复：Agent 历史从 SessionManager 载入（load_history），多会话互不串线；
-- SSE 协议事件：queued / step / tool_call / tool_result / token / card /
-  error / done；说明：当前 ChatClient 为同步通道（无流式 SDK），token 事件按
-  「每轮完整文本」发送（协议形态满足，逐 token 流式留待后续 streaming 通道）。
+- 说明：当前 ChatClient 为同步通道（无流式 SDK），token 事件按「每轮完整文本」
+  发送（协议形态满足，逐 token 流式留待后续 streaming 通道）。
 """
 
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import tempfile
-from collections.abc import AsyncIterator
-from contextlib import suppress
+from collections.abc import AsyncIterator, Callable
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -28,7 +25,13 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from lighttrail.agent import Agent
-from lighttrail.infra.trace import TraceEvent, TraceRecorder
+from lighttrail.api.events import (
+    EVENT_DONE,
+    EVENT_QUEUED,
+    TraceBridge,
+    pump,
+)
+from lighttrail.infra.trace import Recorder, TraceRecorder
 from lighttrail.orchestrator import Orchestrator
 from lighttrail.orchestrator.orchestrator import _render_card
 from lighttrail.orchestrator.schemas import DecisionCard
@@ -61,45 +64,10 @@ class ProfilePayload(BaseModel):
     favorite_spots: list[dict[str, Any]] | None = None
 
 
-# ------ SSE 协议（§2.8）------
+# ------ SSE 常量（事件类型定义见 api/events.py）------
 _SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 _MAX_PHOTO_BYTES = 10 * 1024 * 1024
 _ALLOWED_PHOTO_TYPES = {"image/jpeg", "image/png"}
-
-
-def _sse_text(event: dict[str, Any]) -> str:
-    """把事件字典编码为 SSE 帧（event: type + data: JSON）。"""
-    return f"event: {event['type']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
-
-
-def _map_trace_event(event: TraceEvent) -> list[dict[str, Any]] | None:
-    """把 TraceEvent 映射为 SSE 协议事件（llm 事件不入协议，token 由端点补发）。"""
-    if event.kind == "step":
-        return [
-            {
-                "type": "step",
-                "name": event.name,
-                "input_summary": event.payload.get("输入摘要", ""),
-                "output_summary": event.payload.get("输出摘要", ""),
-                "ts": event.ts,
-            }
-        ]
-    if event.kind == "tool":
-        payload = event.payload
-        return [
-            {"type": "tool_call", "name": event.name, "arguments": payload.get("参数摘要", ""), "ts": event.ts},
-            {
-                "type": "tool_result",
-                "name": event.name,
-                "result": payload.get("结果摘要", ""),
-                "data_source": payload.get("数据来源", ""),
-                "confidence": payload.get("置信度", "low"),
-                "field": payload.get("来源字段", ""),
-                "elapsed_ms": payload.get("耗时_ms", 0.0),
-                "ts": event.ts,
-            },
-        ]
-    return None
 
 
 def _report_to_dict(report: Any) -> dict[str, Any]:
@@ -129,22 +97,6 @@ def _report_to_dict(report: Any) -> dict[str, Any]:
     }
 
 
-class _TraceSink:
-    """TraceRecorder 订阅适配器：TraceEvent → SSE 事件，线程安全入队。
-
-    回调在 worker 线程执行（同步 ReAct/管线），经 call_soon_threadsafe
-    把事件投递回事件循环内的 asyncio.Queue——即 SSE 桥接的核心管道。
-    """
-
-    def __init__(self, queue: asyncio.Queue[dict[str, Any]], loop: asyncio.AbstractEventLoop) -> None:
-        self._queue = queue
-        self._loop = loop
-
-    def __call__(self, event: TraceEvent) -> None:
-        for mapped in _map_trace_event(event) or []:
-            self._loop.call_soon_threadsafe(self._queue.put_nowait, mapped)
-
-
 def _queue_position(client: Any) -> int:
     """当前 LLM 队列排队位置（供 queued 事件）；无闸门/伪客户端时按 1 计。"""
     fn = getattr(client, "queue_position", None)
@@ -156,109 +108,115 @@ def _queue_position(client: Any) -> int:
     return 1
 
 
+def _traced_dispatch(
+    raw_dispatch: Callable[[str, str], str], recorder: Recorder
+) -> Callable[[str, str], str]:
+    """包一层注入型 dispatch：调用前后补记 tool trace（「trace 即 UI」一致化）。
+
+    生产默认路径（registry.dispatch）内部已带 recorder 记录；注入型 Fake
+    dispatch（测试）本身不记录，这里补记，保证 Web 事件流里工具调用可见。
+    """
+
+    def dispatch(name: str, args: str) -> str:
+        result = raw_dispatch(name, args)
+        recorder.record_tool(name, args, result)
+        return result
+
+    return dispatch
+
+
 def _stream_response(stream: AsyncIterator[str]) -> StreamingResponse:
     """以 SSE 帧输出事件流。"""
     return StreamingResponse(stream, media_type="text/event-stream", headers=_SSE_HEADERS)
-
-
-async def _pump(queue: asyncio.Queue[dict[str, Any] | None], worker: asyncio.Task) -> AsyncIterator[str]:
-    """从队列取事件编码为 SSE 帧，直到 done；结束时取消未完成的 worker。"""
-    try:
-        while True:
-            item = await queue.get()
-            if item is None:
-                break
-            yield _sse_text(item)
-            if item.get("type") == "done":
-                break
-    finally:
-        if not worker.done():
-            worker.cancel()
-            with suppress(asyncio.CancelledError):
-                await worker
 
 
 # ------ 路由实现 ------
 router = APIRouter()
 
 
+def _run_setup(deps: Any, recorder: TraceRecorder) -> tuple[Agent, Orchestrator]:
+    """组装本次请求的 Agent/Orchestrator（共享 per-request recorder）。"""
+    agent = Agent(
+        deps.client,
+        deps.registry,
+        model=deps.model,
+        memory=deps.memory,
+        reason_thinking=deps.reason_thinking,
+        recorder=recorder,
+    )
+    dispatch = deps.dispatch
+    if dispatch is not None:
+        dispatch = _traced_dispatch(dispatch, recorder)
+    orchestrator = Orchestrator(
+        deps.client,
+        deps.registry,
+        agent,
+        memory=deps.memory,
+        recorder=recorder,
+        dispatch=dispatch,
+        photo_analyze=deps.photo_analyze,
+    )
+    return agent, orchestrator
+
+
 @router.post("/api/chat", summary="自由对话（ReAct），SSE 流式事件")
 async def chat(payload: ChatRequest, request: Request) -> StreamingResponse:
-    """接收消息 → queued → ReAct 过程事件 → token → done。"""
+    """接收消息 → queued → ReAct 过程事件（工具）→ token → done。"""
     deps = request.app.state.deps
     session = _load_or_create(deps, payload.session_id)
     queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
     loop = asyncio.get_running_loop()
     recorder = TraceRecorder()
-    unsub = recorder.subscribe(_TraceSink(queue, loop))
+    bridge = TraceBridge(recorder)
+    bridge.attach(queue, loop, session_id=session.session_id)
 
-    def run() -> tuple[Agent, str, Any]:
-        agent = Agent(
-            deps.client,
-            deps.registry,
-            model=deps.model,
-            memory=deps.memory,
-            reason_thinking=deps.reason_thinking,
-            recorder=recorder,
-        )
+    def run() -> tuple[list[dict[str, Any]], str, Any]:
+        agent, _ = _run_setup(deps, recorder)
         agent.load_history(session.history)
         text, report = agent.run_with_trace(payload.message)
-        return agent, text, report
+        return agent.history, text, report
 
     async def worker() -> None:
         try:
-            agent, text, report = await asyncio.to_thread(run)
+            history, text, report = await asyncio.to_thread(run)
         except Exception as exc:
             logger.exception("会话 %s 对话失败", session.session_id)
             queue.put_nowait({"type": "error", "message": str(exc), "session_id": session.session_id})
-            queue.put_nowait({"type": "done", "session_id": session.session_id, "text": ""})
+            queue.put_nowait({"type": EVENT_DONE, "session_id": session.session_id, "text": ""})
             return
-        session.history = agent.history
+        session.history = history
         session.workspace["last_trace"] = _report_to_dict(report)
         deps.sessions.save(session)
         queue.put_nowait({"type": "token", "content": text, "session_id": session.session_id})
-        queue.put_nowait({"type": "done", "session_id": session.session_id, "text": text})
+        queue.put_nowait({"type": EVENT_DONE, "session_id": session.session_id, "text": text})
 
     async def stream() -> AsyncIterator[str]:
-        queue.put_nowait({"type": "queued", "position": _queue_position(deps.client), "session_id": session.session_id})
+        queue.put_nowait(
+            {"type": EVENT_QUEUED, "position": _queue_position(deps.client), "session_id": session.session_id}
+        )
         worker_task = asyncio.create_task(worker())
         try:
-            async for frame in _pump(queue, worker_task):
+            async for frame in pump(queue, worker_task):
                 yield frame
         finally:
-            unsub()
+            bridge.detach()
 
     return _stream_response(stream())
 
 
 @router.post("/api/decide", summary="决策管线（D1–D3），SSE 事件直至决策卡片")
 async def decide(payload: DecideRequest, request: Request) -> StreamingResponse:
-    """一句话 → 管线步骤事件逐条推 → 末端 card + done。"""
+    """一句话 → 管线步骤/工具事件逐条推 → 末端 card + done。"""
     deps = request.app.state.deps
     session = _load_or_create(deps, payload.session_id)
     queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
     loop = asyncio.get_running_loop()
     recorder = TraceRecorder()
-    unsub = recorder.subscribe(_TraceSink(queue, loop))
+    bridge = TraceBridge(recorder)
+    bridge.attach(queue, loop, session_id=session.session_id)
 
     def run() -> tuple[DecisionCard, str, Any]:
-        agent = Agent(
-            deps.client,
-            deps.registry,
-            model=deps.model,
-            memory=deps.memory,
-            reason_thinking=deps.reason_thinking,
-            recorder=recorder,
-        )
-        orchestrator = Orchestrator(
-            deps.client,
-            deps.registry,
-            agent,
-            memory=deps.memory,
-            recorder=recorder,
-            dispatch=deps.dispatch,
-            photo_analyze=deps.photo_analyze,
-        )
+        _, orchestrator = _run_setup(deps, recorder)
         card = orchestrator.run_pipeline(payload.request)
         return card, _render_card(card), recorder.to_report()
 
@@ -268,7 +226,7 @@ async def decide(payload: DecideRequest, request: Request) -> StreamingResponse:
         except Exception as exc:
             logger.exception("会话 %s 决策失败", session.session_id)
             queue.put_nowait({"type": "error", "message": str(exc), "session_id": session.session_id})
-            queue.put_nowait({"type": "done", "session_id": session.session_id, "text": ""})
+            queue.put_nowait({"type": EVENT_DONE, "session_id": session.session_id, "text": ""})
             return
         session.history.append({"role": "user", "content": payload.request})
         session.history.append({"role": "assistant", "content": text})
@@ -278,16 +236,18 @@ async def decide(payload: DecideRequest, request: Request) -> StreamingResponse:
         queue.put_nowait(
             {"type": "card", "card": card.model_dump(mode="json"), "text": text, "session_id": session.session_id}
         )
-        queue.put_nowait({"type": "done", "session_id": session.session_id, "text": text})
+        queue.put_nowait({"type": EVENT_DONE, "session_id": session.session_id, "text": text})
 
     async def stream() -> AsyncIterator[str]:
-        queue.put_nowait({"type": "queued", "position": _queue_position(deps.client), "session_id": session.session_id})
+        queue.put_nowait(
+            {"type": EVENT_QUEUED, "position": _queue_position(deps.client), "session_id": session.session_id}
+        )
         worker_task = asyncio.create_task(worker())
         try:
-            async for frame in _pump(queue, worker_task):
+            async for frame in pump(queue, worker_task):
                 yield frame
         finally:
-            unsub()
+            bridge.detach()
 
     return _stream_response(stream())
 
@@ -300,7 +260,7 @@ async def photos_review(
     plan_reference: str = Form(default="", description="历史计划（DecisionCard JSON 或文本，可空）"),
     session_id: str = Form(default="", description="会话标识；缺省自动新建"),
 ) -> StreamingResponse:
-    """上传照片 → 临时文件 → analyze_photo（多模态）→ 复盘卡 → done。"""
+    """上传照片 → 临时文件 → 复盘管线（多模态分析）→ 复盘卡 → done。"""
     deps = request.app.state.deps
     if file.content_type not in _ALLOWED_PHOTO_TYPES:
         raise HTTPException(status_code=400, detail="仅支持 jpg/png 照片")
@@ -331,26 +291,11 @@ async def _review_stream(
     queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
     loop = asyncio.get_running_loop()
     recorder = TraceRecorder()
-    unsub = recorder.subscribe(_TraceSink(queue, loop))
+    bridge = TraceBridge(recorder)
+    bridge.attach(queue, loop, session_id=session.session_id)
 
     def run() -> tuple[DecisionCard, str, Any]:
-        agent = Agent(
-            deps.client,
-            deps.registry,
-            model=deps.model,
-            memory=deps.memory,
-            reason_thinking=deps.reason_thinking,
-            recorder=recorder,
-        )
-        orchestrator = Orchestrator(
-            deps.client,
-            deps.registry,
-            agent,
-            memory=deps.memory,
-            recorder=recorder,
-            dispatch=deps.dispatch,
-            photo_analyze=deps.photo_analyze,
-        )
+        _, orchestrator = _run_setup(deps, recorder)
         card = orchestrator.run_review(image_path, focus=focus, plan_reference=plan_reference)
         return card, _render_card(card), recorder.to_report()
 
@@ -360,7 +305,7 @@ async def _review_stream(
         except Exception as exc:
             logger.exception("会话 %s 复盘失败", session.session_id)
             queue.put_nowait({"type": "error", "message": str(exc), "session_id": session.session_id})
-            queue.put_nowait({"type": "done", "session_id": session.session_id, "text": ""})
+            queue.put_nowait({"type": EVENT_DONE, "session_id": session.session_id, "text": ""})
             return
         session.history.append({"role": "user", "content": f"复盘照片：{image_path}（{focus}）"})
         session.history.append({"role": "assistant", "content": text})
@@ -370,16 +315,18 @@ async def _review_stream(
         queue.put_nowait(
             {"type": "card", "card": card.model_dump(mode="json"), "text": text, "session_id": session.session_id}
         )
-        queue.put_nowait({"type": "done", "session_id": session.session_id, "text": text})
+        queue.put_nowait({"type": EVENT_DONE, "session_id": session.session_id, "text": text})
 
     async def stream() -> AsyncIterator[str]:
-        queue.put_nowait({"type": "queued", "position": _queue_position(deps.client), "session_id": session.session_id})
+        queue.put_nowait(
+            {"type": EVENT_QUEUED, "position": _queue_position(deps.client), "session_id": session.session_id}
+        )
         worker_task = asyncio.create_task(worker())
         try:
-            async for frame in _pump(queue, worker_task):
+            async for frame in pump(queue, worker_task):
                 yield frame
         finally:
-            unsub()
+            bridge.detach()
 
     return _stream_response(stream())
 
@@ -419,4 +366,4 @@ def _load_or_create(deps: Any, session_id: str):
     return deps.sessions.create()
 
 
-__all__ = ["ChatRequest", "DecideRequest", "ProfilePayload", "_sse_text", "router"]
+__all__ = ["ChatRequest", "DecideRequest", "ProfilePayload", "router"]

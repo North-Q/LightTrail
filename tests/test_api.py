@@ -163,8 +163,10 @@ async def test_chat_sse_full_protocol(make_app) -> None:
         events = await _collect_sse(client, "POST", "/api/chat", json={"message": "现在几点？"})
 
     types = [e["type"] for e in events]
+    errors = [e for e in events if e["type"] == "error"]
     assert types[0] == "queued"
-    assert "tool_call" in types and "tool_result" in types
+    assert not errors, f"SSE 出现 error：{errors}"
+    assert "tool_call" in types and "tool_result" in types, f"事件序列缺失工具事件：{types}"
     assert types[-1] == "done"
     token = next(e for e in events if e["type"] == "token")
     assert "22:30" in token["content"]
