@@ -58,7 +58,7 @@
 > 小北确认设计稿（`docs/design/delivery/lighttrail-prototype.html`）为唯一视觉真源，实际前端需对齐补齐。
 > 唯一 spec：`docs/design/FRONTEND-SPEC.md`；原设计文档 v1.1 归档于 `docs/design/archive/`。
 
-- [ ] E7-6 前端工程基座升级（令牌对齐修正漂移：--bg/--good/--bad → 真源取值；路由 3→6 页 #/home #/d1 #/d2 #/d3 #/d4 #/m1；顶栏 6 项 + 汉堡抽屉 + AppShell）
+- [x] E7-6 前端工程基座升级（令牌对齐修正漂移：--bg/--good/--bad → 真源取值；路由 3→6 页 #/home #/d1 #/d2 #/d3 #/d4 #/m1；顶栏 6 项 + 汉堡抽屉 + AppShell）
 - [ ] E7-7 旅程总览页 + M1 记忆页（今日决策环图 / 四阶段入口 + 器材档案 /api/profile / 事件历史 / 偏好芯片）
 - [ ] E7-8 D1 灵感页 + D2 规划页（方案卡 A/B/C + 参考图上传 + sky-band 天象时间线 / 机位列表 / 赶场轴）
 - [ ] E7-9 D3 决策页对齐（三态卡 / 置信度三层 / 倒计时 / 现场模式 / 曝光三角联动 / 四步推理——可解释性铁律①②硬门禁）

@@ -1,61 +1,68 @@
-/** 应用外壳（E7-5）：三核心页导航（对话 / 会话列表 / DecisionCard 渲染），hash 路由。 */
+/** 应用入口（E7-6）：6 页旅程路由（#/home #/d1 #/d2 #/d3 #/d4 #/m1）+ 旧 hash 别名兼容。 */
 
 import { useEffect, useState } from "react";
-import { CardPage } from "./pages/CardPage";
-import { ChatPage } from "./pages/ChatPage";
-import { SessionsPage } from "./pages/SessionsPage";
+import { AppShell } from "./components/AppShell";
+import { SourceProvider } from "./context/SourceContext";
+import { CardPageFallback } from "./pages/_cardFallback";
+import { D1Page } from "./pages/D1Page";
+import { D2Page } from "./pages/D2Page";
+import { D3Page } from "./pages/D3Page";
+import { D4Page } from "./pages/D4Page";
+import { HomePage } from "./pages/HomePage";
+import { M1Page } from "./pages/M1Page";
 
-type Route = "chat" | "sessions" | "card";
-
-function routeFromHash(hash: string): Route {
-  if (hash.startsWith("#/sessions")) {
-    return "sessions";
-  }
-  if (hash.startsWith("#/card")) {
-    return "card";
-  }
-  return "chat";
-}
-
-const NAV_ITEMS: { route: Route; hash: string; label: string }[] = [
-  { route: "chat", hash: "#/chat", label: "对话" },
-  { route: "sessions", hash: "#/sessions", label: "会话" },
-  { route: "card", hash: "#/card", label: "决策卡片" },
+/** E7-5 旧 hash → 新 6 页路由（功能融合不丢）。 */
+const ALIASES: [string, string][] = [
+  ["#/chat", "#/d1"],
+  ["#/sessions", "#/home"],
+  ["#/card", "#/d3"],
 ];
 
+function normalizeHash(hash: string): string {
+  const target = ALIASES.find(([from]) => hash === from);
+  return target ? target[1] : hash;
+}
+
 export default function App() {
-  const [route, setRoute] = useState<Route>(() => routeFromHash(window.location.hash));
+  const [hash, setHash] = useState<string>(() => normalizeHash(window.location.hash || "#/home"));
 
   useEffect(() => {
-    const onHashChange = (): void => setRoute(routeFromHash(window.location.hash));
+    const onHashChange = (): void => {
+      const raw = window.location.hash || "#/home";
+      const normalized = normalizeHash(raw);
+      if (normalized !== raw) {
+        // 旧 hash 别名：替换地址（不留历史堆积），随后 hashchange 触发重渲染
+        window.location.replace(normalized);
+        return;
+      }
+      setHash(normalized);
+    };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
+  const page = (() => {
+    switch (hash) {
+      case "#/d1":
+        return <D1Page />;
+      case "#/d2":
+        return <D2Page />;
+      case "#/d3":
+        return <D3Page />;
+      case "#/d4":
+        return <D4Page />;
+      case "#/m1":
+        return <M1Page />;
+      case "#/card":
+        return <CardPageFallback />;
+      default:
+        return <HomePage />;
+    }
+  })();
+
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <a className="brand" href="#/chat">
-          <span className="brand-glow">◆</span> LightTrail · 光迹
-        </a>
-        <nav className="main-nav" aria-label="主导航">
-          {NAV_ITEMS.map((item) => (
-            <a
-              key={item.route}
-              href={item.hash}
-              className={route === item.route ? "active" : ""}
-              aria-current={route === item.route ? "page" : undefined}
-            >
-              {item.label}
-            </a>
-          ))}
-        </nav>
-      </header>
-      <main className="page-body">
-        {route === "chat" ? <ChatPage /> : null}
-        {route === "sessions" ? <SessionsPage /> : null}
-        {route === "card" ? <CardPage /> : null}
-      </main>
-    </div>
+    <SourceProvider>
+      <AppShell>{page}</AppShell>
+    </SourceProvider>
   );
 }

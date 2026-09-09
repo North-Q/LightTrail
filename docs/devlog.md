@@ -1,5 +1,33 @@
 # LightTrail 开发日志
 
+## 2026-09-09（阶段五·补 前端旅程页对齐）
+
+### E7-6 前端工程基座升级（令牌对齐 + 6 页路由 + AppShell）— 已提交
+
+- **令牌对齐（真源唯一）**：新增 `frontend/scripts/token-diff.mjs` 核对脚本——
+  从真源 `lighttrail-prototype.html` :root 提取 32 项令牌，与前端 styles.css
+  逐项比对（规范化忽略空白差异）。现在 **diff=0 通过**；styles.css 整体重写为
+  真源令牌（--bg-base #0A0D14 / --semantic-go #3FCF8E / --dusk-gradient 三段渐变
+  / --sky-band 天象带 等），旧令牌（--bg/--good/--bad…）保留为兼容别名指向真源值。
+- **路由 3→6 页**：`#/home 总览` `#/d1 灵感` `#/d2 规划` `#/d3 决策` `#/d4 复盘`
+  `#/m1 记忆`；旧 hash 别名兼容（#/chat→#/d1、#/sessions→#/home、#/card→#/d3，
+  location.replace 不留历史堆积）。
+- **AppShell**：顶栏旅程导航（灵感→规划→决策→复盘 带箭头）+ 我的记忆 +
+  渐变落点（dusk-gradient）；≤560px 汉堡抽屉（#main-nav.is-open + 遮罩 +
+  滑入 ≤300ms，prefers-reduced-motion 降级）；页脚「数据与依据 · 解释中心」
+  模态（SourceContext 全局数据源清单，铁律③ 底座）；全局设置占位模态。
+- **6 页落地**（E7-6 骨架）：Home（环图 Ring + 四阶段入口 + 最近计划/会话回放）、
+  D1（对话/决策迁入 + 示例 prompts chips + 参考图上传区占位 + 方案卡）、D2
+  （机位列表/月相/天象时间线 sky-band，Fake 标注）、D3（三态卡示例 + 决策输入
+  + DecisionCardView 底座）、D4（批量上传 + 4 维分析 + 处方，Fake 标注）、M1
+  （器材档案 GET/PUT /api/profile 可用 + 偏好/事件 Fake 标注）。示例板块一律
+  显眼标注「示例数据」（诚实原则）。
+- **验证**：`npm run build`（tsc 严格 + vite）通过；`npm run dev` 各页模块
+  转换 200、/api 代理 200；令牌 diff=0；pytest 212 全绿（纯前端改动零回归）；
+  ruff 0 告警。双视口（390×844/360×780）媒体查询已落地（汉堡/单列/触控 ≥44px），
+  截图自检待有浏览器环境时执行。
+- **commit**：待填。
+
 > 按任务单元记录进度与阻塞，供后续接手者审计。格式：任务编号 / 时间 / commit hash / 测试数量。
 
 ## 2026-09-08（E7 Web 服务层）
