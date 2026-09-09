@@ -366,6 +366,7 @@ def run_l3(*, use_llm: bool = False, limit: int = 10) -> dict[str, Any]:
     cross = ToolCrossCheck()
 
     per_dim: dict[str, list[int]] = {dim: [] for dim in rubric.score(samples[0][1])}
+    llm_scores: dict[str, list[int]] = {dim: [] for dim in per_dim}
     findings: list[dict[str, Any]] = []
     rows: list[dict[str, Any]] = []
 
@@ -391,11 +392,14 @@ def run_l3(*, use_llm: bool = False, limit: int = 10) -> dict[str, Any]:
             model=judge_model,
             temperature=0.2,
         ).get("content", ""))
-        for row in samples[:limit]:
-            case, card = row
-            rows.append({"id": f"{case['id']}-llm", "llm_judge": judge.score(card)})
+        for case, card in samples[:limit]:
+            llm_score = judge.score(card)
+            rows.append({"id": f"{case['id']}-llm", "group": case["group"], "llm_judge": llm_score})
+            for dim, entry in llm_score.items():
+                llm_scores[dim].append(entry["score"])
 
     means = _mean(per_dim)
+    means_llm = _mean(llm_scores) if use_llm and llm_scores.get(next(iter(per_dim))) else {}
     previous = _latest_l3()
     diff = {dim: round(means[dim] - (previous["means"].get(dim, 0) if previous else 0), 2) for dim in means}
     elapsed = round(time.perf_counter() - started, 2)
@@ -406,6 +410,7 @@ def run_l3(*, use_llm: bool = False, limit: int = 10) -> dict[str, Any]:
         "elapsed_s": elapsed,
         "samples": len(samples),
         "means": means,
+        "means_llm": means_llm,
         "diff_vs_last": diff,
         "cross_check_findings": findings,
         "rows": rows,
@@ -443,6 +448,10 @@ def _print_report(report: dict[str, Any]) -> None:
         print("L3 rubric 打分（均值 / 与上次 diff）：")
         for dim, value in report["means"].items():
             print(f"  {dim}: {value}（diff {report['diff_vs_last'].get(dim, 0):+.2f}）")
+        if report.get("means_llm"):
+            print("L3 LLM 判官均值（真实子集）：")
+            for dim, value in report["means_llm"].items():
+                print(f"  {dim}: {value}")
         print(f"工具交叉校验违规：{len(report['cross_check_findings'])} 处")
         for finding in report["cross_check_findings"]:
             print(f"  ⚠ {finding['rule']}｜{finding['param']}｜{finding['detail']}")

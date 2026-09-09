@@ -1,0 +1,267 @@
+{
+  "level": "L2",
+  "ts": "20260909-153557",
+  "elapsed_s": 0.11,
+  "llm_calls": 0,
+  "pipeline_total": 12,
+  "pipeline_pass": 12,
+  "tool_total": 10,
+  "tool_pass": 10,
+  "e6_archived": 8,
+  "pipeline_details": [
+    {
+      "id": "L2-001",
+      "group": "galaxy",
+      "request": "这周末想去拍银河",
+      "pass": true,
+      "problems": [],
+      "conclusion": "建议周六（9月9日）凌晨前往上海郊外光污染较低处拍摄银河，新月月光干扰低，云量少，需携带广角大光圈镜头、三脚架和快门线。",
+      "confidence": "high",
+      "evidence": 3,
+      "locations": 1,
+      "tools": [
+        "moon_phase",
+        "galaxy_visibility",
+        "weather_forecast"
+      ]
+    },
+    {
+      "id": "L2-002",
+      "group": "galaxy",
+      "request": "周末去天荒坪拍星轨，值得去吗",
+      "pass": true,
+      "problems": [],
+      "conclusion": "建议周六（9月9日）凌晨前往上海郊外光污染较低处拍摄银河，新月月光干扰低，云量少，需携带广角大光圈镜头、三脚架和快门线。",
+      "confidence": "high",
+      "evidence": 3,
+      "locations": 1,
+      "tools": [
+        "weather_forecast",
+        "moon_phase",
+        "sun_times"
+      ]
+    },
+    {
+      "id": "L2-003",
+      "group": "galaxy",
+      "request": "今晚拍银河现在走还来得及吗",
+      "pass": true,
+      "problems": [],
+      "conclusion": "建议周六（9月9日）凌晨前往上海郊外光污染较低处拍摄银河，新月月光干扰低，云量少，需携带广角大光圈镜头、三脚架和快门线。",
+      "confidence": "high",
+      "evidence": 3,
+      "locations": 1,
+      "tools": [
+        "sun_times",
+        "sunset_glow_score",
+        "weather_forecast"
+      ]
+    },
+    {
+      "id": "L2-004",
+      "group": "live",
+      "request": "今晚火烧云值得冲吗",
+      "pass": true,
+      "problems": [],
+      "conclusion": "今晚火烧云值得冲，建议18:00前到达开阔西向机位，携带广角镜头和三脚架。",
+      "confidence": "medium",
+      "evidence": 3,
+      "locations": 2,
+      "tools": [
+        "sun_times",
+        "sunset_glow_score",
+        "weather_forecast"
+      ]
+    },
+    {
+      "id": "L2-005",
+      "group": "live",
+      "request": "明天傍晚晚霞去崇明怎么样",
+      "pass": true,
+      "problems": [],
+      "conclusion": "今晚火烧云值得冲，建议18:00前到达开阔西向机位，携带广角镜头和三脚架。",
+      "confidence": "medium",
+      "evidence": 3,
+      "locations": 2,
+      "tools": [
+        "sun_times",
+        "sunset_glow_score",
+        "weather_forecast"
+      ]
+    },
+    {
+      "id": "L2-006",
+      "group": "live",
+      "request": "日落后二十分钟东边会反烧吗",
+      "pass": true,
+      "problems": [],
+      "conclusion": "今晚火烧云值得冲，建议18:00前到达开阔西向机位，携带广角镜头和三脚架。",
+      "confidence": "medium",
+      "evidence": 3,
+      "locations": 2,
+      "tools": [
+        "sun_times",
+        "sunset_glow_score",
+        "weather_forecast"
+      ]
+    },
+    {
+      "id": "L2-007",
+      "group": "planning",
+      "request": "周末两天三机位对比，帮我排一下",
+      "pass": true,
+      "problems": [],
+      "conclusion": "周末两天（9月8-9日）天气良好，云量低，适合拍摄星空或夜景；建议选择默认机位（上海），在9月8日或9日夜间前往，携带广角镜头和三脚架，利用新月无月光干扰拍摄银河。",
+      "confidence": "high",
+      "evidence": 3,
+      "locations": 1,
+      "tools": [
+        "weather_forecast",
+        "moon_phase",
+        "sun_times"
+      ]
+    },
+    {
+      "id": "L2-008",
+      "group": "planning",
+      "request": "三天内哪天通透适合银河",
+      "pass": true,
+      "problems": [],
+      "conclusion": "周末两天（9月8-9日）天气良好，云量低，适合拍摄星空或夜景；建议选择默认机位（上海），在9月8日或9日夜间前往，携带广角镜头和三脚架，利用新月无月光干扰拍摄银河。",
+      "confidence": "high",
+      "evidence": 3,
+      "locations": 1,
+      "tools": [
+        "weather_forecast",
+        "moon_phase",
+        "sun_times"
+      ]
+    },
+    {
+      "id": "L2-009",
+      "group": "sun",
+      "request": "明天朝霞日出哪里拍比较好",
+      "pass": true,
+      "problems": [],
+      "conclusion": "明天（9月9日）朝霞火烧云概率中等（62分），云量较低（18%），建议前往拍摄，日出时间05:42，建议05:00前到达机位，携带广角镜头和三脚架。",
+      "confidence": "medium",
+      "evidence": 3,
+      "locations": 2,
+      "tools": [
+        "sun_times",
+        "sunset_glow_score",
+        "weather_forecast"
+      ]
+    },
+    {
+      "id": "L2-010",
+      "group": "polar",
+      "request": "北极圈极昼期能拍星空吗",
+      "pass": true,
+      "problems": [],
+      "conclusion": "不建议在北极圈极昼期拍摄星空，因为极昼期间太阳不落，天空不会完全黑暗，星空不可见。建议在极夜期或接近极夜期前往拍摄。",
+      "confidence": "high",
+      "evidence": 1,
+      "locations": 0,
+      "tools": [
+        "moon_phase",
+        "galaxy_visibility",
+        "weather_forecast"
+      ]
+    },
+    {
+      "id": "L2-011",
+      "group": "galaxy",
+      "request": "（空档案）新手求银河入门方案",
+      "pass": true,
+      "problems": [],
+      "conclusion": "建议周六（9月9日）凌晨前往上海郊外光污染较低处拍摄银河，新月月光干扰低，云量少，需携带广角大光圈镜头、三脚架和快门线。",
+      "confidence": "high",
+      "evidence": 3,
+      "locations": 1,
+      "tools": [
+        "moon_phase",
+        "galaxy_visibility",
+        "weather_forecast"
+      ]
+    },
+    {
+      "id": "L2-012",
+      "group": "live",
+      "request": "（缺天气Key）今晚还能不能拍火烧云",
+      "pass": true,
+      "problems": [],
+      "conclusion": "今晚火烧云值得冲，建议18:00前到达开阔西向机位，携带广角镜头和三脚架。",
+      "confidence": "medium",
+      "evidence": 3,
+      "locations": 2,
+      "tools": [
+        "sun_times",
+        "sunset_glow_score",
+        "weather_forecast"
+      ]
+    }
+  ],
+  "tool_details": [
+    {
+      "id": "T-001",
+      "name": "equivalent_exposure",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "T-002",
+      "name": "star_shutter_rule",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "T-003",
+      "name": "star_shutter_rule",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "T-004",
+      "name": "nd_long_exposure",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "T-005",
+      "name": "nd_long_exposure",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "T-006",
+      "name": "sun_times",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "T-007",
+      "name": "moon_phase",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "T-008",
+      "name": "galaxy_visibility",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "T-009",
+      "name": "moon_events",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "T-010",
+      "name": "equivalent_exposure",
+      "pass": true,
+      "problems": []
+    }
+  ]
+}

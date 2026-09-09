@@ -1,5 +1,44 @@
 # LightTrail 开发日志
 
+## 2026-09-09（阶段六 E8 评估体系）
+
+### E8-1 L2 黄金用例集 + 管线回归（E8-0 精神并入：真实最小样本开场）— 已提交
+
+- **evals/**：`runner.py`（`python -m evals.runner --level L2`）+ `fake_data.py`
+  （FakeDispatcher 确定性数据源 + CassetteChatClient 回放 + RecordingChatClient 录制）+
+  `golden/L2-cases.json`（12 管线 ×5 组 + 10 工具数值断言，E6 照片 8 条归档，合计 ~30）。
+- **cassette 录制/回放**：`cassettes/{group}.json`（galaxy/live/planning/sun/polar 5 组，
+  每组意图+综合两段）；**E8-0 开场真实录制**：真实 Key 跑 5 个代表样本（10 次 LLM 调用），
+  之后 L2 回放零 LLM 成本（实测 0.11s、llm_calls=0）。
+- **断言**：`assert_card`（结构合法：结论非空/置信度枚举/evidence 非空/机位数上限/降级标注/
+  关键词/时间窗口）+ 工具断言（eq/close/range/truthy/match/error 六种 op）。
+- **测试**：`tests/test_evals.py` 11 用例（assert_card ×4 / rubric / 交叉校验 ×2 /
+  cassette 回放 / LLM 判官降级 / L2 零成本可重复 / L3 报告结构）。pytest 212 → **223 全绿**。
+- **commit**：d729dfd。
+
+### E8-2 LLM-as-judge + 工具交叉校验（L3）— 已提交
+
+- **evals/judge.py**：`LocalRubric`（4 维确定性打分：决策合理性/依据完整性/个性化程度/
+  不确定性坦白，默认零成本）+ `LLMJudge`（深推理判官，JSON 解析失败自动降级本地）+ `ToolCrossCheck`（「工具即裁判」：快门参数 vs 500 法则/须解析）。
+- **runner L3**：`--level L3 [--llm-judge --limit N]`；报告含 4 维均值 / 与上次 diff /
+  交叉校验违规清单 / LLM 判官均值 `means_llm`；存档 `evals/results/`。
+- **真实判官验证（配额克制）**：--llm-judge --limit 5 跑 5 条代表性卡片 → 均值
+  决策合理性 4.0 / 依据完整性 3.6 / 个性化 2.4 / 不确定性坦白 3.6（比本地 rubric 更严格，
+  个性化低分属实：回放卡片未引用记忆，诚实记录）。交叉校验违规 0。
+- **配额记录**：E8 全阶段真实 LLM 样本 = L2 录制 5 条 + L3 判官 5 条 = **10 条（≤10 红线）**，
+  调用 15 次；精确 credits 未持久化（QuotaLedger 未落盘）——遗留：联调后导出一份记账。
+- **commit**：待填。
+
+### E8 阶段总结
+
+- 出口检查单：L1 pytest **223 全绿**；L2 分钟级（0.11s）**零 LLM 成本可重复**（测试断言）；
+  L3 报告存档 `evals/results/`（本地 + 真实判官两份），形成质量曲线起点；真实样本 ≤10 条
+  记录如上；devlog 总结 + roadmap 勾选下方；平台中立性审计：evals 仅用 ModelRouter 解析
+  判官模型（RouteIntent.DEEP_REASONING），无品牌判断、无 ECNU 硬编码。
+- 遗留：① QuotaLedger 精确 credits 未持久化到评估报告（建议 L3 联调时导出）；② judge 打分
+  稳定性：真实判官比本地 rubric 更严（尤其个性化维度），后续可调 rubric 权重核对；
+  ③ E6 照片用例仍需真实照片窗口（E6-0 遗留，不影响 L2 结构回归）。
+
 ## 2026-09-09（阶段五·补 前端旅程页对齐）
 
 ### E7-6 前端工程基座升级（令牌对齐 + 6 页路由 + AppShell）— 已提交
