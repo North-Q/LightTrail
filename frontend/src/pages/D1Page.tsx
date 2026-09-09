@@ -1,7 +1,7 @@
-/** D1 灵感页（E7-6：对话/决策迁入 + 示例 chips + 方案卡 A/B/C；E7-8 完善反推）。 */
+/** D1 灵感页（E7-8）：一句话→SSE→方案卡 A/B/C；参考图反推走 /api/photos/review 流式上传。 */
 
 import { useCallback, useRef, useState } from "react";
-import { sendChat, sendDecide } from "../api/client";
+import { postFormSSE, sendChat, sendDecide } from "../api/client";
 import type { DecisionCard, SSEEvent, TraceItem } from "../api/events";
 import { useSources } from "../context/SourceContext";
 import { DecisionCardView } from "../components/DecisionCard";
@@ -14,8 +14,9 @@ interface Message {
 
 const SESSION_KEY = "lt.session.id";
 const SESSION_LIST_KEY = "lt.sessions";
-
 const EXAMPLE_PROMPTS = ["这周末想去拍银河", "今晚火烧云值得冲吗", "14mm f/2.8 拍银河，快门上限多少"];
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+const ALLOWED_TYPES = new Set(["image/jpeg", "image/png"]);
 
 function loadMetas(): { id: string; title: string; created: string }[] {
   try {
@@ -40,6 +41,7 @@ export function D1Page() {
   const [card, setCard] = useState<DecisionCard | null>(null);
   const [queuePos, setQueuePos] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const sessionRef = useRef<string>(localStorage.getItem(SESSION_KEY) ?? "");
   const abortRef = useRef<AbortController | null>(null);
@@ -70,10 +72,7 @@ export function D1Page() {
             tag: event.data_source ? `来源 ${event.data_source}` : undefined,
           });
           if (event.data_source) {
-            addSource({
-              name: event.data_source,
-              note: `${event.name} · ${event.field ?? "结果"}`,
-            });
+            addSource({ name: event.data_source, note: `${event.name} · ${event.field ?? "结果"}` });
           }
           break;
         case "token":
@@ -144,6 +143,38 @@ export function D1Page() {
       abortRef.current = null;
     }
   }
+
+  async function handleUpload(file: File | undefined): Promise<void> {
+    if (!file) {
+      return;
+    }
+    setError("");
+    setUploadError("");
+    if (!ALLOWED_TYPES.has(file.type)) {
+      setUploadError("仅支持 jpg/png 照片");
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      setUploadError("照片超过 10MB 上限");
+      return;
+    }
+    setCard(null);
+    setTrace([]);
+    setUploading(true);
+    userMessageRef.current = `参考图反推：${file.name}`;
+    const form = new FormData();
+    form.append("file", file);
+    form.append("focus", "");
+    form.append("plan_reference", "");
+    try {
+      await postFormSSE("/api/photos/review", form, handleEvent);
+    } catch (caught) {
+      setUploadError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setUploading(false);
+    }
+  }
+  const [uploadError, setUploadError] = useState("");
 
   function stop(): void {
     abortRef.current?.abort();
@@ -229,12 +260,20 @@ export function D1Page() {
             {queuePos !== null ? <span className="queue-badge">排队第 {queuePos} 位</span> : null}
           </div>
 
-          <div className="upload-zone" aria-label="参考图上传（反推，第二迭代接通）">
-            <p style={{ margin: 0 }}>📷 参考图反推（D1.2）——上传一张参考大片，光迹反推复刻计划</p>
+          <label className="upload-zone" htmlFor="ref-upload">
+            <input
+              id="ref-upload"
+              type="file"
+              accept="image/jpeg,image/png"
+              disabled={uploading}
+              onChange={(event) => void handleUpload(event.target.files?.[0])}
+            />
+            <p style={{ margin: 0 }}>📷 参考图反推（D1.2）——点击选择参考大片，光迹反推复刻计划</p>
             <p className="page-sub" style={{ margin: "8px 0 0" }}>
-              反推链路已具备（/api/photos/review）；前端上传组件第二迭代接通（E7-8）。
+              {uploading ? "分析中（/api/photos/review · EXIF + 多模态）…" : "jpg/png · 单张 ≤10MB；上传即跑照片反推管线"}
             </p>
-          </div>
+          </label>
+          {uploadError ? <p className="message-error">{uploadError}</p> : null}
 
           <div className="message-list">
             {messages.map((message, index) => (
@@ -253,6 +292,16 @@ export function D1Page() {
           {card ? (
             <div className="plan-cards">
               <DecisionCardView card={card} />
+              {card.alternatives && card.alternatives.length > 0 ? (
+                <div className="plan-alts">
+                  {card.alternatives.map((alternative, index) => (
+                    <div className="card" key={`${alternative}-${index}`}>
+                      <span className="card-kicker">方案 {["B", "C", "D"][index] ?? `#${index + 2}`} · 备选</span>
+                      <p style={{ margin: 0 }}>{alternative}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : null}
         </section>

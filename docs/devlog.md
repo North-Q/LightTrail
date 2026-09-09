@@ -41,6 +41,19 @@
   双视口布局依赖 grid 断点（≤820 单列）已在 E7-6 落地；截图自检待浏览器环境。
 - **commit**：4e512fa。
 
+### E7-8 D1 灵感页 + D2 规划页 — 已提交
+
+- **D1Page**：参考图反推接通——`postFormSSE`（multipart → SSE 帧解析，api/client.ts
+  重构抽公共 pipeSSE）→ `/api/photos/review`，文件校验 jpg/png ≤10MB，上传即跑照片
+  反推/复盘管线并把卡片渲染；方案卡 A/B/C：主卡（DecisionCardView）+ 备选卡
+  （card.alternatives 逐一渲染为 B/C 卡）。SSE 流式渲染与轨迹面板沿用 E7-6。
+- **D2Page**：「运行一次规划决策」→ sendDecide（规划意图）→ 解析 tool_result 摘要
+  更新天象时间线（sun_times 日出/日落，✦ 实时标记）与月相/银河可见（moon_phase /
+  galaxy_visibility）；机位列表与赶场时间轴保持结构正确的示例数据并显眼标注。
+  done 回调用局部 parsedSun 标志避免闭包过期。
+- **验证**：`npm run build` 通过；令牌 diff 保持 0；后端 212 全绿、ruff 0（未动后端）。
+- **commit**：待填。
+
 > 按任务单元记录进度与阻塞，供后续接手者审计。格式：任务编号 / 时间 / commit hash / 测试数量。
 
 ## 2026-09-08（E7 Web 服务层）

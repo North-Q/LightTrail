@@ -513,3 +513,5 @@ button, select, a, input, .chip, .nav-step, .state-btn, .icon-btn { min-height: 
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
+/* 方案卡 A/B/C（D1）：主卡 + 备选卡 */
+.plan-alts { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--sp-3); margin-top: var(--sp-3); }

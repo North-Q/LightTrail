@@ -26,22 +26,8 @@ function parseFrame(frame: string): SSEEvent | null {
   }
 }
 
-/** POST 并流式读取 SSE：onEvent 按到达顺序回调，AbortSignal 可中断。 */
-export async function postSSE(
-  url: string,
-  body: Record<string, unknown>,
-  onEvent: (event: SSEEvent) => void,
-  signal?: AbortSignal,
-): Promise<void> {
-  const resp = await fetch(BASE + url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal,
-  });
-  if (!resp.ok) {
-    throw new Error(`请求失败（${resp.status}）：${(await resp.text()).slice(0, 200)}`);
-  }
+/** 流式读取 SSE 响应体并逐帧回调（供 JSON / multipart 两类 POST 复用）。 */
+async function pipeSSE(resp: Response, onEvent: (event: SSEEvent) => void): Promise<void> {
   if (!resp.body) {
     throw new Error("响应无流式内容");
   }
@@ -67,6 +53,43 @@ export async function postSSE(
       }
     }
   }
+}
+
+/** POST JSON 并流式读取 SSE：onEvent 按到达顺序回调，AbortSignal 可中断。 */
+export async function postSSE(
+  url: string,
+  body: Record<string, unknown>,
+  onEvent: (event: SSEEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const resp = await fetch(BASE + url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!resp.ok) {
+    throw new Error(`请求失败（${resp.status}）：${(await resp.text()).slice(0, 200)}`);
+  }
+  await pipeSSE(resp, onEvent);
+}
+
+/** POST multipart（照片上传）并流式读取 SSE：用于 /api/photos/review 照片复盘/反推。 */
+export async function postFormSSE(
+  url: string,
+  form: FormData,
+  onEvent: (event: SSEEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const resp = await fetch(BASE + url, {
+    method: "POST",
+    body: form,
+    signal,
+  });
+  if (!resp.ok) {
+    throw new Error(`请求失败（${resp.status}）：${(await resp.text()).slice(0, 200)}`);
+  }
+  await pipeSSE(resp, onEvent);
 }
 
 /** EventSource 封装：对 GET 型 SSE 端点建立连接，返回断开函数。 */

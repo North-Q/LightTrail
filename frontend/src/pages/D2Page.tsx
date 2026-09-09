@@ -1,19 +1,111 @@
-/** D2 规划页（E7-6 骨架：机位列表 + 天象时间线 + 月相/银河窗口；数据用结构正确的示例并标注）。 */
+/** D2 规划页（E7-8）：跑一次规划决策 → 解析 tool_result 更新天象时间线/月相；机位与赶场轴为示例数据。 */
 
-const FAKE_SPOTS = [
+import { useState } from "react";
+import { sendDecide } from "../api/client";
+import type { SSEEvent } from "../api/events";
+import { useSources } from "../context/SourceContext";
+
+interface Spot {
+  name: string;
+  score: number;
+  aspect: string;
+  distance: string;
+  note: string;
+}
+
+interface SunTimes {
+  sunrise: string;
+  sunset: string;
+}
+
+interface MoonInfo {
+  name: string;
+  advice: string;
+}
+
+const FAKE_SPOTS: Spot[] = [
   { name: "西湖断桥", score: 92, aspect: "朝西 265°", distance: "4.2km", note: "逆光位无遮挡，日落直射湖面" },
   { name: "崇明东滩", score: 87, aspect: "朝西 258°", distance: "38km", note: "滩涂倒影，退潮期更佳" },
   { name: "天荒坪", score: 81, aspect: "银河东南", distance: "120km", note: "光害低，适合银河拱桥" },
 ];
 
-const FAKE_MARKS = [
+const FALLBACK_MARKS = [
   { time: "05:42", label: "日出" },
   { time: "18:06", label: "日落" },
   { time: "18:12", label: "蓝调" },
   { time: "21:40", label: "银河" },
 ];
 
+function parseTime(raw: string, key: string): string {
+  const match = raw.match(new RegExp(`${key}\\s*[:：]\\s*(\\d{1,2}:\\d{2})`));
+  return match ? match[1] : "";
+}
+
 export function D2Page() {
+  const [running, setRunning] = useState(false);
+  const [notice, setNotice] = useState("本页机位与赶场轴为示例数据；时间线可运行一次规划决策获取真实天文/天气时刻。");
+  const [sun, setSun] = useState<SunTimes | null>(null);
+  const [moon, setMoon] = useState<MoonInfo | null>(null);
+  const [galaxy, setGalaxy] = useState("");
+  const { addSource } = useSources();
+
+  async function runPlan(): Promise<void> {
+    setRunning(true);
+    setNotice("运行规划管线中（天气 7 天 + 月相 + 太阳时刻 + 机位匹配）…");
+    let parsedSun = false;
+    try {
+      await sendDecide("周末两天三机位对比，帮我把机位与天象窗口排一下", "", (event: SSEEvent) => {
+        if (event.type === "tool_result") {
+          const summary = event.result ?? "";
+          if (event.name === "sun_times") {
+            const sunrise = parseTime(summary, "日出");
+            const sunset = parseTime(summary, "日落");
+            if (sunrise && sunset) {
+              parsedSun = true;
+              setSun({ sunrise, sunset });
+            }
+          }
+          if (event.name === "moon_phase") {
+            const moonMatch = summary.match(/月相名称\s*[:：]\s*([^,，]+)/);
+            const adviceMatch = summary.match(/月光影响建议\s*[:：]\s*([^,，]+)/);
+            if (moonMatch) {
+              setMoon({ name: moonMatch[1].trim(), advice: adviceMatch ? adviceMatch[1].trim() : "" });
+            }
+          }
+          if (event.name === "galaxy_visibility") {
+            const windowMatch = summary.match(/可见窗口\s*[:：]\s*(\[[^\]]*\])/);
+            if (windowMatch) {
+              setGalaxy(windowMatch[1].replace(/"/g, "").slice(0, 60));
+            }
+          }
+          if (event.data_source) {
+            addSource({ name: event.data_source, note: `${event.name} · ${event.field ?? "结果"}` });
+          }
+        } else if (event.type === "error") {
+          setNotice(`管线失败：${event.message}（时间线保持示例数据）`);
+        } else if (event.type === "done") {
+          setNotice(
+            parsedSun
+              ? "已从本次决策的 tool_result 更新时间线与月相（其余板块仍为示例数据）。"
+              : "决策完成；未解析到天文时刻（检查后端/数据源），时间线保持示例数据。",
+          );
+        }
+      });
+    } catch (caught) {
+      setNotice(`请求失败：${caught instanceof Error ? caught.message : String(caught)}`);
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  const marks = sun
+    ? [
+        { time: sun.sunrise, label: "日出 ✦" },
+        { time: sun.sunset, label: "日落 ✦" },
+        ...FALLBACK_MARKS.filter((mark) => mark.label !== "日出" && mark.label !== "日落"),
+      ]
+    : FALLBACK_MARKS;
+
   return (
     <div className="container page-main">
       <header className="page-head">
@@ -21,12 +113,16 @@ export function D2Page() {
           <h1 className="page-title">D2 · 规划</h1>
           <p className="page-sub">机位 × 天象匹配、多云候补日与赶场编排。</p>
         </div>
-        <span className="fake-tag">◆ 本页为示例数据（真实数据随决策管线 tool_result 接入）</span>
+        <button type="button" className="btn btn-primary" onClick={() => void runPlan()} disabled={running}>
+          {running ? "规划中…" : "运行一次规划决策"}
+        </button>
       </header>
+
+      <p className="page-sub" style={{ margin: "0 0 16px" }}>{notice}</p>
 
       <section className="grid-2">
         <div className="card">
-          <span className="card-kicker">机位列表</span>
+          <span className="card-kicker">机位列表<span className="fake-tag" style={{ marginLeft: 8 }}>示例数据</span></span>
           <div className="spot-list">
             {FAKE_SPOTS.map((spot) => (
               <div className="spot-card" key={spot.name}>
@@ -43,23 +139,30 @@ export function D2Page() {
               </div>
             ))}
           </div>
+          <p className="page-sub" style={{ margin: "12px 0 0" }}>机位来自档案常去机位 + 评分规则（真实接入随 favorit 数据完善）。</p>
         </div>
 
         <div className="card">
           <span className="card-kicker">月相 · 银河可见</span>
           <ul className="event-list">
-            <li>月相：新月（照亮 2%）· 银河窗口 20:10–23:50</li>
-            <li>月光影响：低，整晚可拍</li>
-            <li>推荐机位：天荒坪（光害 2 级）</li>
+            <li>
+              月相：{moon ? moon.name : "新月 · 示例"}（{moon ? "实时" : "示例"}）
+              {moon && moon.advice ? ` · ${moon.advice}` : ""}
+            </li>
+            <li>银河窗口：{galaxy ? galaxy : "20:10–23:50 · 示例"}</li>
+            <li>月光影响：低，整晚可拍（示例）</li>
           </ul>
         </div>
       </section>
 
       <section className="card" style={{ marginTop: 20 }}>
-        <span className="card-kicker">天象时间线（sky-band）</span>
+        <span className="card-kicker">
+          天象时间线（sky-band）
+          <span className="fake-tag" style={{ marginLeft: 8 }}>{sun ? "日出/日落来自实时决策" : "示例数据（可运行上方规划决策刷新）"}</span>
+        </span>
         <div className="sky-timeline">
           <div className="sky-band">
-            {FAKE_MARKS.map((mark) => (
+            {marks.map((mark) => (
               <span
                 className="sky-mark"
                 key={mark.label}
@@ -70,9 +173,16 @@ export function D2Page() {
             ))}
           </div>
         </div>
-        <p className="page-sub" style={{ margin: 8 }}>
-          移动端可横向滚动查看（min-width 680px）。数据示例：真实窗口随 /api/decide 的 tool_result 事件接入。
-        </p>
+        <p className="page-sub" style={{ marginTop: 8 }}>移动端可横向滚动（min-width 680px）。✦ 标记来自本次决策的真实 tool_result。</p>
+      </section>
+
+      <section className="card" style={{ marginTop: 20 }}>
+        <span className="card-kicker">赶场时间轴<span className="fake-tag" style={{ marginLeft: 8 }}>示例数据</span></span>
+        <div className="chip-row">
+          {["16:40 到达机位A", "18:06 日落 · 火烧云", "18:40 蓝调", "21:40 银河", "23:30 收工"].map((step) => (
+            <span className="chip" key={step}>{step}</span>
+          ))}
+        </div>
       </section>
     </div>
   );
