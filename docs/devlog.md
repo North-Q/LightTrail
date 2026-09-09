@@ -52,7 +52,7 @@
   galaxy_visibility）；机位列表与赶场时间轴保持结构正确的示例数据并显眼标注。
   done 回调用局部 parsedSun 标志避免闭包过期。
 - **验证**：`npm run build` 通过；令牌 diff 保持 0；后端 212 全绿、ruff 0（未动后端）。
-- **commit**：待填。
+- **commit**：4a1f3d5。
 
 > 按任务单元记录进度与阻塞，供后续接手者审计。格式：任务编号 / 时间 / commit hash / 测试数量。
 
