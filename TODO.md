@@ -53,7 +53,18 @@
 - [x] E7-4 trace 事件桥接 SSE（TraceBridge，「trace 即 UI」实时轨迹面板）
 - [x] E7-5 前端 SPA 工程化（Vite + React + TS，三核心页：对话/会话列表/DecisionCard，npm run build + dev 代理实测）
 
-### 阶段六：评估体系（E8）★ 下一步
+### 阶段五·补：前端旅程页对齐（E7-6 ~ E7-10）★ 下一步
+
+> 小北确认设计稿（`docs/design/delivery/lighttrail-prototype.html`）为唯一视觉真源，实际前端需对齐补齐。
+> 唯一 spec：`docs/design/FRONTEND-SPEC.md`；原设计文档 v1.1 归档于 `docs/design/archive/`。
+
+- [ ] E7-6 前端工程基座升级（令牌对齐修正漂移：--bg/--good/--bad → 真源取值；路由 3→6 页 #/home #/d1 #/d2 #/d3 #/d4 #/m1；顶栏 6 项 + 汉堡抽屉 + AppShell）
+- [ ] E7-7 旅程总览页 + M1 记忆页（今日决策环图 / 四阶段入口 + 器材档案 /api/profile / 事件历史 / 偏好芯片）
+- [ ] E7-8 D1 灵感页 + D2 规划页（方案卡 A/B/C + 参考图上传 + sky-band 天象时间线 / 机位列表 / 赶场轴）
+- [ ] E7-9 D3 决策页对齐（三态卡 / 置信度三层 / 倒计时 / 现场模式 / 曝光三角联动 / 四步推理——可解释性铁律①②硬门禁）
+- [ ] E7-10 D4 复盘页 + 解释中心 + 收口（批量上传 / 4 维分析 / 处方；铁律③；双视口自检 + 全站示例数据标注）
+
+### 阶段六：评估体系（E8）
 
 > 黄金用例改为各阶段增量交付（每阶段收口 +5~10 条）；E8 本体做框架与 LLM-as-judge。
 

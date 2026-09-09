@@ -1,10 +1,11 @@
 # LightTrail（光迹）· 开发进程路线图
 
-> **版本**：v2.4
+> **版本**：v2.5
 > **日期**：2026-09-09
 > **作者**：架构师 高见远
 > **定位**：指导后续接手的单个 agent 按步骤独立完成每个任务的原子化路线图
-> **依据**：PRD v0.3、架构文档 v2.0（`docs/architecture.md`，演进路径 E1–E8）、现有源码（15 工具已注册 + api/ + frontend/）、TODO.md、UI 设计总览
+> **依据**：PRD v0.3、架构文档 v2.0（`docs/architecture.md`，演进路径 E1–E8）、现有源码（15 工具已注册 + api/ + frontend/）、`docs/design/FRONTEND-SPEC.md`（**前端唯一 spec**）、TODO.md、UI 设计总览
+> **v2.5 变更摘要**（2026-09-09）：小北确认设计稿（`lighttrail-prototype.html`）为目标视觉形态，实际前端 `frontend/` 需对齐补齐。新增**阶段五·补（E7-6 ~ E7-10 前端旅程页对齐）**，排 E8 之前（前端 6 页旅程 SPA 是求职演示本体，成本低且不烧 LLM 配额）；新增权威 spec `docs/design/FRONTEND-SPEC.md`（6 页信息架构、设计令牌全集、组件→API 映射、可解释性三铁律、移动端规范）；设计文档 v1.1 归档至 `docs/design/archive/`，DESIGN-OVERVIEW 升 v2.0、交付说明升 v2.0 并勘误接入方向。
 > **v2.4 变更摘要**（2026-09-09）：**E7 阶段交付完成**（E7-1 async ChatClient 串行闸门 / E7-2 SessionManager / E7-3 FastAPI 五端点 SSE / E7-4 trace→SSE 桥 / E7-5 SPA 三核心页 / E7-0 真实 SSE 联调通过），pytest **212 全绿**（基线 43 → +169）；§1.1 现状、§1.2 阶段五状态、PRD 覆盖矩阵 A-08/Web UI 勾选；E8 评估体系（阶段六）为当前缺口。
 > **v2.0 变更摘要**：项目已从「741 行骨架 + 2 演示工具」推进到「~2300 行 + 12 个已注册工具 + 43 测试全绿」；阶段划分弃用旧的「按 PRD 功能堆」方式，改为与架构 v2.0 演进路径 **E1–E8** 一一对应，并新增 Web 服务层（E7，SSE 流式）与评估体系（E8）两个阶段。
 > **v2.1 变更摘要**（2026-09-07）：同步 PRD v0.3「主动提醒服务」能力族——E3-2 事件记忆增补坐标 + 天气快照字段（复拍提醒 D2.3-07 的数据前提）；§4 待明确事项新增 4.10 主动提醒服务排期。
@@ -582,6 +583,57 @@ graph LR
 - **验收标准**：`npm run dev` 启动后 6 页可切换；真实对话页发消息 → SSE 流式渲染 token + 工具事件 → 决策卡片带依据；`npm run build` 通过
 - **涉及文件**：`frontend/`（新建多文件）、`docs/design/`（只读参考）
 - **难度**：⭐⭐⭐⭐
+
+---
+
+### 阶段五·补：前端旅程页对齐（E7-6 ~ E7-10）★ 下一步
+
+> 阶段目标：把 SPA 从 3 个窄功能页补齐到设计稿 **6 页决策旅程信息架构**，样式层整体对齐设计稿令牌。小北确认设计稿（`docs/design/delivery/lighttrail-prototype.html`）为**唯一视觉真源**；前端唯一 spec 为 **`docs/design/FRONTEND-SPEC.md`**。
+>
+> **硬约束**：① 令牌只从真源 :root 提取，不新造色值；② 后端不动（E7-3 五端点 + SSE 8 事件已覆盖 90% 需求），缺数据板块用**标注「示例数据」的 Fake** 渲染；③ 可解释性三铁律（置信度三层/语义色三要素/解释中心）是验收硬门禁；④ 现有 3 页功能不删，融合进新架构（对话→D1+全局，会话列表→总览页，决策卡→D3 底座）。
+>
+> **依赖图**：E7-5 → E7-6（基座）→ E7-7/E7-8/E7-9（并行三页）→ E7-10（D4+解释中心+收口）→ E8。
+
+#### E7-6 前端工程基座升级（令牌对齐 + 6 页路由 + 全局布局）
+
+- **目标**：`styles.css` 重定义为设计稿令牌全集（--bg-sunken/--bg-overlay/--sky-band、语义三色精确值、三字体栈、间距/圆角/动效全套——**修正现存漂移**：`--bg #12121c`→`#0A0D14`、`--good`→`--semantic-go #3FCF8E` 等）；路由 3→6 页（#/home #/d1 #/d2 #/d3 #/d4 #/m1）；顶栏 6 项导航 + 移动端汉堡抽屉 + 全局 AppShell。
+- **前置依赖**：E7-5（已有 3 页与 api 层）、FRONTEND-SPEC 定稿
+- **输入上下文**：`lighttrail-prototype.html`（:root 令牌唯一真源）、`frontend/src/App.tsx`、`frontend/src/styles.css`
+- **验收标准**：`npm run build` 通过；6 页 hash 可切换；:root 令牌与真源逐项 diff 为 0（可脚本核对）；移动端 390×844 汉堡抽屉开合正常；原 3 页功能在新架构中可访问（不回归）
+- **涉及文件**：`frontend/src/App.tsx`、`frontend/src/styles.css`、`frontend/src/pages/`（6 页骨架占位）、`frontend/src/components/`
+- **难度**：⭐⭐⭐
+
+#### E7-7 旅程总览页 + M1 记忆页
+
+- **目标**：总览页（今日决策速览环图 + 四阶段入口卡 + 最近计划/会话历史 + 记忆摘要 + 下一窗口预告）；M1 记忆页（器材档案 GET/PUT `/api/profile` + 事件历史 + 语义偏好芯片）。
+- **前置依赖**：E7-6
+- **验收标准**：四阶段入口可跳转对应路由；环图/今日卡用 Fake 或 `/api/decide` 渲染并标注来源；器材档案可读可改；双视口不溢出；`npm run build` 通过
+- **涉及文件**：`frontend/src/pages/HomePage.tsx`、`MemoryPage.tsx`、`frontend/src/components/Ring.tsx`/`StageCard.tsx`/`GearCard.tsx`、`frontend/src/api/client.ts`（profile GET/PUT）
+- **难度**：⭐⭐⭐
+
+#### E7-8 D1 灵感页 + D2 规划页
+
+- **目标**：D1（自然语言输入 + 示例 chips + 参考图上传 + 方案卡 A/B/C 含依据链，接 `/api/decide` 灵感意图与 `/api/photos/review` 反推）；D2（机位列表 + 静态地图、sky-band 天象时间线、月相、银河可见窗口、赶场时间轴——数据优先消费 tool_result 事件，缺数据用 Fake）。
+- **前置依赖**：E7-6
+- **验收标准**：D1 一句话→SSE 流→方案卡；参考图上传→反推方案；D2 天象时间线横向滚动（移动端）+ 月光/银河标记；`npm run build` 通过
+- **涉及文件**：`frontend/src/pages/InspirePage.tsx`、`PlanPage.tsx`、`frontend/src/components/PlanCard.tsx`/`SkyTimeline.tsx`/`SpotCard.tsx`/`RouteTimeline.tsx`、`frontend/src/api/client.ts`（photos/review）
+- **难度**：⭐⭐⭐⭐
+
+#### E7-9 D3 决策页对齐（核心）
+
+- **目标**：三态大卡（去/再等等/放弃 + 图标 + 文字——铁律②）+ 倒计时 + 现场模式 + 概率依据条 + **置信度三层（主值+区间条+依据——铁律①）** + 曝光三角联动（EV 守恒前端计算）+ 「为什么这么判断」四步推理（消费 step 事件）+ 相似历史命中。
+- **前置依赖**：E7-6（可升级已有 DecisionCard 作底座）
+- **验收标准**：三态卡三要素齐备（铁律②）；置信度三层（铁律①）；倒计时基于 time_window；现场模式切换大按钮布局；移动端依据折叠底部抽屉；`npm run build` 通过；`/api/decide` 真实/Fake 跑通渲染
+- **涉及文件**：`frontend/src/pages/DecisionPage.tsx`、`frontend/src/components/VerdictCard.tsx`/`ConfidencePanel.tsx`/`ProbBars.tsx`/`ExposureTriangle.tsx`/`WhyPanel.tsx`/`SimilarHistory.tsx`、`DecisionCard.tsx`（升级）
+- **难度**：⭐⭐⭐⭐
+
+#### E7-10 D4 复盘页 + 解释中心 + 收口
+
+- **目标**：D4（批量上传 + 4 维度分析 + 可执行处方，接 `/api/photos/review` 的 `PhotoAnalysisReport`，处方按高低优先级分列）；页脚「数据与依据 · 解释中心」模态（汇总 data_source——铁律③）；移动端强化复检 + 全站示例数据标注 + 回归。
+- **前置依赖**：E7-7 / E7-8 / E7-9
+- **验收标准**：D4 上传→分析→4 维卡 + 处方渲染；解释中心模态可开合且列数据源（铁律③）；双视口逐页截图自检；原 3 页功能经新架构可访问；`npm run build` 通过；devlog/roadmap 勾选
+- **涉及文件**：`frontend/src/pages/ReviewPage.tsx`、`frontend/src/components/BatchUpload.tsx`/`AnalysisGrid.tsx`/`PrescriptionList.tsx`/`DataCenterModal.tsx`、`frontend/src/App.tsx`（页脚）、`styles.css`
+- **难度**：⭐⭐⭐
 
 ---
 
