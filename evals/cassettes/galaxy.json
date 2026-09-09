@@ -1,0 +1,11 @@
+{
+  "group": "galaxy",
+  "intent": {
+    "content": "{\n  \"subject_type\": \"银河\",\n  \"location\": \"\",\n  \"time_hint\": \"这周末\",\n  \"mode\": \"planning\"\n}"
+  },
+  "card": {
+    "content": "{\n  \"conclusion\": \"建议周六（9月9日）凌晨前往上海郊外光污染较低处拍摄银河，新月月光干扰低，云量少，需携带广角大光圈镜头、三脚架和快门线。\",\n  \"evidence\": [\n    {\n      \"tool\": \"weather_forecast\",\n      \"field\": \"每日预报\",\n      \"confidence\": \"high\",\n      \"note\": \"9月9日平均云量18%，为周末最低，适合拍摄\"\n    },\n    {\n      \"tool\": \"moon_phase\",\n      \"field\": \"月相名称\",\n      \"confidence\": \"high\",\n      \"note\": \"新月，照亮比例2%，月光影响低，银河可见性好\"\n    },\n    {\n      \"tool\": \"sun_times\",\n      \"field\": \"日落\",\n      \"confidence\": \"medium\",\n      \"note\": \"日落18:06，银河拍摄需在日落后约2小时开始\"\n    }\n  ],\n  \"confidence\": \"high\",\n  \"time_window\": \"2026-09-09 凌晨 00:00 - 04:00（最佳）\",\n  \"locations\": [\n    {\n      \"name\": \"默认机位（上海）\",\n      \"reason\": \"虽为城市，但可尝试郊外光污染较低处；若无法离开，可寻找公园或高地\"\n    }\n  ],\n  \"params\": [\n    {\n      \"name\": \"镜头焦距\",\n      \"value\": \"14-24mm\",\n      \"reason\": \"广角镜头可纳入更多银河细节\"\n    },\n    {\n      \"name\": \"光圈\",\n      \"value\": \"f/2.8 或更大\",\n      \"reason\": \"大光圈增加进光量，提高银河亮度\"\n    },\n    {\n      \"name\": \"ISO\",\n      \"value\": \"3200-6400\",\n      \"reason\": \"根据相机性能调整，平衡噪点与亮度\"\n    },\n    {\n      \"name\": \"快门速度\",\n      \"value\": \"15-20秒\",\n      \"reason\": \"使用500法则：500/焦距≈快门上限，避免星轨\"\n    }\n  ],\n  \"alternatives\": [\n    \"若周六云量变化，可改周日（9月10日）凌晨，但云量55%需谨慎\",\n    \"若无法离开城市，可尝试拍摄星轨或城市夜景代替\"\n  ],\n  \"degraded\": \"\"\n}"
+  },
+  "recorded_at": "20260909-153008",
+  "model_hint": "ecnu-plus"
+}

@@ -1,0 +1,11 @@
+{
+  "group": "live",
+  "intent": {
+    "content": "{\n  \"subject_type\": \"火烧云\",\n  \"location\": \"\",\n  \"time_hint\": \"今晚\",\n  \"mode\": \"live\"\n}"
+  },
+  "card": {
+    "content": "{\n  \"conclusion\": \"今晚火烧云值得冲，建议18:00前到达开阔西向机位，携带广角镜头和三脚架。\",\n  \"evidence\": [\n    {\n      \"tool\": \"sun_times\",\n      \"field\": \"日落\",\n      \"confidence\": \"high\",\n      \"note\": \"日落时间18:06，为火烧云拍摄提供明确时间基准\"\n    },\n    {\n      \"tool\": \"sunset_glow_score\",\n      \"field\": \"评分\",\n      \"confidence\": \"medium\",\n      \"note\": \"评分62分，中等水平，可看趋势再定\"\n    },\n    {\n      \"tool\": \"weather_forecast\",\n      \"field\": \"平均云量\",\n      \"confidence\": \"medium\",\n      \"note\": \"今日云量30%，有一定云层但非完全覆盖，利于火烧云形成\"\n    }\n  ],\n  \"confidence\": \"medium\",\n  \"time_window\": \"17:30-18:30\",\n  \"locations\": [\n    {\n      \"name\": \"城市西侧开阔高地\",\n      \"reason\": \"日落方向无遮挡，视野开阔，便于捕捉火烧云\"\n    },\n    {\n      \"name\": \"湖边或河边\",\n      \"reason\": \"水面可反射天空色彩，增强画面层次\"\n    }\n  ],\n  \"params\": [\n    {\n      \"name\": \"白平衡\",\n      \"value\": \"日光或阴天\",\n      \"reason\": \"保留暖色调，增强火烧云氛围\"\n    },\n    {\n      \"name\": \"曝光补偿\",\n      \"value\": \"-0.7EV\",\n      \"reason\": \"防止高光过曝，保留云层细节\"\n    }\n  ],\n  \"alternatives\": [\n    \"若云量变化，可改拍晚霞后的蓝调时刻\",\n    \"若天气转差，可改为明晚（云量18%）再冲\"\n  ],\n  \"degraded\": \"\"\n}"
+  },
+  "recorded_at": "20260909-153012",
+  "model_hint": "ecnu-plus"
+}

@@ -1,0 +1,11 @@
+{
+  "group": "polar",
+  "intent": {
+    "content": "{\n  \"subject_type\": \"星空\",\n  \"location\": \"北极圈\",\n  \"time_hint\": \"极昼期\",\n  \"mode\": \"inspiration\"\n}"
+  },
+  "card": {
+    "content": "{\n  \"conclusion\": \"不建议在北极圈极昼期拍摄星空，因为极昼期间太阳不落，天空不会完全黑暗，星空不可见。建议在极夜期或接近极夜期前往拍摄。\",\n  \"evidence\": [\n    {\n      \"tool\": \"天文计算\",\n      \"field\": \"极昼现象\",\n      \"confidence\": \"high\",\n      \"note\": \"北极圈极昼期间，太阳24小时在地平线以上，天空持续明亮，无法观测到星星。\"\n    }\n  ],\n  \"confidence\": \"high\",\n  \"time_window\": \"无（极昼期不适用）\",\n  \"locations\": [],\n  \"params\": [],\n  \"alternatives\": [\n    \"前往北极圈以南地区，如挪威北部（冬季极夜期）拍摄星空\",\n    \"等待极夜期（约9月下旬至次年3月）在北极圈内拍摄星空和极光\"\n  ],\n  \"degraded\": \"\"\n}"
+  },
+  "recorded_at": "20260909-153020",
+  "model_hint": "ecnu-plus"
+}

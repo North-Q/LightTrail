@@ -1,0 +1,354 @@
+{
+  "说明": "L2 黄金用例集（E8-1）：12 条管线回归（cassette 回放，零 LLM 成本）+ 10 条工具数值断言 + E6 照片用例归档（结构标注）。三题材（银河/火烧云/日出尖光）× 主线（灵感/规划/临场）+ 边界（极昼/缺天气Key/空档案）。",
+  "版本": "2026-09-09",
+  "pipeline_cases": [
+    {
+      "id": "L2-001",
+      "group": "galaxy",
+      "request": "这周末想去拍银河",
+      "mode": "inspiration",
+      "scenario": "normal",
+      "expect": {
+        "min_evidence": 1,
+        "max_locations": 5
+      }
+    },
+    {
+      "id": "L2-002",
+      "group": "galaxy",
+      "request": "周末去天荒坪拍星轨，值得去吗",
+      "mode": "planning",
+      "scenario": "normal",
+      "expect": {
+        "min_evidence": 1,
+        "max_locations": 5
+      }
+    },
+    {
+      "id": "L2-003",
+      "group": "galaxy",
+      "request": "今晚拍银河现在走还来得及吗",
+      "mode": "live",
+      "scenario": "normal",
+      "expect": {
+        "min_evidence": 1,
+        "max_locations": 5
+      }
+    },
+    {
+      "id": "L2-004",
+      "group": "live",
+      "request": "今晚火烧云值得冲吗",
+      "mode": "live",
+      "scenario": "normal",
+      "expect": {
+        "min_evidence": 1,
+        "max_locations": 5
+      }
+    },
+    {
+      "id": "L2-005",
+      "group": "live",
+      "request": "明天傍晚晚霞去崇明怎么样",
+      "mode": "live",
+      "scenario": "normal",
+      "expect": {
+        "min_evidence": 1,
+        "max_locations": 5
+      }
+    },
+    {
+      "id": "L2-006",
+      "group": "live",
+      "request": "日落后二十分钟东边会反烧吗",
+      "mode": "live",
+      "scenario": "normal",
+      "expect": {
+        "min_evidence": 1,
+        "max_locations": 5
+      }
+    },
+    {
+      "id": "L2-007",
+      "group": "planning",
+      "request": "周末两天三机位对比，帮我排一下",
+      "mode": "planning",
+      "scenario": "normal",
+      "expect": {
+        "min_evidence": 1,
+        "max_locations": 5,
+        "time_window_note": "计划编排建议时间窗口"
+      }
+    },
+    {
+      "id": "L2-008",
+      "group": "planning",
+      "request": "三天内哪天通透适合银河",
+      "mode": "planning",
+      "scenario": "normal",
+      "expect": {
+        "min_evidence": 1,
+        "max_locations": 5
+      }
+    },
+    {
+      "id": "L2-009",
+      "group": "sun",
+      "request": "明天朝霞日出哪里拍比较好",
+      "mode": "inspiration",
+      "scenario": "normal",
+      "expect": {
+        "min_evidence": 1,
+        "max_locations": 5
+      }
+    },
+    {
+      "id": "L2-010",
+      "group": "polar",
+      "request": "北极圈极昼期能拍星空吗",
+      "mode": "inspiration",
+      "scenario": "polar",
+      "expect": {
+        "min_evidence": 0,
+        "max_locations": 5,
+        "allow_degraded": true
+      }
+    },
+    {
+      "id": "L2-011",
+      "group": "galaxy",
+      "request": "（空档案）新手求银河入门方案",
+      "mode": "inspiration",
+      "scenario": "normal",
+      "expect": {
+        "min_evidence": 1,
+        "max_locations": 5
+      }
+    },
+    {
+      "id": "L2-012",
+      "group": "live",
+      "request": "（缺天气Key）今晚还能不能拍火烧云",
+      "mode": "live",
+      "scenario": "missing_weather",
+      "expect": {
+        "min_evidence": 0,
+        "max_locations": 5,
+        "allow_degraded": true
+      }
+    }
+  ],
+  "tool_cases": [
+    {
+      "id": "T-001",
+      "name": "equivalent_exposure",
+      "args": {
+        "f_stop": 2.8,
+        "shutter_speed": 30,
+        "iso": 400
+      },
+      "checks": [
+        {
+          "path": [
+            "等效方案",
+            "ISO 优先",
+            "iso"
+          ],
+          "op": "eq",
+          "expect": 400
+        },
+        {
+          "path": [
+            "等效方案",
+            "快门优先",
+            "shutter_speed"
+          ],
+          "op": "eq",
+          "expect": 30
+        },
+        {
+          "path": [
+            "等效方案",
+            "光圈优先",
+            "f_stop"
+          ],
+          "op": "close",
+          "expect": 2.8,
+          "tolerance": 0.01
+        }
+      ]
+    },
+    {
+      "id": "T-002",
+      "name": "star_shutter_rule",
+      "args": {
+        "focal_length": 14,
+        "aperture": 2.8,
+        "crop_factor": 1.0
+      },
+      "checks": [
+        {
+          "path": [
+            "500 法则最大快门（秒）"
+          ],
+          "op": "eq",
+          "expect": 35.7
+        }
+      ]
+    },
+    {
+      "id": "T-003",
+      "name": "star_shutter_rule",
+      "args": {
+        "focal_length": 14,
+        "aperture": 2.8,
+        "pixel_pitch": 6.0
+      },
+      "checks": [
+        {
+          "path": [
+            "NPF 法则最大快门（秒）"
+          ],
+          "op": "range",
+          "expect": [
+            19.5,
+            20.5
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T-004",
+      "name": "nd_long_exposure",
+      "args": {
+        "base_shutter": 0.008,
+        "nd_filter": "ND64"
+      },
+      "checks": [
+        {
+          "path": [
+            "ND 减光档数"
+          ],
+          "op": "eq",
+          "expect": 6.0
+        },
+        {
+          "path": [
+            "长曝光快门"
+          ],
+          "op": "eq",
+          "expect": "1/2s"
+        }
+      ]
+    },
+    {
+      "id": "T-005",
+      "name": "nd_long_exposure",
+      "args": {
+        "base_shutter": 0.125,
+        "nd_filter": "ND8"
+      },
+      "checks": [
+        {
+          "path": [
+            "ND 减光档数"
+          ],
+          "op": "eq",
+          "expect": 3.0
+        }
+      ]
+    },
+    {
+      "id": "T-006",
+      "name": "sun_times",
+      "args": {
+        "latitude": 31.23,
+        "longitude": 121.47,
+        "date": "2026-09-08"
+      },
+      "checks": [
+        {
+          "path": [
+            "日落"
+          ],
+          "op": "match",
+          "expect": "^\\d{1,2}:\\d{2}$"
+        }
+      ]
+    },
+    {
+      "id": "T-007",
+      "name": "moon_phase",
+      "args": {
+        "date": "2026-09-08"
+      },
+      "checks": [
+        {
+          "path": [
+            "月相名称"
+          ],
+          "op": "truthy"
+        }
+      ]
+    },
+    {
+      "id": "T-008",
+      "name": "galaxy_visibility",
+      "args": {
+        "latitude": 31.23,
+        "longitude": 121.47,
+        "date": "2026-09-08"
+      },
+      "checks": [
+        {
+          "path": [
+            "整夜最高高度角（度）"
+          ],
+          "op": "truthy"
+        }
+      ]
+    },
+    {
+      "id": "T-009",
+      "name": "moon_events",
+      "args": {
+        "latitude": 31.23,
+        "longitude": 121.47,
+        "date": "2026-09-08"
+      },
+      "checks": [
+        {
+          "path": [
+            "月升"
+          ],
+          "op": "truthy"
+        }
+      ]
+    },
+    {
+      "id": "T-010",
+      "name": "equivalent_exposure",
+      "args": {
+        "f_stop": -1,
+        "shutter_speed": 1,
+        "iso": 100
+      },
+      "checks": [
+        {
+          "op": "error"
+        }
+      ]
+    }
+  ],
+  "archived_e6": {
+    "说明": "E6 照片用例（evals/golden/E6-photo-cases.json，8 条）已交付并归档：需要真实照片/多模态，属 E6-0 窗口；此处计入总数但不在 L2 离线运行（避免误报）。",
+    "file": "evals/golden/E6-photo-cases.json",
+    "count": 8
+  },
+  "统计": {
+    "pipeline": 12,
+    "tool": 10,
+    "e6_archived": 8,
+    "合计": 30
+  }
+}

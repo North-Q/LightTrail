@@ -1,0 +1,11 @@
+{
+  "group": "planning",
+  "intent": {
+    "content": "{\n  \"subject_type\": \"其他\",\n  \"location\": \"\",\n  \"time_hint\": \"周末\",\n  \"mode\": \"planning\"\n}"
+  },
+  "card": {
+    "content": "{\n  \"conclusion\": \"周末两天（9月8-9日）天气良好，云量低，适合拍摄星空或夜景；建议选择默认机位（上海），在9月8日或9日夜间前往，携带广角镜头和三脚架，利用新月无月光干扰拍摄银河。\",\n  \"evidence\": [\n    {\n      \"tool\": \"weather_forecast\",\n      \"field\": \"每日预报\",\n      \"confidence\": \"high\",\n      \"note\": \"9月8日云量30%，9月9日18%，天气晴朗，适合拍摄。\"\n    },\n    {\n      \"tool\": \"moon_phase\",\n      \"field\": \"月相名称\",\n      \"confidence\": \"high\",\n      \"note\": \"新月，月光影响低，利于星空摄影。\"\n    },\n    {\n      \"tool\": \"sun_times\",\n      \"field\": \"日落\",\n      \"confidence\": \"high\",\n      \"note\": \"日落时间18:06，之后可进入蓝调时段和夜间拍摄。\"\n    }\n  ],\n  \"confidence\": \"high\",\n  \"time_window\": \"9月8日或9日 18:30 - 次日05:00\",\n  \"locations\": [\n    {\n      \"name\": \"默认机位（上海）\",\n      \"reason\": \"天气晴朗，云量低，且无月光干扰，适合星空拍摄。\"\n    }\n  ],\n  \"params\": [\n    {\n      \"name\": \"ISO\",\n      \"value\": \"3200\",\n      \"reason\": \"高ISO以捕捉暗弱星光，配合新月低光环境。\"\n    },\n    {\n      \"name\": \"光圈\",\n      \"value\": \"f/2.8\",\n      \"reason\": \"大光圈增加进光量，适合星空摄影。\"\n    },\n    {\n      \"name\": \"快门\",\n      \"value\": \"15s\",\n      \"reason\": \"根据500法则，避免星轨，同时保证曝光充足。\"\n    }\n  ],\n  \"alternatives\": [\n    \"若9月8日天气有变，可改期至9月9日，云量更低。\",\n    \"若追求城市夜景，可在日落前后拍摄蓝调时段，但星空条件更佳。\"\n  ],\n  \"degraded\": \"\"\n}"
+  },
+  "recorded_at": "20260909-153016",
+  "model_hint": "ecnu-plus"
+}

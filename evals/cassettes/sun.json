@@ -1,0 +1,11 @@
+{
+  "group": "sun",
+  "intent": {
+    "content": "{\n  \"subject_type\": \"朝霞\",\n  \"location\": \"\",\n  \"time_hint\": \"明天\",\n  \"mode\": \"inspiration\"\n}"
+  },
+  "card": {
+    "content": "{\n  \"conclusion\": \"明天（9月9日）朝霞火烧云概率中等（62分），云量较低（18%），建议前往拍摄，日出时间05:42，建议05:00前到达机位，携带广角镜头和三脚架。\",\n  \"evidence\": [\n    {\n      \"tool\": \"sun_times\",\n      \"field\": \"日出\",\n      \"confidence\": \"high\",\n      \"note\": \"日出时间05:42，为天文计算确定值\"\n    },\n    {\n      \"tool\": \"sunset_glow_score\",\n      \"field\": \"评分（0-100）\",\n      \"confidence\": \"medium\",\n      \"note\": \"火烧云评分62，中等，需结合实时云图确认\"\n    },\n    {\n      \"tool\": \"weather_forecast\",\n      \"field\": \"平均云量（%）\",\n      \"confidence\": \"medium\",\n      \"note\": \"9月9日平均云量18%，低云量利于朝霞显现\"\n    }\n  ],\n  \"confidence\": \"medium\",\n  \"time_window\": \"05:00 - 05:42（日出前42分钟至日出）\",\n  \"locations\": [\n    {\n      \"name\": \"东向开阔高地\",\n      \"reason\": \"朝霞需东方视野开阔，高地可减少遮挡\"\n    },\n    {\n      \"name\": \"湖泊或海边机位\",\n      \"reason\": \"水面可反射霞光，增强画面层次\"\n    }\n  ],\n  \"params\": [\n    {\n      \"name\": \"镜头\",\n      \"value\": \"广角（16-35mm）\",\n      \"reason\": \"捕捉天空大面积霞光\"\n    },\n    {\n      \"name\": \"三脚架\",\n      \"value\": \"必备\",\n      \"reason\": \"日出前光线暗，需长曝光稳定\"\n    },\n    {\n      \"name\": \"滤镜\",\n      \"value\": \"渐变灰（GND）\",\n      \"reason\": \"平衡天空与地面光比\"\n    }\n  ],\n  \"alternatives\": [\n    \"若云量增加，可改拍云隙光\",\n    \"若天气转阴，可转拍城市晨景\"\n  ],\n  \"degraded\": \"\"\n}"
+  },
+  "recorded_at": "20260909-153030",
+  "model_hint": "ecnu-plus"
+}
