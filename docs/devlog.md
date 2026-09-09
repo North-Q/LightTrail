@@ -54,6 +54,27 @@
 - **验证**：`npm run build` 通过；令牌 diff 保持 0；后端 212 全绿、ruff 0（未动后端）。
 - **commit**：4a1f3d5。
 
+### E7-9 D3 决策页（三态大卡 + 置信度三层 + 倒计时 + 现场模式 + 曝光三角 + 四步推理）— 已提交
+
+- **三态大卡**（铁律② 逐条勾验 ✓）：go/wait/risk 三态按钮 = **语义色**（--semantic-go/
+  -wait/-risk + 对应 bg 变体）+ **图标**（Check/Clock/Warn SVG）+ **文字**（去/再等等/放弃
+  与文案说明）；verdict 由 card.conclusion 规则判断，可手动切换，is-active 高亮（inset+glow）。
+- **置信度三层**（铁律① 逐条勾验 ✓）：主值（font-display 大号 %）+ 区间条（interval-scale
+  含 range 与 marker，本地规则化转换 high 78/68-88、med 58/46-72、low 34/22-48）+ 依据列表
+  （card.evidence：工具/字段/置信度徽标/说明）——无单一数字。
+- **倒计时**：解析 card.time_window 首个 HH:MM，每秒滴答（--font-data tabular-nums），
+  过期自动滚到次日；**现场模式**（decision-panel.field-mode）：倒计时 24px + 参数卡
+  横向 scroll-snap（min-width 280px）。
+- **曝光三角联动**：光圈/快门/ISO 三滑块拖动任一保持 EV 守恒（纯前端计算，公式与工具同源），
+  输出 EV 实时显示。
+- **四步推理**：tool_result 事件收集为推理链（标题/结果/来源标签），桌面内联 + 移动端
+  底部抽屉（sheet）；无工具时回退 card.evidence。
+- **概率依据条/相似历史**：本地规则化演示 + 示例数据标注（诚实原则）。
+- **验收**：`npm run build` 通过；令牌 diff=0；**/api/decide 真实跑通**（本轮 1 条真实
+  query：queued→step→tool_call×3→tool_result×3→step→card→done，conf=medium、evidence=3）；
+  后端 212 全绿、ruff 0（未动后端）。双视口媒体查询已落地，截图自检待浏览器环境。
+- **commit**：待填。
+
 > 按任务单元记录进度与阻塞，供后续接手者审计。格式：任务编号 / 时间 / commit hash / 测试数量。
 
 ## 2026-09-08（E7 Web 服务层）
