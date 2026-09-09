@@ -1,6 +1,7 @@
-/** M1 记忆页（E7-6 骨架 / E7-7 完善）：器材档案 GET/PUT /api/profile + 事件历史/偏好（示例）。 */
+/** M1 记忆页（E7-7 完善）：器材档案 GET/PUT /api/profile（真实读写）+ 偏好芯片（档案真实）+ 最近会话（真实）。 */
 
 import { useEffect, useState } from "react";
+import { getSession } from "../api/client";
 import { useSources } from "../context/SourceContext";
 
 interface Profile {
@@ -21,16 +22,19 @@ const EMPTY_PROFILE: Profile = {
   favorite_spots: [],
 };
 
-const FAKE_PREFERENCES = ["火烧云", "银河", "城市风光", "蓝调时刻"];
-const FAKE_EVENTS = [
-  { time: "09-07 18:20", summary: "崇明东滩 · 火烧云（评分 62 → 中可接受）" },
-  { time: "09-05 23:10", summary: "天荒坪 · 银河（成功，ISO 3200 / 20s）" },
-];
+function loadMetas(): { id: string; title: string; created: string }[] {
+  try {
+    return JSON.parse(localStorage.getItem("lt.sessions") ?? "[]") as { id: string; title: string; created: string }[];
+  } catch {
+    return [];
+  }
+}
 
 export function M1Page() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [recent, setRecent] = useState<{ id: string; title: string; created: string; summary: string }[]>([]);
   const { addSource } = useSources();
 
   useEffect(() => {
@@ -46,6 +50,26 @@ export function M1Page() {
         setProfile(EMPTY_PROFILE);
       }
       addSource({ name: "本地档案", note: "data/profile.json（GET/PUT /api/profile）" });
+    })();
+
+    // 最近会话（真实：本地记录 → 详情摘要）
+    void (async () => {
+      const metas = loadMetas().slice(0, 5);
+      const rows: { id: string; title: string; created: string; summary: string }[] = [];
+      for (const meta of metas) {
+        let summary = meta.title;
+        try {
+          const body = await getSession(meta.id);
+          const assistant = (body.session.history ?? []).filter((m) => m.role === "assistant").pop();
+          if (assistant) {
+            summary = assistant.content.slice(0, 60);
+          }
+        } catch {
+          summary = `${meta.title}（详情暂不可读）`;
+        }
+        rows.push({ ...meta, summary });
+      }
+      setRecent(rows);
     })();
   }, [addSource]);
 
@@ -83,13 +107,13 @@ export function M1Page() {
       <header className="page-head">
         <div>
           <h1 className="page-title">M1 · 我的记忆</h1>
-          <p className="page-sub">器材档案可读写；事件历史与偏好芯片为示例数据。</p>
+          <p className="page-sub">器材档案与偏好真实读写（/api/profile）；EXIF 事件摘要待复盘接入。</p>
         </div>
       </header>
 
       <section className="grid-2">
         <div className="card">
-          <span className="card-kicker">器材档案（可编辑 · GET/PUT /api/profile）</span>
+          <span className="card-kicker">器材档案（GET/PUT /api/profile）</span>
           <div className="gear-field">
             <label htmlFor="camera">机身</label>
             <input id="camera" value={profile.camera_body} onChange={(e) => setProfile({ ...profile, camera_body: e.target.value })} />
@@ -115,20 +139,35 @@ export function M1Page() {
         </div>
 
         <div className="card">
-          <span className="card-kicker">偏好芯片（示例数据）</span>
-          <div className="pref-list">
-            {FAKE_PREFERENCES.map((item) => (
-              <button type="button" className="chip" key={item}>#{item}</button>
-            ))}
+          <span className="card-kicker">偏好芯片（档案真实值，归档时写入 preferences）</span>
+          {profile.preferences.length > 0 ? (
+            <div className="pref-list">
+              {profile.preferences.map((item) => (
+                <span className="chip" key={item}>#{item}</span>
+              ))}
+            </div>
+          ) : (
+            <p className="trace-empty">暂无偏好——在下方「偏好」输入框（字段名 preferences）添加后保存。</p>
+          )}
+          <div className="gear-field" style={{ marginTop: 16 }}>
+            <label htmlFor="prefs">偏好题材</label>
+            <input id="prefs" value={profile.preferences.join("、")} onChange={(e) => setProfile({ ...profile, preferences: e.target.value.split(/[、,]/).map((s) => s.trim()).filter(Boolean) })} />
           </div>
-          <span className="card-kicker" style={{ marginTop: 20, display: "block" }}>事件历史（示例数据）</span>
-          <ul className="event-list">
-            {FAKE_EVENTS.map((item) => (
-              <li key={item.time}>
-                <span className="src-time">{item.time}</span> {item.summary}
-              </li>
-            ))}
-          </ul>
+
+          <span className="card-kicker" style={{ marginTop: 20, display: "block" }}>事件历史 · 最近会话（真实）</span>
+          {recent.length === 0 ? (
+            <p className="trace-empty">还没有会话——去「灵感」页发一条消息。</p>
+          ) : (
+            <ul className="event-list">
+              {recent.map((item) => (
+                <li key={item.id}>
+                  <span className="src-time">{new Date(item.created).toLocaleString("zh-CN", { hour12: false })}</span>
+                  <span>{item.title} — {item.summary}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="page-sub" style={{ marginTop: 12 }}>EXIF 事件摘要随 D4 复盘接入（E7-10）；当前以会话摘要代替。</p>
         </div>
       </section>
     </div>

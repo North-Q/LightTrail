@@ -1,6 +1,6 @@
 /** 旅程总览页（E7-6 骨架 / E7-7 完善）：今日决策速览（环图）+ 四阶段入口 + 最近计划（会话历史）。 */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getSession } from "../api/client";
 import type { DecisionCard, SessionMeta } from "../api/events";
 import { useSources } from "../context/SourceContext";
@@ -30,13 +30,36 @@ interface SelectedSession {
   card: DecisionCard | null;
 }
 
+interface Profile {
+  camera_body: string;
+  lenses: string[];
+  preferences: string[];
+  common_locations: string[];
+  skill_level: string;
+}
+
 export function HomePage() {
   const metas = loadMetas();
   const [selected, setSelected] = useState<SelectedSession | null>(null);
   const [busy, setBusy] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const { addSource } = useSources();
 
-  // 演示数据源登记（环图/记忆片段的来源说明），保持可解释性诚实
+  // 真实档案摘要（M1 常驻注入同源数据）
+  useEffect(() => {
+    void (async () => {
+      try {
+        const resp = await fetch("/api/profile");
+        if (resp.ok) {
+          setProfile((await resp.json()) as Profile);
+        }
+      } catch {
+        // 后端未启动时保持 null，界面显示占位
+      }
+    })();
+  }, []);
+
+  // 演示数据源登记（环图/下一窗口的来源说明），保持可解释性诚实
   addSource({ name: "示例计算", note: "今日火烧云概率（演示值，非实时预测）", time: "示例", fake: true });
 
   async function openSession(sessionId: string): Promise<void> {
@@ -70,7 +93,10 @@ export function HomePage() {
         <div className="card">
           <span className="card-kicker">今日决策速览</span>
           <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
-            <Ring value={72} label="火烧云概率" />
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+              <Ring value={72} label="火烧云概率" />
+              <span className="src-time">数据来源：示例计算（演示）</span>
+            </div>
             <div style={{ flex: 1, minWidth: 200 }}>
               <p style={{ margin: "0 0 8px" }}>
                 傍晚日落方向低云比例适中，<strong>值得出门</strong>；推荐 17:40 前到达机位。
@@ -90,12 +116,16 @@ export function HomePage() {
         </div>
 
         <div className="card">
-          <span className="card-kicker">记忆摘要</span>
-          <ul className="event-list">
-            <li>器材：松下 S5M2 · 契卡 14mm</li>
-            <li>偏好题材：火烧云 · 星空 · 城市风光</li>
-            <li>常去机位：西湖断桥 · 崇明东滩</li>
-          </ul>
+          <span className="card-kicker">记忆摘要（来自 /api/profile）</span>
+          {profile ? (
+            <ul className="event-list">
+              <li>器材：{profile.camera_body || "未填写"}{profile.lenses.length > 0 ? ` · ${profile.lenses.join(" / ")}` : ""}</li>
+              <li>偏好题材：{profile.preferences.length > 0 ? profile.preferences.join(" · ") : "未填写"}</li>
+              <li>常去机位：{profile.common_locations.length > 0 ? profile.common_locations.join(" · ") : "未填写"}</li>
+            </ul>
+          ) : (
+            <p className="trace-empty">后端未启动或档案为空——去「我的记忆」页填写。</p>
+          )}
           <button type="button" className="btn btn-ghost" style={{ marginTop: 16 }} onClick={() => go("#/m1")}>
             编辑我的记忆
           </button>
