@@ -1,8 +1,10 @@
 # LightTrail（光迹）Agent 架构设计文档
 
-**版本**：v2.0.2 ｜ **作者**：高见远（Gao，软件架构）｜ **v2.0 修订**：架构通 ｜ **对应 PRD**：v0.3
-**代码基线**：**E1–E6 已实现**（29 commits，已 push 至 origin/main，HEAD 0b502a6）——src+tests ~8700 行，15 个已注册工具（含 analyze_photo / reverse_engineer_photo / search_memory），pytest 177 全绿、ruff 0 告警、smoke 21 项通过；E6-0 真实 Key 四管线联调通过
+**版本**：v2.0.3 ｜ **作者**：高见远（Gao，软件架构）｜ **v2.0 修订**：架构通 ｜ **对应 PRD**：v0.3
+**代码基线**：**E1–E7 已实现**（37 commits，已 push 至 origin/main，HEAD 8b58fd5）——src+tests ~1.1w 行 + `frontend/`（Vite + React + TS），15 个已注册工具（含 analyze_photo / reverse_engineer_photo / search_memory），pytest 212 全绿、ruff 0 告警、smoke 21 项通过；E6-0 四管线真实联调 + E7-0 SSE 真实联调均通过；`npm run build` 通过
 
+> **v2.0.3 变更摘要**（2026-09-09）：代码基线刷新至 E1–E7 全部落地（212 测试，15 工具，前端 SPA 就绪）；§2.8 SSE 事件协议与 §2.9 并发模型已由 `api/`（FastAPI 五端点 + TraceBridge）+ `infra/trace.subscribe` 落地（threadsafe 入队、协议映射收敛 api/events.py）；`acall()` + `_AsyncGate` 串行闸门实现 §2.9 的 async 并发边界（serial_llm 驱动，排队位置可查）。架构主体设计不变。
+>
 > **v2.0.2 变更摘要**（2026-09-07）：代码基线刷新至 E1–E6 全部落地（177 测试，15 工具，E6-0 真实联调通过）；§2.4 智能工具约束已由 `tools/photo_analysis.py` 落地验证（depth=1 红线 + VISION 路由 + pydantic 自愈）；ADR-003 扩展参数适配已落地（thinking/reasoning_effort 收敛 ChatClient 适配层）。架构主体设计不变。
 >
 > **v2.0.1 变更摘要**（2026-09-07）：代码基线刷新至 E1–E5；§2.3 / §2.9 补注 **ADR-002 平台中立性重构**已落地（串行可配置、能力矩阵可注入、`LLM_` 前缀、移除「深推理与工具互斥」假设——模型名只出现在 config 默认值/.env/能力矩阵）。架构主体设计不变。

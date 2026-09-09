@@ -44,19 +44,20 @@
 - [x] E6-4 复盘管线填充（review 闭环：对账差异报告）
 - [x] E6-5 阶段收口（evals/golden/E6-photo-cases.json 8 条 + 文档同步）
 
-### 阶段五：Web 服务层（E7）★ 网页形态落地
+### 阶段五：Web 服务层（E7）✅ 已完成（E7-0~E7-5，212 测试 + 真实 SSE 联调）
 
 - [x] E7-0 真实 Key + SSE 长连接联调验证（阶段开场任务）
-- [x] E7-1 async ChatClient + 全局 LLM 队列（Semaphore(1)，串行只限 LLM）
-- [x] E7-2 SessionManager 会话持久化（JSON 落盘）
+- [x] E7-1 async ChatClient + 全局 LLM 队列（_AsyncGate 串行闸门，serial_llm 驱动）
+- [x] E7-2 SessionManager 会话持久化（JSON 落盘 + LRU 缓存，重启恢复）
 - [x] E7-3 FastAPI + SSE 路由（五个端点，事件协议见架构 v2.0 §2.8）
-- [x] E7-4 trace 事件桥接 SSE（「trace 即 UI」实时轨迹面板）
-- [x] E7-5 前端 SPA 工程化（Vite + React + TS，接高保真原型；首迭代 3 核心页：对话/会话列表/DecisionCard，第二迭代 Trace 时间线/设置页）
+- [x] E7-4 trace 事件桥接 SSE（TraceBridge，「trace 即 UI」实时轨迹面板）
+- [x] E7-5 前端 SPA 工程化（Vite + React + TS，三核心页：对话/会话列表/DecisionCard，npm run build + dev 代理实测）
 
-### 阶段六：评估体系（E8）
+### 阶段六：评估体系（E8）★ 下一步
 
 > 黄金用例改为各阶段增量交付（每阶段收口 +5~10 条）；E8 本体做框架与 LLM-as-judge。
 
+- [ ] E8-0 真实评估基线验证（对标 E6-0/E7-0 联调开场原则，用最小样本验证 eval runner 链路）
 - [ ] E8-1 黄金用例集 + 管线回归（L2，cassette 回放，~30 条集中补齐；E6-5 已含 ≥8 条）
 - [ ] E8-2 LLM-as-judge（L3，rubric 打分 + 「工具即裁判」交叉校验）
 
