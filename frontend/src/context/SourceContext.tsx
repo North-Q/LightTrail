@@ -9,8 +9,6 @@ export interface SourceEntry {
   note: string;
   /** 更新时间（可为空）。 */
   time?: string;
-  /** 是否为示例数据（诚实原则，界面标注）。 */
-  fake?: boolean;
 }
 
 interface SourceContextValue {

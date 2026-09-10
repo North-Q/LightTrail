@@ -80,6 +80,7 @@ export function D1Page() {
           break;
         case "card":
           setCard(event.card);
+          localStorage.setItem("lt.last_card", JSON.stringify({ card: event.card, ts: Date.now() }));
           break;
         case "error":
           setError(event.message);
@@ -194,7 +195,7 @@ export function D1Page() {
     <div className="container page-main">
       <header className="page-head">
         <div>
-          <h1 className="page-title">D1 · 灵感</h1>
+          <h1 className="page-title">灵感</h1>
           <p className="page-sub">模糊一句话，或丢一张参考大片 → 光迹给方案（可追问，依据全程可溯源）。</p>
         </div>
       </header>
@@ -268,9 +269,9 @@ export function D1Page() {
               disabled={uploading}
               onChange={(event) => void handleUpload(event.target.files?.[0])}
             />
-            <p style={{ margin: 0 }}>📷 参考图反推（D1.2）——点击选择参考大片，光迹反推复刻计划</p>
+            <p style={{ margin: 0 }}>📷 参考图反推——选择一张参考大片，光迹反推复刻计划</p>
             <p className="page-sub" style={{ margin: "8px 0 0" }}>
-              {uploading ? "分析中（/api/photos/review · EXIF + 多模态）…" : "jpg/png · 单张 ≤10MB；上传即跑照片反推管线"}
+              {uploading ? "分析中（读取 EXIF 与画面）…" : "jpg/png · 单张 10MB 内；上传即分析"}
             </p>
           </label>
           {uploadError ? <p className="message-error">{uploadError}</p> : null}
@@ -296,7 +297,7 @@ export function D1Page() {
                 <div className="plan-alts">
                   {card.alternatives.map((alternative, index) => (
                     <div className="card" key={`${alternative}-${index}`}>
-                      <span className="card-kicker">方案 {["B", "C", "D"][index] ?? `#${index + 2}`} · 备选</span>
+                      <span className="card-kicker">备选方案 {["B", "C", "D"][index] ?? `#${index + 2}`}</span>
                       <p style={{ margin: 0 }}>{alternative}</p>
                     </div>
                   ))}

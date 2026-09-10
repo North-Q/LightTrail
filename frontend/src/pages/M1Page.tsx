@@ -49,7 +49,7 @@ export function M1Page() {
       } catch {
         setProfile(EMPTY_PROFILE);
       }
-      addSource({ name: "本地档案", note: "data/profile.json（GET/PUT /api/profile）" });
+      addSource({ name: "本地档案", note: "data/profile.json 档案读写" });
     })();
 
     // 最近会话（真实：本地记录 → 详情摘要）
@@ -107,13 +107,13 @@ export function M1Page() {
       <header className="page-head">
         <div>
           <h1 className="page-title">M1 · 我的记忆</h1>
-          <p className="page-sub">器材档案与偏好真实读写（/api/profile）；EXIF 事件摘要待复盘接入。</p>
+          <p className="page-sub">器材档案与偏好保存在本地档案；事件摘要来自最近会话。</p>
         </div>
       </header>
 
       <section className="grid-2">
         <div className="card">
-          <span className="card-kicker">器材档案（GET/PUT /api/profile）</span>
+          <span className="card-kicker">器材档案</span>
           <div className="gear-field">
             <label htmlFor="camera">机身</label>
             <input id="camera" value={profile.camera_body} onChange={(e) => setProfile({ ...profile, camera_body: e.target.value })} />
@@ -139,7 +139,7 @@ export function M1Page() {
         </div>
 
         <div className="card">
-          <span className="card-kicker">偏好芯片（档案真实值，归档时写入 preferences）</span>
+          <span className="card-kicker">偏好题材</span>
           {profile.preferences.length > 0 ? (
             <div className="pref-list">
               {profile.preferences.map((item) => (
@@ -167,7 +167,7 @@ export function M1Page() {
               ))}
             </ul>
           )}
-          <p className="page-sub" style={{ marginTop: 12 }}>EXIF 事件摘要随 D4 复盘接入（E7-10）；当前以会话摘要代替。</p>
+          <p className="page-sub" style={{ marginTop: 12 }}>事件摘要来自最近会话；照片的 EXIF 复盘在「复盘」页进行。</p>
         </div>
       </section>
     </div>

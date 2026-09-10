@@ -160,6 +160,7 @@ export function D3Page() {
       await sendDecide(text, "", (event: SSEEvent) => {
         if (event.type === "card") {
           setCard(event.card);
+          localStorage.setItem("lt.last_card", JSON.stringify({ card: event.card, ts: Date.now() }));
           setActiveVerdict(verdictFrom(event.card.conclusion));
           const windowText = event.card.time_window ?? "";
           const parsed = firstTime(windowText);
@@ -194,8 +195,8 @@ export function D3Page() {
     <div className="container page-main">
       <header className="page-head">
         <div>
-          <h1 className="page-title">D3 · 决策</h1>
-          <p className="page-sub">临场该不该出门、几点到、带什么——每个判断都能给出依据（可解释性铁律①②）。</p>
+          <h1 className="page-title">决策</h1>
+          <p className="page-sub">临场该不该出门、几点到、带什么——每个判断都能给出依据。</p>
         </div>
         <button type="button" className={`btn ${fieldMode ? "btn-ghost" : "btn-primary"}`} onClick={() => setFieldMode((on) => !on)}>
           {fieldMode ? "退出现场模式" : "现场模式"}
@@ -203,7 +204,7 @@ export function D3Page() {
       </header>
 
       <section className={`verdict-card decision-panel${fieldMode ? " field-mode" : ""}`}>
-        <span className="card-kicker">三态结论（铁律②：语义色 + 图标 + 文字）</span>
+        <span className="card-kicker">三态结论</span>
         <div className="state-row">
           {STATES.map((state) => {
             const Icon = state.icon;
@@ -228,16 +229,16 @@ export function D3Page() {
         <div className="countdown-row">
           <span className="countdown-value">{remaining > 0 ? formatCountdown(remaining) : "—"}</span>
           <span className="countdown-label">
-            {targetTime ? `距关键时刻 ${targetTime}（来自 card.time_window）` : "距关键时刻（time_window 解析后启用）"}
+            {targetTime ? `距关键时刻 ${targetTime}` : "决策后依据方案时间窗口显示倒计时"}
           </span>
         </div>
 
         {confidence ? (
           <div className="card-block">
-            <h4>置信度（铁律①：主值 + 区间条 + 依据）</h4>
+            <h4>置信度（主值 + 区间 + 依据）</h4>
             <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
               <span className="confidence-display">{confidence.value}<small style={{ fontSize: 20 }}>%</small></span>
-              <span className="confidence-sub">区间 {confidence.lo}–{confidence.hi}（本地规则化转换）</span>
+              <span className="confidence-sub">区间 {confidence.lo}–{confidence.hi}</span>
             </div>
             <div className="interval-scale">
               <span className="interval-range" style={{ left: `${confidence.lo}%`, width: `${confidence.hi - confidence.lo}%` }} />
@@ -255,14 +256,14 @@ export function D3Page() {
                 ))}
               </ul>
             ) : (
-              <p className="trace-empty">暂无依据（card.evidence 为空）。</p>
+              <p className="trace-empty">暂无依据（模型未给出来源）。</p>
             )}
           </div>
         ) : null}
 
         {confidence ? (
           <div className="prob-bars">
-            <h4 className="card-kicker" style={{ margin: 0 }}>概率依据条（本地规则化演示）</h4>
+            <h4 className="card-kicker" style={{ margin: 0 }}>可能性评估</h4>
             {(
               [
                 { label: "去", value: goProb, className: "go" },
@@ -281,6 +282,9 @@ export function D3Page() {
               </div>
             ))}
           </div>
+        ) : null}
+        {confidence ? (
+          <p className="page-sub" style={{ margin: "8px 0 0" }}>数值由置信度区间换算，供直观参考。</p>
         ) : null}
 
         <div className="param-cards">
@@ -322,7 +326,7 @@ export function D3Page() {
       </section>
 
       <section className="card" style={{ marginTop: 20 }}>
-        <span className="card-kicker">临场决策（走 /api/decide）</span>
+        <span className="card-kicker">临场提问</span>
         <form
           className="prompt-row"
           onSubmit={(event) => {
@@ -359,7 +363,7 @@ export function D3Page() {
                   <span className="reason-step">{String(index + 1).padStart(2, "0")}</span>
                   <strong>{reason.title}</strong>
                   {reason.src ? <span className="src-tag">{reason.src}</span> : null}
-                  {reasons.length === 0 ? <span className="src-tag">card.evidence</span> : null}
+                  {reasons.length === 0 ? <span className="src-tag">决策依据</span> : null}
                 </div>
                 <p>{reason.detail.slice(0, 140)}</p>
               </li>
@@ -367,17 +371,8 @@ export function D3Page() {
           </ol>
         )}
         <button type="button" className="btn btn-ghost why-mobile-trigger" onClick={() => setWhyOpenMobile(true)}>
-          移动端查看（底部抽屉）
+          查看推理链
         </button>
-      </section>
-
-      {/* 相似历史（示例，search_memory 工具结果或 Fake） */}
-      <section className="card" style={{ marginTop: 20 }}>
-        <span className="card-kicker">相似历史命中<span className="fake-tag" style={{ marginLeft: 8 }}>示例数据</span></span>
-        <ul className="event-list">
-          <li>09-02 同条件（多云 35%）→ 出门拍成，评分 68</li>
-          <li>08-21 同机位 → 火烧云被云墙挡住，判断为 wait</li>
-        </ul>
       </section>
 
       {/* 移动端底部抽屉（≤820px 展示） */}

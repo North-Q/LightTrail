@@ -129,11 +129,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             <DataIcon />
             数据与依据 · 解释中心
           </button>
-          <p className="footer-note">LightTrail · Web 形态（原型即规格：docs/design/delivery/lighttrail-prototype.html）</p>
+          <p className="footer-note">LightTrail · 光迹 —— 面向摄影场景的拍摄决策引擎（MIT）</p>
         </div>
       </footer>
 
-      {/* 解释中心模态（铁律③：集中展示数据源清单） */}
+      {/* 解释中心模态（集中展示数据源清单） */}
       <div className={`modal${dataOpen ? " is-open" : ""}`} role="dialog" aria-modal="true" aria-label="数据与依据 · 解释中心">
         <div className="modal-backdrop" onClick={() => setDataOpen(false)} />
         <div className="modal-card">
@@ -155,7 +155,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <li key={entry.name}>
                     <span>
                       {entry.name} — {entry.note}
-                      {entry.fake ? <span className="fake-tag" style={{ marginLeft: 8 }}>示例数据</span> : null}
                     </span>
                     {entry.time ? <span className="src-time">{entry.time}</span> : null}
                   </li>
@@ -174,7 +173,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <CloseIcon />
           </button>
           <h2>全局设置</h2>
-          <p>第二迭代开发（路线图 E7-10 之后）。当前配置项：LLM_SERIAL_LLM / LLM_REASON_THINKING 见项目 .env。</p>
+          <p>设置功能将在后续版本提供。当前可配置项（LLM_SERIAL_LLM / LLM_REASON_THINKING 等）见项目 .env。</p>
         </div>
       </div>
     </div>
