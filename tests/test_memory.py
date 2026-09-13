@@ -17,9 +17,11 @@ from pathlib import Path
 
 import pytest
 
-from lighttrail.agent import Agent
-from lighttrail.agent.tools import registry
+from lighttrail.adapters.llm.provider import ChatClientProvider
+from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
+from lighttrail.composition import build_context, build_registry
 from lighttrail.memory import MemoryManager, SemanticStore, UserProfile
+from lighttrail.runtime.agent import AgentRuntime
 
 
 class _FakeChatClient:
@@ -31,6 +33,11 @@ class _FakeChatClient:
     def chat(self, messages, *, model=None, tools=None, temperature=0.2, usage_callback=None) -> dict:
         self.calls.append({"messages": messages, "model": model, "tools": tools})
         return {"role": "assistant", "content": "好的。"}
+
+    async def acall(self, messages, **kwargs) -> dict:
+        """async 通道：B2-7 起 runtime 经 Model 桥走 acall。"""
+        allowed = {k: v for k, v in kwargs.items() if k in {"model", "tools", "temperature"}}
+        return self.chat(messages, **allowed)
 
 
 @pytest.fixture()
@@ -114,8 +121,13 @@ def test_agent_injects_profile_into_layer_four(memory_dir) -> None:
     """注入 MemoryManager 后：system 第④层含档案文本。"""
     _write_profile(memory_dir, _example_profile())
     fake = _FakeChatClient()
-    agent = Agent(fake, registry, model="ecnu-plus", memory=MemoryManager(memory_dir))
-    agent.run("你好")
+    registry = build_registry()
+    runtime = AgentRuntime(
+        LightTrailModel(ChatClientProvider(fake), model_name="ecnu-plus"),
+        registry,
+        context=build_context(registry, memory=MemoryManager(memory_dir)),
+    )
+    runtime.run("你好")
     system = fake.calls[0]["messages"][0]["content"]
     assert "## 用户档案与语义记忆" in system
     assert "松下 S5M2" in system
@@ -210,7 +222,9 @@ def test_memory_manager_injections_include_semantic(memory_dir) -> None:
 def test_agent_without_memory_omits_layer_four(memory_dir) -> None:
     """未注入 MemoryManager：第④层省略（行为与 E1-2 一致）。"""
     fake = _FakeChatClient()
-    agent = Agent(fake, registry, model="ecnu-plus")
-    agent.run("你好")
+    runtime = AgentRuntime(
+        LightTrailModel(ChatClientProvider(fake), model_name="ecnu-plus"), build_registry()
+    )
+    runtime.run("你好")
     system = fake.calls[0]["messages"][0]["content"]
     assert "## 用户档案与语义记忆" not in system
