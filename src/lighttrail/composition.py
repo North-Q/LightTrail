@@ -21,13 +21,15 @@ from lighttrail.infra.trace import Recorder, TraceRecorder
 from lighttrail.llm.client import ChatClient
 from lighttrail.memory import MemoryManager
 from lighttrail.orchestrator import Orchestrator
-from lighttrail.runtime.agent import AgentRuntime
+from lighttrail.runtime.agent import DEFAULT_MAX_TOOL_ROUNDS, AgentRuntime
+from lighttrail.runtime.context import ContextBuilder
 from lighttrail.runtime.registry import ToolRegistry
 from lighttrail.tools import TOOLS
 
 __all__ = [
     "build_agent",
     "build_client",
+    "build_context",
     "build_ledger",
     "build_memory",
     "build_orchestrator",
@@ -78,6 +80,7 @@ def build_runtime(
     settings: Settings,
     *,
     recorder: Recorder | None = None,
+    memory: MemoryManager | None = None,
 ) -> AgentRuntime:
     """构造 PydanticAI Agent runtime（B2-6；工具 schema 真源为 ToolSpec）。
 
@@ -88,9 +91,29 @@ def build_runtime(
         LightTrailModel(provider, model_name=settings.model, recorder=recorder),
         registry,
         reason_model=LightTrailModel(provider, model_name=settings.model_reason, recorder=recorder),
+        context=build_context(registry, recorder=recorder, memory=memory),
         recorder=recorder,
-        max_tool_rounds=settings.react_max_rounds,
+        max_tool_rounds=getattr(settings, "react_max_rounds", DEFAULT_MAX_TOOL_ROUNDS),
         reason_thinking=settings.reason_thinking,
+    )
+
+
+def build_context(
+    registry: ToolRegistry,
+    *,
+    recorder: Recorder | None = None,
+    memory: MemoryManager | None = None,
+) -> ContextBuilder:
+    """构造五层上下文组装器（③工具层由注册表自动生成；④档案记忆；⑤会话轨迹）。"""
+    profile_provider = None
+    if memory is not None:
+        profile_provider = lambda: "\n".join(
+            block.text for block in memory.build_injections("")
+        )
+    return ContextBuilder(
+        registry=registry,
+        profile_provider=profile_provider,
+        trace_provider=(lambda: recorder.to_prompt_section()) if recorder is not None else None,
     )
 
 

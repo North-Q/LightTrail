@@ -139,6 +139,7 @@ def test_cli_pipeline_entry_prints_card(monkeypatch, capsys) -> None:
         model = "ecnu-plus"
         model_reason = "ecnu-max"
         serial_llm = False
+        react_max_rounds = 12
         data_dir = "data"
         quota_warn_threshold = 0.9
         reason_thinking = False

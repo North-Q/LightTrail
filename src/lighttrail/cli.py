@@ -19,8 +19,10 @@ from lighttrail.composition import (
     build_client,
     build_memory,
     build_orchestrator,
+    build_provider,
     build_recorder,
     build_registry,
+    build_runtime,
     load_settings,
 )
 from lighttrail.infra.trace import TraceEvent
@@ -84,6 +86,10 @@ def main(argv: list[str] | None = None) -> int:
     registry = build_registry(recorder=recorder)
     memory = build_memory(settings)
     agent = build_agent(client, registry, settings=settings, memory=memory, recorder=recorder)
+    # B2-7：自由对话走 PydanticAI runtime（--pipeline 的编排器仍用旧 Agent，切换见 B2-7 剩余项）
+    runtime = build_runtime(
+        build_provider(settings), registry, settings, recorder=recorder, memory=memory
+    )
 
     if args.pipeline:
         request = " ".join(args.pipeline)
@@ -106,6 +112,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if user_input == "/reset":
             agent.reset()
+            runtime.reset()
             print("（已清空对话历史）")
             continue
         if user_input == "/help":
@@ -113,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
             continue
 
         try:
-            reply = agent.run(user_input)
+            reply = runtime.run(user_input)
         except Exception as exc:  # noqa: BLE001 - CLI 层兜底，避免直接崩溃
             print(f"[错误] {exc}")
             continue
