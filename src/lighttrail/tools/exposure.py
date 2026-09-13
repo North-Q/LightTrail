@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import math
 
-from lighttrail.agent.tools import registry
+from lighttrail.contracts.tool import Confidence, Tool, ToolSpec
+from lighttrail.tools._base import PureTool
 
 # 常见快门速度档位（秒），供就近取值参考
 _STOPS_ISO = [50, 100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600, 51200]
@@ -29,7 +30,7 @@ _ND_FILTER_STOPS: dict[str, float] = {
 }
 
 
-@registry.tool(
+_SPEC_EQUIVALENT_EXPOSURE = ToolSpec(
     name="equivalent_exposure",
     description=(
         "计算等效曝光：给定当前光圈、快门、ISO，在目标调整档数下，返回分别调整"
@@ -59,6 +60,9 @@ _ND_FILTER_STOPS: dict[str, float] = {
         },
         "required": ["f_stop", "shutter_speed", "iso"],
     },
+    capabilities=frozenset(['tools']),
+    main_field="等效方案",
+    confidence=Confidence.HIGH,
 )
 def equivalent_exposure(
     f_stop: float, shutter_speed: float, iso: int, adjust_stops: float = 0
@@ -110,7 +114,7 @@ def _format_shutter(seconds: float) -> str:
     return f"1/{reciprocal}s"
 
 
-@registry.tool(
+_SPEC_STAR_SHUTTER_RULE = ToolSpec(
     name="star_shutter_rule",
     description=(
         "计算星空摄影的最大不拖线快门时间，支持 500 法则与 NPF 法则。"
@@ -148,6 +152,9 @@ def _format_shutter(seconds: float) -> str:
         },
         "required": ["focal_length", "aperture"],
     },
+    capabilities=frozenset(['tools']),
+    main_field="最大快门",
+    confidence=Confidence.HIGH,
 )
 def star_shutter_rule(
     focal_length: float,
@@ -199,7 +206,7 @@ def star_shutter_rule(
     }
 
 
-@registry.tool(
+_SPEC_ND_LONG_EXPOSURE = ToolSpec(
     name="nd_long_exposure",
     description=(
         "ND 滤镜长曝光换算：给定基准快门与 ND 减光档数（或滤镜型号），计算加滤镜后的长曝光快门；"
@@ -231,6 +238,9 @@ def star_shutter_rule(
         },
         "required": ["base_shutter"],
     },
+    capabilities=frozenset(['tools']),
+    main_field="曝光快门",
+    confidence=Confidence.HIGH,
 )
 def nd_long_exposure(
     base_shutter: float,
@@ -305,3 +315,11 @@ def nd_long_exposure(
         "长曝光快门（秒）": round(long_shutter, 2),
         "提示": "长曝光优先用快门线 / 机内延时或 B 门遥控，避免按快门产生机震",
     }
+
+
+# ------ 声明式收集点（ToolSpec 真源；新增工具 = 加一行）------
+TOOLS: tuple[Tool, ...] = (
+    PureTool(spec=_SPEC_EQUIVALENT_EXPOSURE, func=equivalent_exposure),
+    PureTool(spec=_SPEC_STAR_SHUTTER_RULE, func=star_shutter_rule),
+    PureTool(spec=_SPEC_ND_LONG_EXPOSURE, func=nd_long_exposure),
+)

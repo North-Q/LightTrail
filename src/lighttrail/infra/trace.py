@@ -238,6 +238,8 @@ class TraceRecorder:
         result: str,
         *,
         elapsed_ms: float = 0.0,
+        main_field: str | None = None,
+        confidence: str | None = None,
     ) -> None:
         """记录一次工具调用（参数与结果自动截断、提取数据来源）。
 
@@ -246,6 +248,10 @@ class TraceRecorder:
             arguments: 工具参数（JSON 字符串）。
             result: 工具返回（JSON 字符串）。
             elapsed_ms: 调用耗时（毫秒）。
+            main_field: 主字段显式覆盖（声明式工具由 ToolSpec.main_field 提供）；
+                None 时退回映射表/首个业务键的兼容规则。
+            confidence: 置信度显式覆盖（声明式工具由 ToolSpec.confidence 提供）；
+                None 时退回 infra/confidence 的兼容规则。
         """
         args_text = _truncate(arguments, _MAX_ARGS_CHARS)
         result_text = _truncate(result, _MAX_RESULT_CHARS)
@@ -257,8 +263,8 @@ class TraceRecorder:
         except (ValueError, TypeError):
             result_data = {}
         data_source = _extract_source(result_data)
-        confidence = confidence_for_tool(name, result_data)
-        field = _main_field_for(name, result_data)
+        resolved_confidence = confidence if confidence is not None else confidence_for_tool(name, result_data)
+        field = main_field if main_field is not None else _main_field_for(name, result_data)
         result_summary = _summarize_json(result, _MAX_RESULT_CHARS)
         self._emit(
             KIND_TOOL,
@@ -268,7 +274,7 @@ class TraceRecorder:
                 "结果摘要": result_summary,
                 "结果原文": result_text,
                 "数据来源": data_source,
-                "置信度": confidence,
+                "置信度": resolved_confidence,
                 "来源字段": field,
                 "耗时_ms": elapsed_ms,
             },

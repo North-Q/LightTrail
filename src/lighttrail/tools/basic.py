@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from lighttrail.agent.tools import registry
+from lighttrail.contracts.tool import Confidence, Tool, ToolSpec
+from lighttrail.tools._base import PureTool
 
-
-@registry.tool(
+_SPEC_GET_CURRENT_TIME = ToolSpec(
     name="get_current_time",
     description=(
         "获取当前日期时间。当用户询问『现在几点』『今天几号』『还剩多久』等时间相关问题，"
@@ -22,6 +22,9 @@ from lighttrail.agent.tools import registry
             }
         },
     },
+    capabilities=frozenset(['tools']),
+    main_field="时间",
+    confidence=Confidence.HIGH,
 )
 def get_current_time(tz: str = "+08:00") -> dict:
     """返回指定时区的当前日期时间（ISO 8601 格式）。"""
@@ -37,3 +40,7 @@ def get_current_time(tz: str = "+08:00") -> dict:
         "weekday": now.strftime("%A"),
         "note": "如需换算其他时区请说明具体偏移",
     }
+
+
+# ------ 声明式收集点（ToolSpec 真源；新增工具 = 加一行）------
+TOOLS: tuple[Tool, ...] = (PureTool(spec=_SPEC_GET_CURRENT_TIME, func=get_current_time),)

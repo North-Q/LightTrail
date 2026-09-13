@@ -1,10 +1,11 @@
-"""工具注册表：定义、注册、分发模型可调用的工具。
+"""工具注册表：定义、注册、分发模型可调用的工具（B2 起为迁移期实现）。
 
 设计要点：
-- 通过装饰器把普通 Python 函数注册为模型工具；
-- 自动生成 OpenAI 兼容的 tools schema（function calling 格式）；
-- dispatch 统一把工具结果序列化为字符串回传模型；工具执行异常时
-  返回结构化错误信息，让模型可以自行修正参数后重试。
+- B2 目标形态：`runtime/registry.py` 的 `ToolRegistry(specs)`，由装配根用声明式
+  ToolSpec 列表构造，工具元数据（schema / 主字段 / 置信度 / 能力）全部来自 ToolSpec；
+- 本文件当前是**迁移期实现**：同时支持声明式工具（`register_tool(Tool)`，主路径）
+  与旧的装饰器注册（`register(func, ...)`，B2-2/B2-3 逐个改造后删除）；
+- TODO(B2-4): 迁移完成后本模块转 re-export shim，全局单例 `registry` 由装配根取代。
 """
 
 from __future__ import annotations
@@ -15,6 +16,8 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from lighttrail.contracts.context import RequestContext
+from lighttrail.contracts.tool import Tool, ToolContext, ToolSpec
 from lighttrail.infra.trace import Recorder, null_trace
 
 logger = logging.getLogger("lighttrail.tools")
@@ -42,6 +45,22 @@ class ToolRegistry:
     # ------------------------------------------------------------------
     # 注册
     # ------------------------------------------------------------------
+    def register_tool(self, tool: Tool) -> None:
+        """注册声明式工具（ToolSpec + Tool 实现）——B2 起的主路径。
+
+        Args:
+            tool: 满足 Tool 端口的工具（自带 spec）。
+
+        Raises:
+            ValueError: 工具名非法或重复。
+        """
+        spec = tool.spec
+        self._validate_name(spec.name)
+        if spec.name in self._tools:
+            raise ValueError(f"工具已存在：{spec.name}")
+        self._tools[spec.name] = {"tool": tool, "spec": spec}
+        logger.debug("已注册声明式工具：%s", spec.name)
+
     def register(
         self,
         func: Callable[..., Any],
@@ -88,29 +107,48 @@ class ToolRegistry:
     # 查询与分发
     # ------------------------------------------------------------------
     def names(self) -> list[str]:
+        """已注册工具名（排序）。"""
         return sorted(self._tools)
 
-    def to_openai_schema(self) -> list[dict[str, Any]]:
-        """转换为 OpenAI tools 参数格式（function calling）。"""
-        return [
-            {
-                "type": "function",
-                "function": {
-                    "name": name,
-                    "description": meta["description"],
-                    "parameters": meta["parameters"],
-                },
-            }
-            for name, meta in sorted(self._tools.items())
-        ]
+    def specs(self) -> list[ToolSpec]:
+        """已注册声明式工具的 ToolSpec 列表（供能力叙述 / 路由 / 热插拔断言）。"""
+        return [meta["spec"] for meta in self._tools.values() if meta.get("spec") is not None]
 
-    def dispatch(self, name: str, arguments_json: str, *, recorder: Recorder | None = None) -> str:
+    def to_openai_schema(self) -> list[dict[str, Any]]:
+        """转换为 OpenAI tools 参数格式（声明式工具走 ToolSpec.to_openai_schema）。"""
+        schemas: list[dict[str, Any]] = []
+        for name, meta in sorted(self._tools.items()):
+            spec: ToolSpec | None = meta.get("spec")
+            if spec is not None:
+                schemas.append(spec.to_openai_schema())
+                continue
+            schemas.append(
+                {
+                    "type": "function",
+                    "function": {
+                        "name": name,
+                        "description": meta["description"],
+                        "parameters": meta["parameters"],
+                    },
+                }
+            )
+        return schemas
+
+    def dispatch(
+        self,
+        name: str,
+        arguments_json: str,
+        *,
+        recorder: Recorder | None = None,
+        ctx: ToolContext | None = None,
+    ) -> str:
         """按名称与 JSON 参数执行工具，返回可回传模型的字符串结果。
 
         Args:
             name: 工具名。
             arguments_json: 工具参数的 JSON 字符串。
             recorder: 本次调用的可观测性记录器覆盖（缺省用构造时注入的记录器）。
+            ctx: 运行上下文（声明式工具需要；缺省用迁移期空上下文）。
 
         Returns:
             工具结果 JSON 字符串；异常时返回 {"error": ...}，模型可据此修正。
@@ -118,13 +156,22 @@ class ToolRegistry:
         active_recorder: Recorder = recorder or self._recorder
         started = time.perf_counter()
         meta = self._tools.get(name)
+        main_field: str | None = None
+        confidence: str | None = None
         if meta is None:
             result = json.dumps({"error": f"未知工具：{name}，可用工具：{', '.join(self.names())}"}, ensure_ascii=False)
         else:
+            spec: ToolSpec | None = meta.get("spec")
             try:
                 arguments = json.loads(arguments_json) if arguments_json else {}
                 if not isinstance(arguments, dict):
                     result = json.dumps({"error": "工具参数必须为 JSON 对象"}, ensure_ascii=False)
+                elif spec is not None:
+                    tool_result = meta["tool"](ctx or _default_context(), **arguments)
+                    result = tool_result.content
+                    # 元数据单一真源：trace 主字段与置信度来自 ToolSpec（不再查手抄表）
+                    main_field = spec.main_field or None
+                    confidence = spec.confidence.value
                 else:
                     result = meta["func"](**arguments)
             except TypeError as exc:
@@ -133,7 +180,10 @@ class ToolRegistry:
                 logger.exception("工具 %s 执行异常", name)
                 result = {"error": f"工具执行失败：{exc}"}
 
-        if isinstance(result, dict):
+        if isinstance(result, str):
+            # 声明式工具已产出面向模型的字符串（ToolResult.content），不再二次编码
+            result_text = result
+        elif isinstance(result, dict):
             result_text = json.dumps(result, ensure_ascii=False, default=str)
         else:
             try:
@@ -145,6 +195,8 @@ class ToolRegistry:
             arguments_json,
             result_text,
             elapsed_ms=(time.perf_counter() - started) * 1000.0,
+            main_field=main_field,
+            confidence=confidence,
         )
         return result_text
 
@@ -154,5 +206,14 @@ class ToolRegistry:
             raise ValueError(f"工具名不合法（须为字母/数字/_/-）：{name!r}")
 
 
-# 全局单例：内置工具模块导入即完成注册
+def _default_context() -> ToolContext:
+    """迁移期默认上下文：为满足 Tool 端口签名而构造的空上下文。
+
+    说明（TODO(B2-4)）：装配根落地后由调用方显式传入 ctx；纯计算工具不使用上下文任何
+    字段，智能工具的外部依赖在**构造时**注入（不经上下文），因此空上下文是安全的。
+    """
+    return ToolContext(request=RequestContext(), llm=None, datasource=None)  # type: ignore[arg-type]
+
+
+# 全局单例：B2-4 装配根落地前的迁移期入口
 registry = ToolRegistry()
