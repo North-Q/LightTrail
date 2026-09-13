@@ -181,6 +181,21 @@ def test_reason_thinking_passes_extra_params() -> None:
     assert call["reasoning_effort"] == "high"
 
 
+def test_acomplete_uses_chat_model_without_tools() -> None:
+    """原始补全：用工具链路模型、不带工具（意图解析等结构化输出的前置面）。"""
+    provider = _FakeProvider([{"role": "assistant", "content": '  {"subject_type": "星空"}  '}])
+    runtime = AgentRuntime(_model(provider, "ecnu-plus"), _registry())
+
+    text = runtime.complete("解析意图", system="只输出 JSON")
+
+    assert text == '{"subject_type": "星空"}'
+    call = provider.calls[0]
+    assert call["model"] == "ecnu-plus"
+    assert call["tools"] is None
+    assert call["temperature"] == 0.2
+    assert call["messages"][0]["content"] == "只输出 JSON"
+
+
 def test_tool_round_limit_enforced_by_usage_limits() -> None:
     """轮数护栏：模型持续调用工具时由框架用量上限拦截（REACT_MAX_ROUNDS → request_limit）。"""
     provider = _FakeProvider([_tool_call("doubler", {"x": 1})])

@@ -69,6 +69,7 @@ class AgentRuntime:
         self._model = model
         self._model_reason = reason_model or model
         self._agent = Agent(self._model, tools=self._build_tools())
+        self._chat_agent = Agent(self._model)  # 无工具的原始补全（意图解析等结构化输出）
         self._reason_agent = Agent(self._model_reason)
         self._messages: list[Any] = []
 
@@ -125,6 +126,44 @@ class AgentRuntime:
     def run_with_trace(self, user_input: str) -> tuple[str, TraceReport]:
         """同步门面：返回 (文本, 本轮报告)。"""
         return _run_sync(self.arun_with_trace(user_input))
+
+    # ------ 对外接口：原始补全（结构化输出通道）------
+    async def acomplete(
+        self,
+        prompt: str,
+        *,
+        system: str = "",
+        temperature: float = _CHAT_TEMPERATURE,
+    ) -> str:
+        """用工具链路模型做一次无工具的原始补全（不走 ReAct 循环）。
+
+        用途：意图解析等「强约束 JSON + 自愈」场景（D4 双轨边界：管线外复用自研
+        `parse_with_retry`，框架侧只负责一次干净的补全）。
+
+        Args:
+            prompt: 用户侧提示（含 JSON 结构要求）。
+            system: 系统指令（缺省用五层系统提示）。
+            temperature: 采样温度。
+
+        Returns:
+            模型输出文本（未做结构校验，由调用方 parse_with_retry 处理）。
+        """
+        result = await self._chat_agent.run(
+            prompt,
+            instructions=system or self.system_prompt(),
+            model_settings=ModelSettings(temperature=temperature),
+        )
+        return str(result.output).strip()
+
+    def complete(
+        self,
+        prompt: str,
+        *,
+        system: str = "",
+        temperature: float = _CHAT_TEMPERATURE,
+    ) -> str:
+        """同步门面：原始补全（事件循环内请 await acomplete）。"""
+        return _run_sync(self.acomplete(prompt, system=system, temperature=temperature))
 
     # ------ 对外接口：深推理 ------
     async def areason(
