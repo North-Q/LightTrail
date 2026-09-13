@@ -5,12 +5,14 @@
 - 元数据单一真源：tools schema 与 trace 的「来源字段 / 置信度」均来自 ToolSpec
   （不再查 trace._MAIN_FIELD 手抄表与 confidence 三集合）；
 - 旧装饰器注册路径仍可用（迁移期兼容，无 spec 时走规则化兜底）；
+- 动态置信度规则（预报时效）经 ToolSpec.confidence_rule 生效（B2-2）；
 - 工具名重复 / 非法报错，未知工具返回结构化错误。
 """
 
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from typing import Any
 
 import pytest
@@ -91,3 +93,19 @@ def test_bad_arguments_return_structured_error() -> None:
     registry.register_tool(PureTool(spec=_spec(), func=lambda value=0: {"结果": value}))
     payload = json.loads(registry.dispatch("probe", json.dumps({"unexpected": 1})))
     assert "error" in payload
+
+def test_dynamic_confidence_rule_uses_result_data() -> None:
+    """动态置信度规则（预报时效）：由 ToolSpec.confidence_rule 声明并按结果解析。"""
+    recorder = TraceRecorder()
+    registry = ToolRegistry(recorder=recorder)
+    today = datetime.now(timezone.utc).date().isoformat()
+    spec = _spec(
+        name="weather_probe",
+        main_field="每日预报",
+        confidence=Confidence.MEDIUM,
+        confidence_rule="forecast",
+    )
+    registry.register_tool(PureTool(spec=spec, func=lambda **_: {"每日预报": [{"日期": today}]}))
+
+    registry.dispatch("weather_probe", "{}")
+    assert recorder.to_report().tool_calls[0].confidence == "high"  # 覆盖当日 → high

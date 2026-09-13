@@ -20,10 +20,12 @@ from lighttrail.tools import (
     weather,
 )
 
-# 声明式工具清单（主路径逐步接管；B2-1 起 basic / exposure 已是声明式）
+# 声明式工具清单（主路径逐步接管；B2-1 起 basic / exposure，B2-2 起 astronomy / weather）
 TOOLS: tuple[Tool, ...] = (
     *basic.TOOLS,
     *exposure.TOOLS,
+    *astronomy.TOOLS,
+    *weather.TOOLS,
 )
 
 # TODO(B2-4): 迁移期把声明式工具挂到旧全局注册表，供既有调用方（cli / tests）使用；

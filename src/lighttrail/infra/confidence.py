@@ -15,6 +15,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from lighttrail.contracts.tool import ToolSpec
+
 # 确定性来源：纯计算 / 天文历法，不依赖外部数据与预测
 DETERMINISTIC_TOOLS = frozenset(
     {
@@ -37,6 +39,22 @@ FORECAST_TOOLS = frozenset({"weather_forecast"})
 _CONF_HIGH = "high"
 _CONF_MEDIUM = "medium"
 _CONF_LOW = "low"
+
+
+def resolve_confidence(spec: ToolSpec, result_data: dict[str, Any], *, now: datetime | None = None) -> str:
+    """按 ToolSpec 声明解析置信度（动态规则优先，静态声明兜底）。
+
+    Args:
+        spec: 工具自描述（confidence / confidence_rule）。
+        result_data: 工具返回的结构化结果（动态规则用）。
+        now: 当前时刻（测试可注入）。
+
+    Returns:
+        high / medium / low 之一。
+    """
+    if spec.confidence_rule == "forecast":
+        return _forecast_confidence(result_data, now)
+    return spec.confidence.value
 
 
 def confidence_for_tool(name: str, result_data: dict[str, Any], *, now: datetime | None = None) -> str:
@@ -80,4 +98,10 @@ def _has_source(result_data: dict[str, Any]) -> bool:
     return any(key in result_data for key in ("数据来源", "来源", "data_source"))
 
 
-__all__ = ["DETERMINISTIC_TOOLS", "FORECAST_TOOLS", "HEURISTIC_TOOLS", "confidence_for_tool"]
+__all__ = [
+    "DETERMINISTIC_TOOLS",
+    "FORECAST_TOOLS",
+    "HEURISTIC_TOOLS",
+    "confidence_for_tool",
+    "resolve_confidence",
+]

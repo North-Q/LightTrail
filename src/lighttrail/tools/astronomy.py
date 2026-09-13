@@ -20,7 +20,8 @@ from math import asin, atan2, cos, degrees, pi, radians, sin, tan
 from astral import Observer, moon, sun
 from astral.sun import Depression
 
-from lighttrail.agent.tools import registry
+from lighttrail.contracts.tool import Confidence, Tool, ToolSpec
+from lighttrail.tools._base import PureTool
 
 # 银心 J2000.0 赤道坐标（国际天文联合会定义，单位：度）
 _GALACTIC_CENTER_RA_J2000 = 266.4051
@@ -153,7 +154,7 @@ def _elevation_windows(
 # ------------------------------------------------------------------
 # 太阳工具
 # ------------------------------------------------------------------
-@registry.tool(
+_SPEC_SUN_TIMES = ToolSpec(
     name="sun_times",
     description=(
         "查询指定地点与日期的太阳关键时刻：日出日落、民用/航海/天文晨昏蒙影、"
@@ -184,7 +185,11 @@ def _elevation_windows(
         },
         "required": ["latitude", "longitude", "date"],
     },
+    capabilities=frozenset(['tools']),
+    main_field="太阳时刻",
+    confidence=Confidence.HIGH,
 )
+
 def sun_times(latitude: float, longitude: float, date: str, tz_offset: str = "+08:00") -> dict:
     """计算指定地点与日期的太阳关键时刻。
 
@@ -243,7 +248,7 @@ def sun_times(latitude: float, longitude: float, date: str, tz_offset: str = "+0
     }
 
 
-@registry.tool(
+_SPEC_SUN_POSITION = ToolSpec(
     name="sun_position",
     description=(
         "查询指定时刻太阳的高度角与方位角，用于判断光线角度：顺光/侧光/逆光、"
@@ -272,7 +277,11 @@ def sun_times(latitude: float, longitude: float, date: str, tz_offset: str = "+0
         },
         "required": ["latitude", "longitude", "date_time"],
     },
+    capabilities=frozenset(['tools']),
+    main_field="太阳方位",
+    confidence=Confidence.HIGH,
 )
+
 def sun_position(
     latitude: float, longitude: float, date_time: str, tz_offset: str = "+08:00"
 ) -> dict:
@@ -323,7 +332,7 @@ def sun_position(
 # ------------------------------------------------------------------
 # 月亮工具
 # ------------------------------------------------------------------
-@registry.tool(
+_SPEC_MOON_PHASE = ToolSpec(
     name="moon_phase",
     description=(
         "查询指定日期的月相信息：月相名称、月龄与照亮比例，并给出月光对星空摄影的"
@@ -345,7 +354,11 @@ def sun_position(
         },
         "required": ["date"],
     },
+    capabilities=frozenset(['tools']),
+    main_field="月相",
+    confidence=Confidence.HIGH,
 )
+
 def moon_phase(date: str, tz_offset: str = "+08:00") -> dict:
     """计算指定日期的月相与月光影响。
 
@@ -401,7 +414,7 @@ def moon_phase(date: str, tz_offset: str = "+08:00") -> dict:
     }
 
 
-@registry.tool(
+_SPEC_MOON_EVENTS = ToolSpec(
     name="moon_events",
     description=(
         "查询指定日期、地点的月升月落时刻与方位，并判断月亮整夜/整日在地平线上的情况。"
@@ -430,7 +443,11 @@ def moon_phase(date: str, tz_offset: str = "+08:00") -> dict:
         },
         "required": ["latitude", "longitude", "date"],
     },
+    capabilities=frozenset(['tools']),
+    main_field="月升月落",
+    confidence=Confidence.HIGH,
 )
+
 def moon_events(latitude: float, longitude: float, date: str, tz_offset: str = "+08:00") -> dict:
     """计算指定日期与地点的月升月落。
 
@@ -531,7 +548,7 @@ def _galactic_alt_az(utc: datetime, latitude: float, longitude: float) -> tuple[
     return degrees(altitude), (degrees(azimuth) + 180.0) % 360.0
 
 
-@registry.tool(
+_SPEC_GALAXY_VISIBILITY = ToolSpec(
     name="galaxy_visibility",
     description=(
         "查询指定日期夜晚银心（银河核心方向）的可见窗口：升出地平面的时间段、"
@@ -566,7 +583,11 @@ def _galactic_alt_az(utc: datetime, latitude: float, longitude: float) -> tuple[
         },
         "required": ["latitude", "longitude", "date"],
     },
+    capabilities=frozenset(['tools']),
+    main_field="银心可见窗口",
+    confidence=Confidence.HIGH,
 )
+
 def galaxy_visibility(
     latitude: float,
     longitude: float,
@@ -661,3 +682,13 @@ def _close_galaxy_window(window: dict) -> dict:
         "最高时刻": _fmt_hm(window["最高时刻"]),
         "最高时方位（度）": round(window["最高时方位"], 1),
     }
+
+
+# ------ 声明式收集点（ToolSpec 真源；新增工具 = 加一行）------
+TOOLS: tuple[Tool, ...] = (
+    PureTool(spec=_SPEC_SUN_TIMES, func=sun_times),
+    PureTool(spec=_SPEC_SUN_POSITION, func=sun_position),
+    PureTool(spec=_SPEC_MOON_PHASE, func=moon_phase),
+    PureTool(spec=_SPEC_MOON_EVENTS, func=moon_events),
+    PureTool(spec=_SPEC_GALAXY_VISIBILITY, func=galaxy_visibility),
+)

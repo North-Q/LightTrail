@@ -21,7 +21,8 @@ import urllib.request
 from datetime import datetime, timedelta
 from typing import Any
 
-from lighttrail.agent.tools import registry
+from lighttrail.contracts.tool import Confidence, Tool, ToolSpec
+from lighttrail.tools._base import PureTool
 from lighttrail.tools.astronomy import _parse_date, _parse_tz_offset, sun_times
 
 logger = logging.getLogger("lighttrail.tools.weather")
@@ -87,7 +88,7 @@ def _hourly_to_iso(value: str, tz_offset: str) -> str:
 # ------------------------------------------------------------------
 # 预报查询工具
 # ------------------------------------------------------------------
-@registry.tool(
+_SPEC_WEATHER_FORECAST = ToolSpec(
     name="weather_forecast",
     description=(
         "查询指定位置未来 1-7 天的逐日天气摘要：平均云量、傍晚云量、最低能见度、"
@@ -119,7 +120,12 @@ def _hourly_to_iso(value: str, tz_offset: str) -> str:
         },
         "required": ["latitude", "longitude"],
     },
+    capabilities=frozenset(['tools']),
+    main_field="每日预报",
+    confidence=Confidence.MEDIUM,
+    confidence_rule="forecast",
 )
+
 def weather_forecast(
     latitude: float, longitude: float, days: int = 3, tz_offset: str = "+08:00"
 ) -> dict:
@@ -214,7 +220,7 @@ def weather_forecast(
 # ------------------------------------------------------------------
 # 火烧云概率评分（D3.1-01 启发式模型）
 # ------------------------------------------------------------------
-@registry.tool(
+_SPEC_SUNSET_GLOW_SCORE = ToolSpec(
     name="sunset_glow_score",
     description=(
         "评估指定日期傍晚的火烧云（晚霞）爆发概率，返回 0-100 分与等级。"
@@ -247,7 +253,11 @@ def weather_forecast(
         },
         "required": ["latitude", "longitude", "date"],
     },
+    capabilities=frozenset(['tools']),
+    main_field="评分",
+    confidence=Confidence.MEDIUM,
 )
+
 def sunset_glow_score(
     latitude: float, longitude: float, date: str, tz_offset: str = "+08:00"
 ) -> dict:
@@ -414,3 +424,10 @@ def _max(values: list[float | None]) -> float:
     """数值列表最大值（忽略 None，空表返回 0）。"""
     valid = [value for value in values if value is not None]
     return max(valid) if valid else 0.0
+
+
+# ------ 声明式收集点（ToolSpec 真源；新增工具 = 加一行）------
+TOOLS: tuple[Tool, ...] = (
+    PureTool(spec=_SPEC_WEATHER_FORECAST, func=weather_forecast),
+    PureTool(spec=_SPEC_SUNSET_GLOW_SCORE, func=sunset_glow_score),
+)

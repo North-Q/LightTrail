@@ -47,7 +47,9 @@ class ToolSpec:
         parameters: 参数 JSON Schema（object 类型）。
         capabilities: 能力声明（如 {"tools"}），供 ModelRouter 按需路由。
         main_field: 该工具进入 TraceReport.sources 的主字段名（报告中文字段）。
-        confidence: 该工具来源的固定置信度（规则表来源，见 infra/confidence.py 的对齐）。
+        confidence: 该工具来源的静态置信度（规则表来源，见 infra/confidence.py 的对齐）。
+        confidence_rule: 动态置信度规则键（非空时按结果覆盖静态 confidence）；
+            当前仅 weather_forecast → "forecast"（覆盖当日 high / 跨天 medium）。
     """
 
     name: str
@@ -56,6 +58,7 @@ class ToolSpec:
     capabilities: frozenset[str] = frozenset()
     main_field: str = ""
     confidence: Confidence = Confidence.LOW
+    confidence_rule: str = ""
 
     def to_openai_schema(self) -> dict[str, Any]:
         """转成 OpenAI function calling 的 tool 定义。

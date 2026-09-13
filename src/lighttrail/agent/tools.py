@@ -18,6 +18,7 @@ from typing import Any
 
 from lighttrail.contracts.context import RequestContext
 from lighttrail.contracts.tool import Tool, ToolContext, ToolSpec
+from lighttrail.infra.confidence import resolve_confidence
 from lighttrail.infra.trace import Recorder, null_trace
 
 logger = logging.getLogger("lighttrail.tools")
@@ -171,7 +172,7 @@ class ToolRegistry:
                     result = tool_result.content
                     # 元数据单一真源：trace 主字段与置信度来自 ToolSpec（不再查手抄表）
                     main_field = spec.main_field or None
-                    confidence = spec.confidence.value
+                    confidence = resolve_confidence(spec, tool_result.data)
                 else:
                     result = meta["func"](**arguments)
             except TypeError as exc:
