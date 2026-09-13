@@ -29,8 +29,8 @@
 - [x] B2-4 ToolRegistry 迁入 runtime/ + composition root（agent/tools 转 shim；适配器契约开启）
 - [x] B2-5 PydanticAI 自定义 Model 桥（ADR-002/003 语义不丢）
 - [x] B2-6 AgentRuntime 接入 + ContextBuilder 迁入 runtime（能力叙述自动生成）
-- [~] B2-7 热插拔验收 ✅ + 架构禁止边 ✅；★ 下一步：生产路径切 AgentRuntime（api 会话历史
-      dict→ModelMessage、orchestrator/cli 换装）→ TestModel 替换 FakeChatClient → shim 清理 → B2 收口
+- [~] B2-7 热插拔 ✅ + 架构禁止边 ✅ + CLI/Web 自由对话切 runtime ✅；★ 下一步：编排器/四管线切 runtime
+      → TestModel 替换 FakeChatClient → shim 清理 → B2 收口
 
 ### B3 适配层 + 并发
 

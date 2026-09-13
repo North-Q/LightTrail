@@ -98,11 +98,27 @@
   （agent/tools.py 与 agent/context.py 的 re-export、旧 Agent 门面）。③ 的启动条件是①，
   三者同批推进，B2 收口（devlog 批次总结 + 闸门 2）在①完成后进行。
 
-### B2 中间态验证（B2-1 ~ B2-6 后）
+### B2-7 生产路径切换（第一批：CLI + Web 自由对话）— 已提交（3e952c1、dc164fb）
+
+- CLI 自由对话改走 `AgentRuntime`（PydanticAI：Model 桥 + ToolSpec 工具 + 轮数护栏），
+  `--pipeline` 仍用旧 Agent；`lighttrail/__init__.py` 统一关闭 pydantic-ai 启动横幅；
+- api `/api/chat` 改走 `AgentRuntime` + 会话历史双向转换（桥新增 `to_openai_history` /
+  `from_openai_history`：instructions 不入历史、工具调用 id→name 解析、多模态内容还原），
+  会话层继续以 OpenAI dict 持久化；
+- **真实链路抓到一个 fake 掩盖的缺陷**：ChatClient 的 usage 回调回传 `UsageStats` 对象，
+  而端口契约是 (输入, 输出) 两个整数——适配本应在 `ChatClientProvider` 完成；测试 fake 写成
+  两参数形式掩盖了它，由 Web 真实联调复跑时暴露并修复（fake 已改为镜像真实签名）；
+- 验证：pytest 295 全绿、ruff 0、lint-imports 2 kept、冒烟 21 项；**CLI + Web 真实查询均经新
+  runtime 跑通**（`queued → tool_call → tool_result → token → done`）。
+- **剩余（B2-7 未完）**：① 四管线/编排器切 runtime（orchestrator 的意图解析与 reason 通道
+  需经 runtime 的 chat/reason 面）；② TestModel 替换 8 处 FakeChatClient；③ shim 清理
+  （agent/tools.py、agent/context.py re-export 与旧 Agent 门面）→ 然后 B2 收口（闸门 2 汇报）。
+
+### B2 中间态验证（B2-1 ~ B2-7 第一批后）
 
 - pytest **295 全绿**；ruff 0；`lint-imports` 2 kept / 0 broken；离线冒烟 21 项；`npm run build` 通过；
 - **CLI 自由对话 + Web /api/chat SSE 真实查询复跑通过**（装配根接管后系统可用）；
-- 下一步：**B2-7 生产路径切换到 AgentRuntime**（api 会话历史迁移 + orchestrator / cli 换装），
+- 下一步：**编排器/四管线切 runtime**（意图解析与 reason 通道经 runtime 的 chat / reason 面），
   随后 TestModel 替换 FakeChatClient、shim 清理与 B2 批次收口。
 ## 2026-09-13（B1 契约层 + 配置：零依赖契约 + 用户体系预留 + 统一护栏）
 
