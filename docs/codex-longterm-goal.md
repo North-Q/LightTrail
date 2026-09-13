@@ -8,10 +8,10 @@
 ## 📍 当前位置（开工第一眼先看这里）
 
 ```
-📍 当前位置：闸门 0 已到达（B0 止血护栏完成，等主理人确认后进 B1）
-  代码基线：main 分支 HEAD 58a530c ｜ pytest 230 全绿 ｜ ruff 0 ｜ 冒烟 21 项 ｜ 15 工具
-  实跑基线：CLI 自由对话 + Web /api/chat SSE 各一次真实查询通过 ｜ tag refactor-baseline（本地）
-🎯 当前目标：等闸门 0 确认 → B1 契约层 + 配置（B1-1 ~ B1-5）
+📍 当前位置：闸门 1 已到达（B1 契约层 + 配置完成，等主理人确认后进 B2）
+  代码基线：main 分支 HEAD <B1 收口提交> ｜ pytest 272 全绿 ｜ ruff 0 ｜ lint-imports「契约层零依赖」KEPT
+  实跑基线：CLI 自由对话 + Web /api/chat SSE 各一次真实查询通过（B1-5 配置重写后复跑）｜ 冒烟 21 项 ｜ 15 工具
+🎯 当前目标：等闸门 1 确认 → B2 引擎重写（B2-1 ~ B2-7：声明式 ToolSpec + 装配根 + PydanticAI）
 🏁 本期终点：B0–B7 全部批次通过出口检查，目标架构（契约层+声明式注册+async-first+知识库+意图路由）落地，随时可演示
 ```
 
@@ -23,7 +23,7 @@
 
 ```mermaid
 graph TD
-    S([📍当前位置<br/>闸门 0 / HEAD 58a530c<br/>230 测试全绿 / B0 已完成]) --> B0
+    S([📍当前位置<br/>闸门 1 / HEAD <B1 收口提交><br/>272 测试全绿 / B1 已完成]) --> B0
 
     B0[B0 止血护栏<br/>B0-1~B0-4 修3 bug+tokens+假注释] --> G0{{闸门0 B0 出口<br/>pytest绿+淘汰/并发写用例过<br/>CLI/Web可跑 → 汇报}}
     G0 --> B1[B1 契约层+配置<br/>B1-1~B1-5 contracts/+pydantic-settings]
@@ -65,7 +65,17 @@ graph TD
 | B0-3 | 四处假注释清理（实现或删注释） | grep 复查无空头承诺 |
 | B0-4 | B0 收口，建立重构前基线 | pytest 绿 + CLI/Web 实跑一次 |
 
-### B1 ~ B7
+### B1 契约层 + 配置 ✅ 已完成（2026-09-13，停闸门 1）
+
+| 任务 | 一句话目标 | 核心验收 |
+|---|---|---|
+| B1-1 | 零依赖 contracts/ 骨架（ToolSpec / ToolContext / RequestContext） | 契约层仅 stdlib+pydantic，schema 转换与 frozen 用例过 |
+| B1-2 | 契约模型下沉（Intent / DecisionCard / TraceEvent / Plan） | 旧路径 shim 可用、tools 不再反向 import orchestrator |
+| B1-3 | 用户体系预留接口（LLMConfig / UserConfigProvider / KeyVault） | repr 掩码不泄 Key、优先级链用例过 |
+| B1-4 | 剩余 Protocol（MemoryStore / KnowledgeProvider / DataSource / TraceSink） | 知识库签名不含 user_id、记录器满足 TraceSink |
+| B1-5 | pydantic-settings + 统一护栏 + import-linter 门禁 | 护栏项默认值落地、lint-imports「契约零依赖」通过 |
+
+### B2 ~ B7
 
 任务细节（目标/前置/输入上下文/交付物/验收标准/涉及文件）**全部见 `docs/REFACTOR-ROADMAP.md` 对应章节**，此处不重复。每批出口检查单见路线图 §1.3/§1.4 与各批次末任务。
 

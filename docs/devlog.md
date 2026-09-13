@@ -1,5 +1,82 @@
 # LightTrail 开发日志
 
+## 2026-09-13（B1 契约层 + 配置：零依赖契约 + 用户体系预留 + 统一护栏）
+
+> 批次定位：`docs/REFACTOR-ROADMAP.md` §3。目标 = 新建零依赖 `contracts/`（R1/R2 的解药）+
+> 契约模型下沉 + 用户体系三处预留定型 + 配置换 pydantic-settings 与门禁。基线起点 B0 `58a530c`。
+
+### B1-1 contracts/ 骨架 — 已提交（b6a445f）
+
+- `contracts/tool.py`：ToolSpec（main_field / confidence / capabilities，替代 trace._MAIN_FIELD、
+  confidence 三集合、DEFAULT_ROLE_PROMPT 手写工具清单三处漂移源）+ ToolContext（注入式上下文 +
+  emit）+ Tool Protocol + ToolResult + Confidence；ToolContext 的端口注解走 TYPE_CHECKING
+  （避免骨架期就依赖未落的协议文件）。
+- `contracts/context.py`：RequestContext（frozen；user_id="_local" / session_id / llm_overrides）。
+- 偏差记录：`Confidence` 用类 `str, Enum` 而非 v4 草案的 `enum.StrEnum`（后者需 py3.11，项目要求 py310+）。
+- 测试：`tests/test_contracts.py` 7 用例；pytest 230 → 237。
+
+### B1-2 契约模型迁移（Intent / DecisionCard / TraceEvent / Plan）— 已提交（4bf9c67）
+
+- `contracts/models.py` / `events.py` / `plan.py` 承接模型：Intent / Source / ParamSuggestion /
+  LocationSuggestion / PhotoAnalysisReport / PhotoReverseReport / DecisionCard、TraceEvent + KIND_*、
+  SSEEvent（SSE 事件类型前后端单一真源，B4 生成前端类型）、Plan/PlanStep（步数上限护栏进类型）。
+- 旧路径转 re-export shim：`orchestrator/schemas.py`（整文件）、`infra/trace.py` 的
+  TraceEvent / KIND_*，均带 TODO(B5-4)，不含新增逻辑。
+- src 调用方改指契约真源；`tools/photo_analysis.py` 不再 import `orchestrator.schemas`
+  ——**R2 诊断的 tools→orchestrator 反向依赖已消除**。
+- 测试：+6 用例（emit 投递 / Plan 护栏 / frozen 与默认工厂 / shim 同一对象 / infra.trace re-export /
+  SSE 单一真源）；pytest → 243。
+
+### B1-3 用户体系预留接口（LLMConfig / LLMProvider / UserConfigProvider / KeyVault）— 已提交（a8321d1）
+
+- `contracts/llm.py`：LLMConfig（frozen、repr 掩码 api_key 只露后 4 位、concurrency 默认 4）+
+  三个 Protocol；模块内零品牌字面量（ADR-002）。
+- 新增 `adapters/` 适配层包：`adapters/llm/config_provider.py`
+  - DeploymentConfigProvider：配置解析单点，优先级链「请求级 llm_overrides > 部署级」；
+  - EnvKeyVault：部署级只读，写入抛 KeyVaultError（不静默失败）。
+- 测试：`tests/test_config_provider.py` 8 用例；pytest → 251。
+
+### B1-4 剩余 Protocol（MemoryStore / KnowledgeProvider / DataSource / TraceSink）— 已提交（9e39191）
+
+- `contracts/memory.py`（TokenBudget / MemoryBlock / EventRecord + MemoryStore：per-user 可写、
+  方法首参 RequestContext）、`knowledge.py`（KnowledgeChunk 带 source/version + KnowledgeProvider：
+  全局只读、签名不含 user_id，D10/D14）、`datasource.py`（async get）、`observability.py`（TraceSink）。
+- `infra/trace.py`：TraceRecorder / NullTrace 补公开 `emit`（实现 TraceSink 端口；_emit 转为构造事件
+  后转交 emit，既有记录 API 与行为不变）。
+- 测试：+8 用例；pytest → 259。
+
+### B1-5 config.py 换 pydantic-settings + 统一护栏 + import-linter 门禁 — 已提交（2856495）
+
+- 配置重写：AliasChoices 表达 `LLM_`↔`ECNU_` 别名（LLM_ 优先）、frozen 快照、非法值直接抛
+  ValidationError（不再静默取默认值）；
+- 护栏项落地（D5）：`LLM_CONCURRENCY=4` / `REACT_MAX_ROUNDS=12` / `PIPELINE_MAX_STEPS=12` /
+  `PLAN_MAX_STEPS=8`（与 contracts.Plan 同源）/ `LLM_TIMEOUT=(30,120)`（支持 "30,120" 写法）；
+- 兼容：`LLM_SERIAL_LLM` 只读别名（=true → concurrency=1）；`settings.serial_llm` 改为派生属性
+  （concurrency == 1），B3 随旧开关删除；
+- 注释诚实化：`agent/loop.py`、`llm/client.py` 删掉「默认串行适配 ECNU」表述，改为「并发是纯配置、
+  默认 4、B3 换 async-first 单 Semaphore」（ADR-004，硬约束 3）；
+- 门禁：`pyproject.toml` 增 `[tool.importlinter]`「契约层零依赖」契约（KEPT）；另三段目标分层契约
+  按 v4 §2.2 文本备好并标 TODO(B3-5)；
+- 测试：`tests/test_settings.py`（10 用例）+ `tests/test_architecture.py`（3 用例：契约零依赖 AST
+  兜底含函数内 import / 契约层第三方白名单 / contracts+adapters 无品牌字面量）；pytest → 272。
+
+### B1 批次总结（闸门 1）
+
+- **门禁**：pytest **272 全绿**；`ruff check src tests` 0；`lint-imports` **1 kept / 0 broken**
+  （Analyzed 54 files, 149 dependencies）；离线冒烟 21 项；`npm run build` 通过；
+  **CLI 自由对话 + Web /api/chat SSE 真实查询复跑通过**（配置重写后系统可用性验证）。
+- **平台中立性审计**：B1 新增代码的品牌字面量集中在 `config.py` 默认值（允许处）；`contracts/`
+  与 `adapters/` 经 AST 测试确认零品牌字符串；业务层未新增任何平台判断；LLM 调用仍走
+  ModelRouter + 后续 LLMProvider 适配层。结论：**通过**。
+- **遗留与偏差（如实记录）**：
+  1. import-linter 另三段契约（分层 / 适配器反向 / 交互层）未开启——目标分层包
+     （interface/application/runtime/domain）尚不存在，现在开启必然误报；文本已备好，B3-5 开启；
+  2. `tools/` 仍 import `lighttrail.agent.tools`（全局注册表 R1）→ 由 B2-1~B2-4 的声明式 ToolSpec +
+     装配根解决，本批不动；
+  3. `.env` 不再注入 `os.environ`（旧 `_load_dotenv` 行为）：仅影响非 Settings 键的外部覆盖
+     （如 `tools/weather.py` 读的 `OPEN_METEO_BASE_URL` 需用真实环境变量），B3-2 数据源适配层归一化；
+  4. `Confidence` 用 `str, Enum` 而非 `enum.StrEnum`（py310 兼容取舍，见 B1-1）。
+- **下一步**：停在闸门 1，等主理人确认后进 B2（引擎重写：B2-1 ~ B2-7）。
 ## 2026-09-13（B0 止血护栏：修三 bug + 补 tokens + 清假注释）
 
 > 批次定位：`docs/REFACTOR-ROADMAP.md` §2。B0 不改架构，只修已确诊 bug 与「注释承诺 > 实现」

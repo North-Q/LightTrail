@@ -13,15 +13,15 @@
 - [x] B0-3 四处假注释清理（client 缓存 / trace tokens / pipelines 时效 / orchestrator 档案定位）
 - [x] B0-4 B0 收口（回归 + 重构前基线：pytest 230 / ruff 0 / 冒烟 21 / CLI+Web 真实实跑 / tag refactor-baseline）
 
-### B1 契约层 + 配置 ★ 下一步
+### B1 契约层 + 配置 ✅ 已完成（2026-09-13，停闸门 1）
 
-- [ ] B1-1 contracts/ 骨架（ToolSpec / ToolContext / RequestContext）
-- [ ] B1-2 契约模型迁移（Intent / DecisionCard / TraceEvent / Plan + shim）
-- [ ] B1-3 用户体系预留接口（UserConfigProvider / KeyVault / LLMConfig，Key 掩码）
-- [ ] B1-4 剩余 Protocol（MemoryStore / KnowledgeProvider / DataSource / TraceSink）
-- [ ] B1-5 config.py 换 pydantic-settings + 护栏配置项 + import-linter 契约门禁
+- [x] B1-1 contracts/ 骨架（ToolSpec / ToolContext / RequestContext）
+- [x] B1-2 契约模型迁移（Intent / DecisionCard / TraceEvent / Plan + shim）
+- [x] B1-3 用户体系预留接口（UserConfigProvider / KeyVault / LLMConfig，Key 掩码）
+- [x] B1-4 剩余 Protocol（MemoryStore / KnowledgeProvider / DataSource / TraceSink）
+- [x] B1-5 config.py 换 pydantic-settings + 护栏配置项 + import-linter 契约门禁
 
-### B2 引擎重写
+### B2 引擎重写 ★ 下一步
 
 - [ ] B2-1 声明式 ToolSpec 改造：basic + exposure
 - [ ] B2-2 声明式 ToolSpec 改造：astronomy + weather
