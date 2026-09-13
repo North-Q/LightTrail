@@ -23,13 +23,15 @@ import time
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from openai import AsyncOpenAI, OpenAI
 from openai.resources.chat.completions import Completions as _OpenAICompletions
 
 from lighttrail.config import DEFAULT_MODEL
-from lighttrail.infra.quota import QuotaLedger
+
+if TYPE_CHECKING:  # 仅类型注解：运行时不 import quota，避免 client ↔ quota 循环依赖
+    from lighttrail.infra.quota import QuotaLedger
 
 logger = logging.getLogger("lighttrail.llm")
 

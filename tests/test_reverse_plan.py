@@ -106,9 +106,8 @@ def test_reverse_tool_sends_image_and_returns_plan(workdir: Path, monkeypatch) -
     image = workdir / "ref.png"
     _make_png(image)
     fake = FakeChatClient([{"role": "assistant", "content": _REVERSE_JSON}])
-    monkeypatch.setattr(photo, "_get_client", lambda: fake)
     monkeypatch.setattr(photo, "load_settings", lambda: type("S", (), {"data_dir": str(workdir)})())
-    result = photo.reverse_engineer_photo(str(image), note="我在杭州，只能周末去")
+    result = photo.reverse_engineer_photo(str(image), note="我在杭州，只能周末去", client=fake)
     assert result["复刻计划"].startswith("周末傍晚去临港海边")
     assert "机位特征" in result
     assert result["后期风格"] == "暖调、轻度 HDR"
@@ -130,9 +129,8 @@ def test_reverse_tool_retry_then_succeed(workdir: Path, monkeypatch) -> None:
             {"role": "assistant", "content": _REVERSE_JSON},
         ]
     )
-    monkeypatch.setattr(photo, "_get_client", lambda: fake)
     monkeypatch.setattr(photo, "load_settings", lambda: type("S", (), {"data_dir": str(workdir)})())
-    photo.reverse_engineer_photo(str(image))
+    photo.reverse_engineer_photo(str(image), client=fake)
     assert len(fake.calls) == 2
 
 
@@ -149,11 +147,16 @@ def test_orchestrator_reverse_plan_full_flow(workdir: Path, monkeypatch) -> None
     _make_png(image)
     # 多模态走 photo 模块客户端；agent.reason 走编排客户端
     photo_fake = FakeChatClient([{"role": "assistant", "content": _REVERSE_JSON}])
-    monkeypatch.setattr(photo, "_get_client", lambda: photo_fake)
     monkeypatch.setattr(photo, "load_settings", lambda: type("S", (), {"data_dir": str(workdir)})())
     agent_fake = FakeChatClient([{"role": "assistant", "content": _CARD_JSON}])
     agent = Agent(agent_fake, registry, model="ecnu-plus")
-    orc = Orchestrator(agent_fake, registry, agent, dispatch=_fake_dispatch)
+
+    def _fake_reverse(image_path: str, note: str, equipment: str) -> dict:
+        return photo.reverse_engineer_photo(image_path, note=note, equipment=equipment, client=photo_fake)
+
+    orc = Orchestrator(
+        agent_fake, registry, agent, dispatch=_fake_dispatch, photo_reverse=_fake_reverse
+    )
     text = orc.reverse_plan(str(image), note="只能周末去")
 
     assert "## 拍摄方案" in text
@@ -176,12 +179,17 @@ def test_orchestrator_reverse_plan_fallback_on_failure(workdir: Path, monkeypatc
             {"role": "assistant", "content": "依旧坏"},
         ]
     )
-    monkeypatch.setattr(photo, "_get_client", lambda: photo_fake)
     monkeypatch.setattr(photo, "load_settings", lambda: type("S", (), {"data_dir": str(workdir)})())
     agent_fake = FakeChatClient([{"role": "assistant", "content": "复刻不了的话我可以帮你找类似的机位。"}])
     # photo_fake 恒坏 → reverse_engineer_photo 抛 PhotoError → 降级 agent.run
     agent = Agent(agent_fake, registry, model="ecnu-plus")
-    orc = Orchestrator(agent_fake, registry, agent, dispatch=_fake_dispatch)
+
+    def _fake_reverse(image_path: str, note: str, equipment: str) -> dict:
+        return photo.reverse_engineer_photo(image_path, note=note, equipment=equipment, client=photo_fake)
+
+    orc = Orchestrator(
+        agent_fake, registry, agent, dispatch=_fake_dispatch, photo_reverse=_fake_reverse
+    )
     text = orc.reverse_plan(str(image))
     assert isinstance(text, str)
     assert len(text) > 0

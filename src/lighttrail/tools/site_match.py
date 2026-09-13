@@ -12,7 +12,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from lighttrail.agent.tools import registry
+from lighttrail.contracts.tool import Confidence, Tool, ToolSpec
+from lighttrail.tools._base import PureTool
 from lighttrail.tools.astronomy import (
     _DIRECTION_NAMES,
     _parse_date,
@@ -66,7 +67,7 @@ def _angular_delta(a: float, b: float) -> float:
 # ------------------------------------------------------------------
 # 对外工具
 # ------------------------------------------------------------------
-@registry.tool(
+_SPEC_MATCH_SITES = ToolSpec(
     name="match_sites",
     description=(
         "机位 × 天象匹配：给定候选机位列表（名称/经纬度/题材/朝向）与日期，"
@@ -112,7 +113,11 @@ def _angular_delta(a: float, b: float) -> float:
         },
         "required": ["sites", "date"],
     },
+    capabilities=frozenset(['tools']),
+    main_field="匹配结果",
+    confidence=Confidence.MEDIUM,
 )
+
 def match_sites(sites: list[dict[str, Any]], date: str, tz_offset: str = "+08:00") -> dict:
     """对候选机位做天象匹配排序。
 
@@ -289,3 +294,9 @@ def _evaluate_galaxy_site(
         },
         "依据": reasons,
     }
+
+
+# ------ 声明式收集点（ToolSpec 真源；新增工具 = 加一行）------
+TOOLS: tuple[Tool, ...] = (
+    PureTool(spec=_SPEC_MATCH_SITES, func=match_sites),
+)

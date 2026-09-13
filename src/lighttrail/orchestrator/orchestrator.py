@@ -46,6 +46,18 @@ def _default_photo_analyze() -> Callable[[str, str], dict]:
     return analyze
 
 
+def _default_photo_reverse() -> Callable[[str, str, str], dict]:
+    """默认照片反推绑定（延迟 import tools.photo_analysis；测试注入 Fake）。"""
+    from lighttrail.tools import photo_analysis
+
+    def reverse(image_path: str, note: str, equipment: str) -> dict:
+        return photo_analysis.reverse_engineer_photo(
+            image_path, note=note, equipment=equipment
+        )
+
+    return reverse
+
+
 def _extract_plan_params(plan_reference: str) -> list[dict[str, Any]]:
     """从历史计划文本中提取参数列表（DecisionCard JSON 的 params；非法返回空）。"""
     if not plan_reference:
@@ -140,6 +152,7 @@ class Orchestrator:
         router: ModelRouter | None = None,
         dispatch: Callable[[str, str], str] | None = None,
         photo_analyze: Callable[[str, str], dict] | None = None,
+        photo_reverse: Callable[[str, str, str], dict] | None = None,
     ) -> None:
         """初始化编排器。
 
@@ -152,6 +165,8 @@ class Orchestrator:
             router: 模型路由（缺省取 agent 内部路由）。
             dispatch: 数据采集函数（工具名, 参数 JSON）→ 结果 JSON；缺省用注册表
                 直调并注入 recorder；测试可传 Fake 数据源（不触网、不依赖 API Key）。
+            photo_analyze: 照片分析绑定（缺省走 photo_analysis 工具与部署级客户端）。
+            photo_reverse: 照片反推绑定（同上；测试注入 Fake，避免依赖模块级全局）。
         """
         self._client = client
         self._registry = registry
@@ -167,6 +182,7 @@ class Orchestrator:
             router=self._router,
             photo_analyze=photo_analyze or _default_photo_analyze(),
         )
+        self._photo_reverse = photo_reverse or _default_photo_reverse()
         self.last_card: DecisionCard | None = None
 
     # ------ 对外接口 ------
@@ -294,10 +310,8 @@ class Orchestrator:
         Raises:
             多模态/数据采集/rSchema 校验失败向上抛（由 reverse_plan 捕获降级）。
         """
-        import lighttrail.tools.photo_analysis as photo
-
         self._recorder.record_step("反推_多模态", input_summary=image_path[:80], output_summary="")
-        reverse = photo.reverse_engineer_photo(image_path, note=note, equipment=equipment)
+        reverse = self._photo_reverse(image_path, note, equipment)
         date_iso, data = self._collect_candidate_day()
         self._recorder.record_step(
             "反推_候选日", input_summary=date_iso, output_summary=json.dumps(data, ensure_ascii=False)[:120]

@@ -202,9 +202,7 @@ def _review_fake_agent_client() -> FakeChatClient:
 
 def test_review_pipeline_closed_loop(monkeypatch) -> None:
     """复盘闭环：照片分析 → 对账 → reason 复盘卡（端到端，Fake 不触网）。"""
-    import lighttrail.tools.photo_analysis as photo_mod
 
-    monkeypatch.setattr(photo_mod, "_get_client", lambda: FakeChatClient([]))
     fake = _review_fake_agent_client()
     agent = Agent(fake, registry, model="ecnu-plus")
     orc = Orchestrator(

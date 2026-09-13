@@ -131,8 +131,7 @@ def test_analyze_photo_sends_image_and_uses_vision_route(workdir: Path, monkeypa
     png = workdir / "shot.png"
     _make_png(png)
     fake = FakeChatClient([_OK_JSON])
-    monkeypatch.setattr(photo, "_get_client", lambda: fake)
-    result = analyze_photo(str(png), focus="看暗部细节")
+    result = analyze_photo(str(png), focus="看暗部细节", client=fake)
     assert result["可执行处方"].startswith("下次 f/8")
     assert result["置信度"] == "medium"
     call = fake.calls[0]
@@ -150,8 +149,7 @@ def test_analyze_photo_retries_with_correction_then_succeeds(workdir: Path, monk
     png = workdir / "shot.png"
     _make_png(png)
     fake = FakeChatClient(["这不是 JSON", _OK_JSON])
-    monkeypatch.setattr(photo, "_get_client", lambda: fake)
-    result = analyze_photo(str(png))
+    result = analyze_photo(str(png), client=fake)
     assert len(fake.calls) == 2
     second_text = fake.calls[1]["messages"][-1]["content"][0]["text"]
     assert "未通过结构化校验" in second_text
@@ -163,9 +161,8 @@ def test_analyze_photo_fails_after_exhausted_retries(workdir: Path, monkeypatch)
     png = workdir / "shot.png"
     _make_png(png)
     fake = FakeChatClient(["坏", "坏", "坏"])
-    monkeypatch.setattr(photo, "_get_client", lambda: fake)
     with pytest.raises(PhotoError):
-        analyze_photo(str(png))
+        analyze_photo(str(png), client=fake)
     assert len(fake.calls) == 3
 
 
@@ -179,8 +176,7 @@ def test_analyze_photo_gear_from_profile(workdir: Path, monkeypatch) -> None:
     png = workdir / "shot.png"
     _make_png(png)
     fake = FakeChatClient([_OK_JSON])
-    monkeypatch.setattr(photo, "_get_client", lambda: fake)
-    analyze_photo(str(png))
+    analyze_photo(str(png), client=fake)
     prompt_text = fake.calls[0]["messages"][-1]["content"][0]["text"]
     assert "松下 S5M2" in prompt_text
     assert "24-105mm F4" in prompt_text
@@ -189,10 +185,9 @@ def test_analyze_photo_gear_from_profile(workdir: Path, monkeypatch) -> None:
 def test_analyze_photo_explicit_equipment_wins(workdir: Path, monkeypatch) -> None:
     """显式 equipment 覆盖档案器材。"""
     fake = FakeChatClient([_OK_JSON])
-    monkeypatch.setattr(photo, "_get_client", lambda: fake)
     png = workdir / "shot.png"
     _make_png(png)
-    analyze_photo(str(png), equipment="索尼 A7M4 + 16-35mm")
+    analyze_photo(str(png), equipment="索尼 A7M4 + 16-35mm", client=fake)
     text = fake.calls[0]["messages"][-1]["content"][0]["text"]
     assert "索尼 A7M4" in text
     assert "松下" not in text

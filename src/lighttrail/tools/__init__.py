@@ -20,12 +20,16 @@ from lighttrail.tools import (
     weather,
 )
 
-# 声明式工具清单（主路径逐步接管；B2-1 起 basic / exposure，B2-2 起 astronomy / weather）
+# 声明式工具清单：15 个工具全部声明式（新增工具 = 在此追加一行）
+# 智能工具（记忆检索 / 照片分析 / 照片反推）的依赖经工厂注入，无模块级可写全局
 TOOLS: tuple[Tool, ...] = (
     *basic.TOOLS,
     *exposure.TOOLS,
     *astronomy.TOOLS,
     *weather.TOOLS,
+    *site_match.TOOLS,
+    *memory_tool.build_tools(memory_tool.default_store_factory),
+    *photo_analysis.build_tools(photo_analysis.default_client_factory),
 )
 
 # TODO(B2-4): 迁移期把声明式工具挂到旧全局注册表，供既有调用方（cli / tests）使用；

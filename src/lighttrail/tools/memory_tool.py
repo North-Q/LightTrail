@@ -1,41 +1,34 @@
 """事件记忆检索工具（M1.2：search_memory 供 ReAct 主动检索）。
 
-设计要点（架构 v2.0 §2.5，E3-2 落地）：
+设计要点（架构 v2.0 §2.5，E3-2 落地；B2-3 去全局态）：
 - 工具返回结构化中文事件列表（含坐标与天气/天象快照），供模型做个性化判断、
   复拍对比（D2.3-07）等需要历史记忆的场景主动检索；
-- 默认存储指向 data_dir/events.db（经 load_settings 读取，可被测试注入替换）；
+- 存储依赖**经构造注入**（store_factory）：本模块无模块级可写全局、无 setter ——
+  测试与装配根各自构造自己的 SearchMemoryTool，互不污染（R1/R2 的解药）；
 - 检索三个维度：关键词（地点/摘要/标签模糊）、地点、题材，参数化查询防注入。
 """
 
 from __future__ import annotations
 
+import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from lighttrail.agent.tools import registry
 from lighttrail.config import load_settings
+from lighttrail.contracts.tool import Confidence, Tool, ToolContext, ToolResult, ToolSpec
 from lighttrail.memory.events import EventRecord, EventStore
 
-# 模块级默认存储：首次调用时按配置初始化（测试可经 set_event_store 注入替换）
-_DEFAULT_STORE: EventStore | None = None
 
+def default_store_factory() -> EventStore:
+    """按部署配置构造默认事件存储（data_dir/events.db）。
 
-def set_event_store(store: EventStore | None) -> None:
-    """替换默认事件存储（测试注入用；传 None 恢复懒加载）。
+    由装配根（或迁移期收集点）调用；本模块不持有任何全局存储实例。
 
-    Args:
-        store: 事件存储实例。
+    Returns:
+        事件存储实例。
     """
-    global _DEFAULT_STORE
-    _DEFAULT_STORE = store
-
-
-def _get_store() -> EventStore:
-    """返回当前事件存储（缺省按 settings.data_dir/events.db 懒加载）。"""
-    global _DEFAULT_STORE
-    if _DEFAULT_STORE is None:
-        _DEFAULT_STORE = EventStore(Path(load_settings().data_dir) / "events.db")
-    return _DEFAULT_STORE
+    return EventStore(Path(load_settings().data_dir) / "events.db")
 
 
 def _event_to_dict(event: EventRecord) -> dict[str, Any]:
@@ -53,7 +46,7 @@ def _event_to_dict(event: EventRecord) -> dict[str, Any]:
     }
 
 
-@registry.tool(
+_SPEC_SEARCH_MEMORY = ToolSpec(
     name="search_memory",
     description=(
         "检索历史拍摄事件记忆：按关键词（地点/摘要/标签）、地点、题材过滤，返回最近命中的事件列表"
@@ -86,11 +79,23 @@ def _event_to_dict(event: EventRecord) -> dict[str, Any]:
         },
         "required": [],
     },
+    capabilities=frozenset(["tools"]),
+    main_field="命中数",
+    confidence=Confidence.LOW,
 )
-def search_memory(query: str = "", location: str = "", subject_type: str = "", limit: int = 5) -> dict:
-    """检索历史拍摄事件。
+
+
+def search_memory(
+    store: EventStore,
+    query: str = "",
+    location: str = "",
+    subject_type: str = "",
+    limit: int = 5,
+) -> dict:
+    """检索历史拍摄事件（存储显式传入，模块无全局态）。
 
     Args:
+        store: 事件存储。
         query: 关键词（模糊匹配地点/摘要/标签）。
         location: 地点关键字（模糊）。
         subject_type: 题材（精确）。
@@ -101,7 +106,7 @@ def search_memory(query: str = "", location: str = "", subject_type: str = "", l
     """
     if not 1 <= limit <= 10:
         return {"error": "limit 须在 1-10 之间"}
-    events = _get_store().search_events(
+    events = store.search_events(
         query,
         location=location or None,
         subject_type=subject_type or None,
@@ -112,3 +117,44 @@ def search_memory(query: str = "", location: str = "", subject_type: str = "", l
         "事件": [_event_to_dict(event) for event in events],
         "提示": "坐标为拍摄机位精确值，可配合当前天象/天气判断复拍价值",
     }
+
+
+class SearchMemoryTool:
+    """事件记忆检索工具：存储经构造注入（无模块级全局与服务定位器）。
+
+    Args:
+        store_factory: 事件存储工厂（每次调用取一次，便于装配根懒加载与测试注入）。
+    """
+
+    spec = _SPEC_SEARCH_MEMORY
+
+    def __init__(self, store_factory: Callable[[], EventStore]) -> None:
+        self._store_factory = store_factory
+
+    def __call__(self, ctx: ToolContext, **kwargs: Any) -> ToolResult:
+        """执行检索（依赖从工厂取，ctx 未用）。
+
+        Args:
+            ctx: 运行上下文（本工具依赖在构造时注入）。
+            **kwargs: 检索参数。
+
+        Returns:
+            工具返回载体。
+        """
+        data = search_memory(self._store_factory(), **kwargs)
+        return ToolResult(content=json.dumps(data, ensure_ascii=False, default=str), data=data)
+
+
+def build_tools(store_factory: Callable[[], EventStore]) -> tuple[Tool, ...]:
+    """构造本模块工具（依赖显式注入；装配根/测试各自构造自己的实例）。
+
+    Args:
+        store_factory: 事件存储工厂。
+
+    Returns:
+        本模块的声明式工具元组。
+    """
+    return (SearchMemoryTool(store_factory),)
+
+
+__all__ = ["SearchMemoryTool", "build_tools", "default_store_factory", "search_memory"]

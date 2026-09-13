@@ -168,23 +168,21 @@ def test_build_injections_appends_events_block(events_dir) -> None:
 def test_search_memory_tool_returns_structured_events(store, monkeypatch) -> None:
     """工具返回中文字段事件（含坐标与快照），命中数为 0 时返回空列表。"""
     _seed(store)
-    monkeypatch.setattr(memory_tool, "_DEFAULT_STORE", store)
-    result = memory_tool.search_memory(location="福州")
+    result = memory_tool.search_memory(store, location="福州")
     assert result["命中数"] == 1
     event = result["事件"][0]
     assert event["坐标"] == "31.2301,121.4735"
     assert event["天气/天象快照"]["火烧云评分"] == 78
     assert event["题材"] == "朝霞"
-    empty = memory_tool.search_memory(query="银河")
+    empty = memory_tool.search_memory(store, query="银河")
     assert empty["命中数"] == 0
     assert empty["事件"] == []
 
 
 def test_search_memory_tool_validates_limit(store, monkeypatch) -> None:
     """limit 越界返回 error。"""
-    monkeypatch.setattr(memory_tool, "_DEFAULT_STORE", store)
-    assert "error" in memory_tool.search_memory(limit=0)
-    assert "error" in memory_tool.search_memory(limit=11)
+    assert "error" in memory_tool.search_memory(store, limit=0)
+    assert "error" in memory_tool.search_memory(store, limit=11)
 
 
 def test_search_memory_registered() -> None:
