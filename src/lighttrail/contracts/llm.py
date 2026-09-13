@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
@@ -65,6 +66,7 @@ class LLMProvider(Protocol):
         temperature: float = 0.2,
         thinking: dict[str, Any] | None = None,
         reasoning_effort: str | None = None,
+        usage_callback: Callable[[int, int], None] | None = None,
     ) -> dict[str, Any]:
         """发起一次对话补全。
 
@@ -75,6 +77,7 @@ class LLMProvider(Protocol):
             temperature: 采样温度。
             thinking: 思考模式扩展参数（None 不携带）。
             reasoning_effort: 推理强度（None 不携带）。
+            usage_callback: token 用量回传（输入, 输出）；供应商未返回 usage 时不回调。
 
         Returns:
             助手消息字典（role/content，可能含 tool_calls / thinking 摘要）。
