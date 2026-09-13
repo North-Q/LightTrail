@@ -4,7 +4,9 @@
 - 每个工具模块声明 `TOOLS: tuple[Tool, ...]`（ToolSpec 自描述 + 实现）；本包把它们
   汇成单一 `TOOLS`——**新增工具 = 在此追加一行**；
 - 本包只依赖 `contracts/`（领域层纪律）；工具元数据（schema / 主字段 / 置信度 / 能力）
-  不再手抄到 trace / confidence / ContextBuilder 三处。
+  不再手抄到 trace / confidence / ContextBuilder 三处；
+- B2-4 起本包不再向任何全局注册表自注册：装配根（composition.py）用
+  `ToolRegistry(TOOLS)` 构造实例并注入；旧全局单例只作为迁移期 shim 存在于 agent/tools.py。
 """
 
 from __future__ import annotations
@@ -31,12 +33,6 @@ TOOLS: tuple[Tool, ...] = (
     *memory_tool.build_tools(memory_tool.default_store_factory),
     *photo_analysis.build_tools(photo_analysis.default_client_factory),
 )
-
-# TODO(B2-4): 迁移期把声明式工具挂到旧全局注册表，供既有调用方（cli / tests）使用；
-# 装配根 composition.py 落地后由它构造 ToolRegistry(TOOLS)，本段删除。
-_registry = __import__("lighttrail.agent.tools", fromlist=["registry"]).registry
-for _tool in TOOLS:
-    _registry.register_tool(_tool)
 
 __all__ = [
     "TOOLS",

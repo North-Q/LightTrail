@@ -156,7 +156,8 @@ def test_cli_pipeline_entry_prints_card(monkeypatch, capsys) -> None:
             return "## 拍摄方案（Fake）\n- 结论：这周末银河可拍。"
 
     monkeypatch.setattr(cli_mod, "load_settings", lambda: _FakeSettings())
-    monkeypatch.setattr(cli_mod, "Orchestrator", _FakeOrchestrator)
+    # B2-4：入口改从装配根取实例，测试注入装配函数（不再 patch 全局单例/类）
+    monkeypatch.setattr(cli_mod, "build_orchestrator", lambda *args, **kwargs: _FakeOrchestrator())
 
     code = cli_mod.main(["--pipeline", "这周末想去拍银河"])
     assert code == 0

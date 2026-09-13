@@ -13,20 +13,24 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from lighttrail.agent import registry as global_registry
-from lighttrail.agent.tools import ToolRegistry
 from lighttrail.api.routes import router
 from lighttrail.api.session import SessionManager
-from lighttrail.config import DEFAULT_MODEL, load_settings
-from lighttrail.infra.quota import QuotaLedger
+from lighttrail.composition import (
+    build_client,
+    build_memory,
+    build_registry,
+    load_settings,
+)
+from lighttrail.config import DEFAULT_MODEL
 from lighttrail.llm.client import ChatClient
 from lighttrail.memory import MemoryManager
+from lighttrail.runtime.registry import ToolRegistry
 from lighttrail.tools import (  # noqa: F401  触发全部工具注册
     astronomy,
     basic,
@@ -58,7 +62,7 @@ class ApiDeps:
     client: ChatClient
     sessions: SessionManager
     memory: MemoryManager
-    registry: ToolRegistry = global_registry
+    registry: ToolRegistry = field(default_factory=build_registry)
     model: str = DEFAULT_MODEL
     reason_thinking: bool = True
     dispatch: Callable[[str, str], str] | None = None
@@ -79,16 +83,12 @@ def create_app(deps: ApiDeps | None = None) -> FastAPI:
         settings = load_settings()
         if not settings.has_api_key:
             logger.warning("未配置有效 API Key：服务可启动，但 LLM 调用会失败（请检查 .env）")
-        client = ChatClient(
-            settings.api_key,
-            settings.base_url,
-            serial_llm=settings.serial_llm,
-            quota=QuotaLedger(warn_threshold=settings.quota_warn_threshold),
-        )
+        # 装配根是唯一的 new 点（B2-4）
         deps = ApiDeps(
-            client=client,
+            client=build_client(settings),
             sessions=SessionManager(settings.data_dir),
-            memory=MemoryManager(settings.data_dir),
+            memory=build_memory(settings),
+            registry=build_registry(),
             model=settings.model,
             reason_thinking=settings.reason_thinking,
         )

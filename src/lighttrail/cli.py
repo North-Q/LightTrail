@@ -14,20 +14,16 @@ import argparse
 import logging
 import sys
 
-from lighttrail.agent import Agent, registry
-from lighttrail.config import load_settings
-from lighttrail.infra.quota import QuotaLedger
-from lighttrail.infra.trace import TraceEvent, TraceRecorder
-from lighttrail.llm import ChatClient
-from lighttrail.memory import MemoryManager
-from lighttrail.orchestrator import Orchestrator
-from lighttrail.tools import (  # noqa: F401  触发全部工具注册
-    astronomy,
-    basic,
-    exposure,
-    site_match,
-    weather,
+from lighttrail.composition import (
+    build_agent,
+    build_client,
+    build_memory,
+    build_orchestrator,
+    build_recorder,
+    build_registry,
+    load_settings,
 )
+from lighttrail.infra.trace import TraceEvent
 
 BANNER = "LightTrail · 光迹（拍摄决策引擎）—— 输入 /help 查看命令"
 
@@ -81,27 +77,17 @@ def main(argv: list[str] | None = None) -> int:
         print("未检测到有效 API Key。请复制 .env.example 为 .env，填入 LLM_API_KEY 后重试（ECNU_API_KEY 兼容）。")
         return 1
 
-    client = ChatClient(
-        settings.api_key,
-        settings.base_url,
-        serial_llm=settings.serial_llm,
-        quota=QuotaLedger(warn_threshold=settings.quota_warn_threshold),
-    )
-    memory = MemoryManager(settings.data_dir)
-    recorder = TraceRecorder()
+    # 装配根是唯一的 new 点（B2-4）：CLI 不再取模块级全局单例
+    recorder = build_recorder()
     recorder.subscribe(_print_progress)
-    agent = Agent(
-        client,
-        registry,
-        model=settings.model,
-        memory=memory,
-        reason_thinking=settings.reason_thinking,
-        recorder=recorder,
-    )
+    client = build_client(settings)
+    registry = build_registry(recorder=recorder)
+    memory = build_memory(settings)
+    agent = build_agent(client, registry, settings=settings, memory=memory, recorder=recorder)
 
     if args.pipeline:
         request = " ".join(args.pipeline)
-        orchestrator = Orchestrator(client, registry, agent, memory=memory, recorder=recorder)
+        orchestrator = build_orchestrator(client, registry, agent, memory=memory, recorder=recorder)
         print(orchestrator.plan(request))
         return 0
 
