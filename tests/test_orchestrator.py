@@ -12,7 +12,8 @@ from __future__ import annotations
 
 import json
 
-from lighttrail.agent import Agent
+from lighttrail.adapters.llm.provider import ChatClientProvider
+from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.agent.tools import registry
 from lighttrail.infra.trace import TraceRecorder
 from lighttrail.orchestrator import Orchestrator
@@ -25,6 +26,7 @@ from lighttrail.orchestrator.pipelines import (
     default_mode,
 )
 from lighttrail.orchestrator.schemas import DecisionCard, Intent
+from lighttrail.runtime.agent import AgentRuntime
 from lighttrail.tools import (  # noqa: F401  触发注册
     astronomy,
     basic,
@@ -46,8 +48,29 @@ class FakeChatClient:
         self.calls.append({"messages": messages, **kwargs})
         return self._responses.pop(0)
 
+    async def acall(self, messages, **kwargs) -> dict:
+        """async 通道：B2-7 起编排器经 AgentRuntime → Model 桥走 acall。"""
+        return self.chat(messages, **kwargs)
+
 
 _INTENT_JSON = json.dumps({"subject_type": "银河", "location": "", "time_hint": "这周末", "mode": "inspiration"}, ensure_ascii=False)
+def _runtime(
+    fake: FakeChatClient,
+    *,
+    recorder: TraceRecorder | None = None,
+    model: str = "ecnu-plus",
+    reason_model: str = "ecnu-max",
+) -> AgentRuntime:
+    """把伪客户端经自定义 Model 桥接成 AgentRuntime（B2-7：替代旧 Agent 门面）。"""
+    provider = ChatClientProvider(fake)
+    return AgentRuntime(
+        LightTrailModel(provider, model_name=model, recorder=recorder),
+        registry,
+        reason_model=LightTrailModel(provider, model_name=reason_model, recorder=recorder),
+        recorder=recorder,
+    )
+
+
 _CARD_JSON = json.dumps(
     {
         "conclusion": "周末银河可见，建议 20:30-23:00 前往崇明东滩。",
@@ -152,8 +175,8 @@ def test_orchestrator_plan_full_flow() -> None:
             {"role": "assistant", "content": _CARD_JSON},
         ]
     )
-    agent = Agent(fake, registry, model="ecnu-plus")
-    orc = Orchestrator(fake, registry, agent, recorder=recorder, dispatch=_fake_dispatch)
+    runtime = _runtime(fake, recorder=recorder)
+    orc = Orchestrator(fake, registry, runtime, recorder=recorder, dispatch=_fake_dispatch)
     text = orc.plan("这周末想去拍银河")
 
     assert "## 拍摄方案" in text
@@ -179,8 +202,8 @@ def test_orchestrator_plan_falls_back_to_react_on_bad_card() -> None:
     bad_card = {"role": "assistant", "content": "这不是 JSON"}
     reply = {"role": "assistant", "content": "我建议先看云图再决定。"}
     fake = FakeChatClient([{"role": "assistant", "content": _INTENT_JSON}, bad_card, bad_card, bad_card, reply])
-    agent = Agent(fake, registry, model="ecnu-plus")
-    orc = Orchestrator(fake, registry, agent, recorder=recorder, dispatch=_fake_dispatch)
+    runtime = _runtime(fake, recorder=recorder)
+    orc = Orchestrator(fake, registry, runtime, recorder=recorder, dispatch=_fake_dispatch)
     text = orc.plan("今晚火烧云值得冲吗")
 
     assert text == "我建议先看云图再决定。"
@@ -199,8 +222,8 @@ def test_fallback_carries_card_context() -> None:
             {"role": "assistant", "content": "好，参数改激进一些。"},
         ]
     )
-    agent = Agent(fake, registry, model="ecnu-plus")
-    orc = Orchestrator(fake, registry, agent, dispatch=_fake_dispatch)
+    runtime = _runtime(fake)
+    orc = Orchestrator(fake, registry, runtime, dispatch=_fake_dispatch)
     orc.plan("这周末想去拍银河")  # 成功产出卡片
     reply = orc._fallback("参数激进一点")
     assert reply == "好，参数改激进一些。"
