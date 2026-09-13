@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from collections.abc import AsyncGenerator, Sequence
 from typing import Any
 
@@ -49,6 +50,7 @@ from pydantic_ai.models import (
 from pydantic_ai.profiles import ModelProfile, ModelProfileSpec
 
 from lighttrail.contracts.llm import LLMProvider
+from lighttrail.infra.trace import Recorder, null_trace
 
 logger = logging.getLogger("lighttrail.adapters.llm.bridge")
 
@@ -74,6 +76,7 @@ class LightTrailModel(Model):
         system: OTel `gen_ai.system` 语义值（供应商标识，默认 "lighttrail"）。
         settings: 模型级默认设置（temperature / extra_body 等）。
         profile: 能力档案覆盖（缺省见 `_DEFAULT_PROFILE`）。
+        recorder: 可观测性记录器（记录每次 LLM 调用的耗时与 token；缺省关闭态）。
     """
 
     def __init__(
@@ -84,9 +87,11 @@ class LightTrailModel(Model):
         system: str = "lighttrail",
         settings: ModelSettings | None = None,
         profile: ModelProfileSpec | None = None,
+        recorder: Recorder | None = None,
     ) -> None:
         super().__init__(settings=settings, profile=profile or _DEFAULT_PROFILE)
         self._llm = provider
+        self._recorder: Recorder = recorder or null_trace
         self._lt_model_name = model_name
         self._lt_system = system
 
@@ -132,6 +137,7 @@ class LightTrailModel(Model):
             usage["input"] = prompt_tokens
             usage["output"] = completion_tokens
 
+        started = time.perf_counter()
         try:
             reply = await self._llm.complete(
                 payload,
@@ -144,6 +150,14 @@ class LightTrailModel(Model):
             )
         except Exception as exc:
             raise ModelAPIError(self._lt_model_name, f"{type(exc).__name__}: {exc}") from exc
+        self._recorder.record_llm(
+            self._lt_model_name,
+            prompt_summary=f"消息数 {len(payload)}（pydantic-ai 桥）",
+            duration_s=time.perf_counter() - started,
+            tokens=(usage.get("input", 0) + usage.get("output", 0)) if usage else None,
+            prompt_tokens=usage.get("input"),
+            completion_tokens=usage.get("output"),
+        )
         return _to_model_response(reply, model_name=self._lt_model_name, usage=usage, provider_name=self._lt_system)
 
     def request_stream(

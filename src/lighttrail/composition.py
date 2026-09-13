@@ -12,6 +12,8 @@
 
 from __future__ import annotations
 
+from lighttrail.adapters.llm.provider import ChatClientProvider
+from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.agent import Agent
 from lighttrail.config import Settings, load_settings
 from lighttrail.infra.quota import QuotaLedger
@@ -19,6 +21,7 @@ from lighttrail.infra.trace import Recorder, TraceRecorder
 from lighttrail.llm.client import ChatClient
 from lighttrail.memory import MemoryManager
 from lighttrail.orchestrator import Orchestrator
+from lighttrail.runtime.agent import AgentRuntime
 from lighttrail.runtime.registry import ToolRegistry
 from lighttrail.tools import TOOLS
 
@@ -28,8 +31,10 @@ __all__ = [
     "build_ledger",
     "build_memory",
     "build_orchestrator",
+    "build_provider",
     "build_recorder",
     "build_registry",
+    "build_runtime",
     "load_settings",
 ]
 
@@ -59,6 +64,33 @@ def build_client(settings: Settings, *, quota: QuotaLedger | None = None) -> Cha
         settings.base_url,
         serial_llm=settings.serial_llm,
         quota=quota or build_ledger(settings),
+    )
+
+
+def build_provider(settings: Settings, *, quota: QuotaLedger | None = None) -> ChatClientProvider:
+    """构造 LLMProvider 端口实现（迁移期桥接 ChatClient；B3 换同层 async-first 实现）。"""
+    return ChatClientProvider(build_client(settings, quota=quota))
+
+
+def build_runtime(
+    provider: ChatClientProvider,
+    registry: ToolRegistry,
+    settings: Settings,
+    *,
+    recorder: Recorder | None = None,
+) -> AgentRuntime:
+    """构造 PydanticAI Agent runtime（B2-6；工具 schema 真源为 ToolSpec）。
+
+    模型桥在本层构造（装配根可用 adapters），runtime 只接收 pydantic-ai Model，
+    保持 `runtime → contracts` 的分层方向（lint-imports 强制）。
+    """
+    return AgentRuntime(
+        LightTrailModel(provider, model_name=settings.model, recorder=recorder),
+        registry,
+        reason_model=LightTrailModel(provider, model_name=settings.model_reason, recorder=recorder),
+        recorder=recorder,
+        max_tool_rounds=settings.react_max_rounds,
+        reason_thinking=settings.reason_thinking,
     )
 
 

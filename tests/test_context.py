@@ -169,7 +169,7 @@ def test_layer_versions_report() -> None:
     reg = _make_registry(("a", "工具A"), ("b", "工具B"))
     builder = _now_builder(registry=reg, layer_versions={LAYER_PROFILE: "3"})
     versions = builder.layer_versions()
-    assert versions[LAYER_ROLE] == "1"
+    assert versions[LAYER_ROLE] == "2"  # B2-6：角色层去掉手写工具清单，版本号 +1
     assert versions[LAYER_CONDUCT] == "1"
     assert versions[LAYER_TOOLS] == "2"
     assert versions[LAYER_PROFILE] == "3"
@@ -184,7 +184,7 @@ def test_version_annotations_present() -> None:
         layer_versions={LAYER_PROFILE: "3"},
     )
     system = builder.build_system_prompt()
-    assert "<!-- LightTrail prompt v: layer:role@1" in system
+    assert "<!-- LightTrail prompt v: layer:role@2" in system
     assert "layer:tools@0 -->" in system
     assert "<!-- layer:profile@3 -->" in system
     assert "<!-- layer:trace@0 -->" in system
