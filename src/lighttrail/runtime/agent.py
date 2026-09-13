@@ -181,6 +181,14 @@ class AgentRuntime:
         """当前框架消息历史（pydantic-ai ModelMessage 列表）。"""
         return list(self._messages)
 
+    def load_messages(self, messages: list[Any]) -> None:
+        """载入既有消息历史（会话恢复用；格式由调用方经桥转换）。
+
+        Args:
+            messages: pydantic-ai ModelMessage 列表。
+        """
+        self._messages = list(messages)
+
     def reset(self) -> None:
         """清空对话历史（保留装配）。"""
         self._messages = []

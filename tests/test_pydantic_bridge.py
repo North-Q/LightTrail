@@ -33,6 +33,7 @@ from pydantic_ai.models import ModelRequestParameters, ModelSettings, ToolDefini
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel, _map_messages, _map_tools
 from lighttrail.contracts.llm import LLMProvider
+from lighttrail.llm.client import UsageStats
 
 
 @pytest.fixture(autouse=True)
@@ -78,7 +79,8 @@ class _FakeChatClient:
                 }
             )
             if usage_callback is not None:
-                usage_callback(120, 30)
+                # 镜像真实 ChatClient：回传 UsageStats 对象（端口侧由适配器转成两个整数）
+                usage_callback(UsageStats(prompt_tokens=120, completion_tokens=30))
             return self._replies.pop(0)
 
         return _run()

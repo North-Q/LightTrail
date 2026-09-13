@@ -48,6 +48,11 @@ class FakeChatClient:
         self.calls.append({"messages": messages, **kwargs})
         return self._responses.pop(0)
 
+    async def acall(self, messages, **kwargs) -> dict:
+        """async 通道：委托 chat（B2-7 起 /api/chat 经 AgentRuntime 走 acall）。"""
+        allowed = {k: v for k, v in kwargs.items() if k in {"model", "tools", "temperature"}}
+        return self.chat(messages, **allowed)
+
     def queue_position(self) -> int:
         return 0
 

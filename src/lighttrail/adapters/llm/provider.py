@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from lighttrail.llm.client import ChatClient
+from lighttrail.llm.client import ChatClient, UsageStats
 
 
 class ChatClientProvider:
@@ -53,6 +53,12 @@ class ChatClientProvider:
         Raises:
             LLMError: 调用失败（重试耗尽或参数错误）。
         """
+        # 端口契约是 (输入, 输出) 两个整数；ChatClient 回传的是 UsageStats 对象——
+        # 适配在这里完成（真实链路只有经适配器才能过，测试 fake 必须镜像真实签名）。
+        def _on_usage(stats: UsageStats) -> None:
+            if usage_callback is not None:
+                usage_callback(stats.prompt_tokens, stats.completion_tokens)
+
         return await self._client.acall(
             messages,
             model=model,
@@ -60,7 +66,7 @@ class ChatClientProvider:
             temperature=temperature,
             thinking=thinking,
             reasoning_effort=reasoning_effort,
-            usage_callback=usage_callback,
+            usage_callback=_on_usage if usage_callback is not None else None,
         )
 
     def queue_position(self) -> int:

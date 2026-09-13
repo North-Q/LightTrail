@@ -24,6 +24,12 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from lighttrail.adapters.llm.provider import ChatClientProvider
+from lighttrail.adapters.llm.pydantic_bridge import (
+    LightTrailModel,
+    from_openai_history,
+    to_openai_history,
+)
 from lighttrail.agent import Agent
 from lighttrail.api.events import (
     EVENT_DONE,
@@ -31,10 +37,12 @@ from lighttrail.api.events import (
     TraceBridge,
     pump,
 )
+from lighttrail.composition import build_context
 from lighttrail.contracts.models import DecisionCard
 from lighttrail.infra.trace import Recorder, TraceRecorder
 from lighttrail.orchestrator import Orchestrator
 from lighttrail.orchestrator.orchestrator import _render_card
+from lighttrail.runtime.agent import AgentRuntime
 
 logger = logging.getLogger("lighttrail.api.routes")
 
@@ -134,8 +142,16 @@ def _stream_response(stream: AsyncIterator[str]) -> StreamingResponse:
 router = APIRouter()
 
 
-def _run_setup(deps: Any, recorder: TraceRecorder) -> tuple[Agent, Orchestrator]:
-    """组装本次请求的 Agent/Orchestrator（共享 per-request recorder）。"""
+def _run_setup(deps: Any, recorder: TraceRecorder) -> tuple[AgentRuntime, Orchestrator]:
+    """组装本次请求的 runtime（自由对话）与 Orchestrator（管线），共享 per-request recorder。"""
+    provider = ChatClientProvider(deps.client)
+    runtime = AgentRuntime(
+        LightTrailModel(provider, model_name=deps.model, recorder=recorder),
+        deps.registry,
+        context=build_context(deps.registry, recorder=recorder, memory=deps.memory),
+        recorder=recorder,
+        reason_thinking=deps.reason_thinking,
+    )
     agent = Agent(
         deps.client,
         deps.registry,
@@ -156,7 +172,7 @@ def _run_setup(deps: Any, recorder: TraceRecorder) -> tuple[Agent, Orchestrator]
         dispatch=dispatch,
         photo_analyze=deps.photo_analyze,
     )
-    return agent, orchestrator
+    return runtime, orchestrator
 
 
 @router.post("/api/chat", summary="自由对话（ReAct），SSE 流式事件")
@@ -171,10 +187,10 @@ async def chat(payload: ChatRequest, request: Request) -> StreamingResponse:
     bridge.attach(queue, loop, session_id=session.session_id)
 
     def run() -> tuple[list[dict[str, Any]], str, Any]:
-        agent, _ = _run_setup(deps, recorder)
-        agent.load_history(session.history)
-        text, report = agent.run_with_trace(payload.message)
-        return agent.history, text, report
+        runtime, _ = _run_setup(deps, recorder)
+        runtime.load_messages(from_openai_history(session.history))
+        text, report = runtime.run_with_trace(payload.message)
+        return to_openai_history(runtime.messages), text, report
 
     async def worker() -> None:
         try:

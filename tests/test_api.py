@@ -49,6 +49,11 @@ class FakeChatClient:
         self.calls.append({"messages": messages, **kwargs})
         return self._responses.pop(0)
 
+    async def acall(self, messages, **kwargs) -> dict:
+        """async 通道：委托 chat（B2-7 起 /api/chat 经 AgentRuntime 走 acall）。"""
+        allowed = {k: v for k, v in kwargs.items() if k in {"model", "tools", "temperature"}}
+        return self.chat(messages, **allowed)
+
     def queue_position(self) -> int:
         """伪客户端不真正排队，恒返回 0（供 queued 事件位置计算）。"""
         return 0
@@ -190,7 +195,11 @@ async def test_chat_error_event(make_app) -> None:
         def chat(self, messages, **kwargs) -> dict:
             raise LLMError("simulated failure")
 
-        def queue_position(self) -> int:
+        async def acall(self, messages, **kwargs) -> dict:
+            """async 通道同样必败（B2-7 起 /api/chat 经 AgentRuntime 走 acall）。"""
+            raise LLMError("simulated failure")
+
+    def queue_position(self) -> int:
             return 0
 
     app, _ = make_app([])

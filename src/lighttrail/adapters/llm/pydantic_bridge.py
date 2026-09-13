@@ -342,4 +342,109 @@ def _to_model_response(
     )
 
 
-__all__ = ["LightTrailModel"]
+__all__ = ["LightTrailModel", "from_openai_history", "to_openai_history"]
+
+# ------ 会话历史双向转换（会话层用 OpenAI dict 作持久化格式）------
+def to_openai_history(messages: Sequence[ModelMessage]) -> list[dict[str, Any]]:
+    """把框架消息历史转成会话层可持久化的 OpenAI 风格字典列表。
+
+    说明：`instructions`（每轮重建的系统提示）**不进历史**——它由 ContextBuilder 每次组装；
+    `SystemPromptPart` 作为显式 system 消息保留（会话层可用于回放）。
+
+    Args:
+        messages: 框架消息历史。
+
+    Returns:
+        OpenAI 风格消息字典列表（user / assistant / tool / system）。
+    """
+    history: list[dict[str, Any]] = []
+    for message in messages:
+        if isinstance(message, ModelResponse):
+            history.append(_map_response(message))
+            continue
+        if isinstance(message, ModelRequest):
+            for part in message.parts:
+                if isinstance(part, SystemPromptPart):
+                    if part.content:
+                        history.append({"role": "system", "content": part.content})
+                elif isinstance(part, UserPromptPart):
+                    history.append({"role": "user", "content": _map_user_content(part.content)})
+                elif isinstance(part, (ToolReturnPart, RetryPromptPart)):
+                    history.append(
+                        {"role": "tool", "tool_call_id": part.tool_call_id, "content": _stringify(part.content)}
+                    )
+    return history
+
+
+def from_openai_history(history: Sequence[dict[str, Any]]) -> list[ModelMessage]:
+    """把会话层持久化的 OpenAI 风格字典列表还原为框架消息。
+
+    Args:
+        history: OpenAI 风格消息字典列表（历史落盘格式）。
+
+    Returns:
+        框架消息列表（user / assistant / tool / system；未知字段忽略）。
+
+    Raises:
+        ValueError: 工具消息缺少可解析的 tool_call_id 对应关系（避免静默丢上下文）。
+    """
+    names: dict[str, str] = {}
+    for item in history:
+        for call in item.get("tool_calls") or []:
+            function = call.get("function") or {}
+            if call.get("id"):
+                names[call["id"]] = function.get("name", "")
+
+    messages: list[ModelMessage] = []
+    for item in history:
+        role = item.get("role")
+        content = item.get("content")
+        if role == "system":
+            messages.append(ModelRequest(parts=[SystemPromptPart(content=str(content or ""))]))
+        elif role == "user":
+            messages.append(ModelRequest(parts=[UserPromptPart(content=_to_user_content(content))]))
+        elif role == "assistant":
+            parts: list[ModelResponsePart] = []
+            if content:
+                parts.append(TextPart(str(content)))
+            for call in item.get("tool_calls") or []:
+                function = call.get("function") or {}
+                parts.append(
+                    ToolCallPart(
+                        function.get("name", ""),
+                        function.get("arguments") or "{}",
+                        tool_call_id=call.get("id") or "",
+                    )
+                )
+            if parts:
+                messages.append(ModelResponse(parts=parts))
+        elif role == "tool":
+            call_id = str(item.get("tool_call_id") or "")
+            messages.append(
+                ModelRequest(
+                    parts=[
+                        ToolReturnPart(
+                            names.get(call_id, "tool"),
+                            _stringify(content),
+                            tool_call_id=call_id,
+                        )
+                    ]
+                )
+            )
+    return messages
+
+
+def _to_user_content(content: Any) -> Any:
+    """把历史里的用户内容还原为框架可接受形式（字符串或 content 列表）。"""
+    if not isinstance(content, list):
+        return "" if content is None else str(content)
+    items: list[Any] = []
+    for item in content:
+        if not isinstance(item, dict):
+            items.append(str(item))
+        elif item.get("type") == "text":
+            items.append(str(item.get("text", "")))
+        elif item.get("type") == "image_url":
+            url = (item.get("image_url") or {}).get("url", "")
+            items.append(ImageUrl(url=str(url)))
+    return items
