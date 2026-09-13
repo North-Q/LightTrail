@@ -9,7 +9,7 @@
 
 ```
 📍 当前位置：B2 批次进行中（B2-1 ~ B2-6 已完成；B2-7 部分：热插拔 + 架构禁止边已过）
-  代码基线：main 分支 HEAD <B2-7 部分> ｜ pytest 295 全绿 ｜ ruff 0 ｜ lint-imports 2 kept / 0 broken
+  代码基线：main 分支 HEAD 5acb182 ｜ pytest 295 全绿 ｜ ruff 0 ｜ lint-imports 2 kept / 0 broken
   实跑基线：CLI + Web 真实查询通过 ｜ 冒烟 21 项 ｜ 15 工具全部声明式 ｜ PydanticAI Model 桥 + AgentRuntime 已落地（尚未接管生产路径）
 🎯 当前目标：B2-7 剩余——① 生产路径切 AgentRuntime（api 会话历史 dict→ModelMessage、orchestrator/cli 换装）② TestModel 替换 8 处 FakeChatClient ③ shim 清理 → 然后 B2 收口（闸门 2 汇报）
 🏁 本期终点：B0–B7 全部批次通过出口检查，目标架构（契约层+声明式注册+async-first+知识库+意图路由）落地，随时可演示
