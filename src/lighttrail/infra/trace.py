@@ -214,19 +214,33 @@ class TraceRecorder:
         prompt_summary: str = "",
         duration_s: float = 0.0,
         tokens: int | None = None,
+        prompt_tokens: int | None = None,
+        completion_tokens: int | None = None,
     ) -> None:
-        """记录一次 LLM 调用。
+        """记录一次 LLM 调用，含本次 token 用量。
 
         Args:
             model: 模型名。
             prompt_summary: prompt 摘要（如消息数、首条用户消息片段）。
             duration_s: 调用耗时（秒）。
-            tokens: 本次调用 token 用量（未知时 None，E4-2 配额账本接入后补齐）。
+            tokens: 本次调用总 token 用量（输入 + 输出）。
+            prompt_tokens: 输入 token 用量。
+            completion_tokens: 输出 token 用量。
+
+        token 三项由 ChatClient 的 usage_callback 回传（B0-2 接通）：供应商未返回
+        usage（部分兼容网关、离线 Fake）时三项为 None，报告如实留空，不填 0 冒充。
         """
         self._emit(
             KIND_LLM,
             model,
-            {"模型": model, "prompt_summary": prompt_summary, "耗时_秒": duration_s, "tokens": tokens},
+            {
+                "模型": model,
+                "prompt_summary": prompt_summary,
+                "耗时_秒": duration_s,
+                "tokens": tokens,
+                "输入_tokens": prompt_tokens,
+                "输出_tokens": completion_tokens,
+            },
         )
 
     def record_tool(

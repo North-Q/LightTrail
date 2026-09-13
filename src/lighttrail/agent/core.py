@@ -12,10 +12,10 @@ import time
 from typing import Any
 
 from lighttrail.agent.context import DEFAULT_CONDUCT_PROMPT, DEFAULT_ROLE_PROMPT, ContextBuilder
-from lighttrail.agent.loop import MAX_TOOL_ROUNDS, ReActLoop
+from lighttrail.agent.loop import MAX_TOOL_ROUNDS, ReActLoop, _usage_token_fields
 from lighttrail.agent.tools import ToolRegistry
 from lighttrail.infra.trace import Recorder, TraceReport, null_trace
-from lighttrail.llm.client import ChatClient
+from lighttrail.llm.client import ChatClient, UsageStats
 from lighttrail.llm.router import ModelRouter, RouteIntent
 from lighttrail.memory import MemoryManager
 
@@ -138,6 +138,7 @@ class Agent:
             {"role": "user", "content": prompt},
         ]
         started = time.perf_counter()
+        captured: list[UsageStats] = []
         resp = self._client.chat(
             messages,
             model=resolved_model,
@@ -145,11 +146,13 @@ class Agent:
             temperature=temperature,
             thinking={"type": "enabled"} if self._reason_thinking else None,
             reasoning_effort=reasoning_effort if self._reason_thinking else None,
+            usage_callback=captured.append,
         )
         self._recorder.record_llm(
             resolved_model,
             prompt_summary=f"深推理问题（{len(prompt)} 字符）",
             duration_s=time.perf_counter() - started,
+            **_usage_token_fields(captured[0] if captured else None),
         )
         thinking = resp.get("thinking", "")
         if thinking:

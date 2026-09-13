@@ -17,13 +17,31 @@ from typing import Any
 from lighttrail.agent.context import ContextBuilder
 from lighttrail.agent.tools import ToolRegistry
 from lighttrail.infra.trace import Recorder, null_trace
-from lighttrail.llm.client import ChatClient
+from lighttrail.llm.client import ChatClient, UsageStats
 from lighttrail.llm.router import ModelRouter, RouteIntent
 
 logger = logging.getLogger("lighttrail.agent")
 
 # 单轮对话中允许的最大工具调用轮次（防止模型陷入无限循环）
 MAX_TOOL_ROUNDS = 8
+
+
+def _usage_token_fields(stats: UsageStats | None) -> dict[str, int | None]:
+    """把 usage 折算为 record_llm 的 token 参数（供应商未返回 usage 时三项全 None）。
+
+    Args:
+        stats: ChatClient 回传的用量；未回调时为 None。
+
+    Returns:
+        可直接展开进 record_llm 的关键字参数（tokens / prompt_tokens / completion_tokens）。
+    """
+    if stats is None:
+        return {"tokens": None, "prompt_tokens": None, "completion_tokens": None}
+    return {
+        "tokens": stats.total_tokens,
+        "prompt_tokens": stats.prompt_tokens,
+        "completion_tokens": stats.completion_tokens,
+    }
 
 
 class ReActLoop:
@@ -69,15 +87,18 @@ class ReActLoop:
             else:
                 request_messages = self._context.build(system_prompt, messages)
             started = time.perf_counter()
+            captured: list[UsageStats] = []
             resp = self._client.chat(
                 request_messages,
                 model=self._resolve_model(),
                 tools=tools,
+                usage_callback=captured.append,
             )
             self._recorder.record_llm(
                 self._model or "default",
                 prompt_summary=f"消息数 {len(request_messages)}",
                 duration_s=time.perf_counter() - started,
+                **_usage_token_fields(captured[0] if captured else None),
             )
             messages.append(resp)
 

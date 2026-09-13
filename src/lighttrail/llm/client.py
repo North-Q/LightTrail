@@ -22,6 +22,8 @@ import random
 import threading
 import time
 from collections import deque
+from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 from openai import AsyncOpenAI, OpenAI
@@ -50,6 +52,30 @@ _NATIVE_REASON_PARAMS = (
 
 class LLMError(Exception):
     """LLM 调用失败的统一异常。"""
+
+
+@dataclass(frozen=True)
+class UsageStats:
+    """单次 LLM 调用的 token 用量（供应商未返回 usage 时不存在该对象）。
+
+    Attributes:
+        prompt_tokens: 输入 token 数。
+        completion_tokens: 输出 token 数。
+        cached_input_tokens: 命中缓存的输入 token 数（供应商支持时，否则 0）。
+    """
+
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    cached_input_tokens: int = 0
+
+    @property
+    def total_tokens(self) -> int:
+        """输入 + 输出 token 总数。"""
+        return self.prompt_tokens + self.completion_tokens
+
+
+# token 用量回调：供应商返回 usage 时调用一次（供上层 trace 记账，B0-2）
+UsageCallback = Callable[[UsageStats], None]
 
 
 class _AsyncGate:
@@ -154,6 +180,7 @@ class ChatClient:
         temperature: float = 0.2,
         thinking: dict[str, Any] | None = None,
         reasoning_effort: str | None = None,
+        usage_callback: UsageCallback | None = None,
     ) -> dict[str, Any]:
         """发起一次对话补全，返回消息字典（兼容 tool_calls 字段）。
 
@@ -183,7 +210,7 @@ class ChatClient:
                 # 串行开关只包住单次往返；重试在锁外，因此并发模式下
                 # 多个调用各自重试互不阻塞
                 resp = self._request_once(payload)
-                self._record_usage(payload, resp)
+                self._record_usage(payload, resp, usage_callback)
                 return self._to_message_dict(resp)
             except Exception as exc:  # noqa: BLE001 - 需要统一判定可重试性
                 last_exc = exc
@@ -203,6 +230,7 @@ class ChatClient:
         temperature: float = 0.2,
         thinking: dict[str, Any] | None = None,
         reasoning_effort: str | None = None,
+        usage_callback: UsageCallback | None = None,
     ) -> dict[str, Any]:
         """async 对话通道（E7-1）：语义与 chat() 一致，供 FastAPI/SSE 事件循环使用。
 
@@ -220,6 +248,8 @@ class ChatClient:
             temperature: 采样温度，工具调用链路使用较低值保证稳定。
             thinking: 思考模式扩展参数（如 {"type": "enabled"}），None 时不携带。
             reasoning_effort: 推理强度（low/medium/high），None 时不携带。
+            usage_callback: token 用量回调；供应商返回 usage 时以 UsageStats 回调一次
+                （供 TraceReport 记账）。
 
         Returns:
             助手消息字典（与 chat() 同一转换逻辑，含 role/content/tool_calls/thinking）。
@@ -237,7 +267,7 @@ class ChatClient:
             try:
                 # 串行闸门只包住单次往返；重试在闸门外——并发模式下多个调用各自重试互不阻塞
                 resp = await self._request_once_async(payload)
-                self._record_usage(payload, resp)
+                self._record_usage(payload, resp, usage_callback)
                 return self._to_message_dict(resp)
             except Exception as exc:  # noqa: BLE001 - 同 chat()：统一判定可重试性
                 last_exc = exc
@@ -303,20 +333,44 @@ class ChatClient:
         if extra:
             payload["extra_body"] = extra
 
-    def _record_usage(self, payload: dict[str, Any], resp: Any) -> None:
-        """成功响应后把 usage 折算为 credits 记账（配额账本，E4-2）。"""
+    def _record_usage(
+        self,
+        payload: dict[str, Any],
+        resp: Any,
+        usage_callback: UsageCallback | None = None,
+    ) -> None:
+        """成功响应后回传 usage 给调用方，并折算 credits 记账（配额账本，E4-2）。
+
+        Args:
+            payload: 本次请求体（取模型名记账）。
+            resp: SDK 响应对象（可能不含 usage，此时两项都不做）。
+            usage_callback: 上层 token 记账回调；None 时不回调。
+        """
+        stats = self._extract_usage(resp)
+        if stats is None:
+            return
+        if usage_callback is not None:
+            usage_callback(stats)
         if self._quota is None:
             return
-        usage = getattr(resp, "usage", None)
-        if usage is None:
-            return
-        details = getattr(usage, "prompt_tokens_details", None)
-        cached_tokens = int(getattr(details, "cached_tokens", 0) or 0)
         self._quota.record(
             str(payload.get("model") or DEFAULT_MODEL),
-            int(usage.prompt_tokens or 0),
-            int(usage.completion_tokens or 0),
-            cached_input_tokens=cached_tokens,
+            stats.prompt_tokens,
+            stats.completion_tokens,
+            cached_input_tokens=stats.cached_input_tokens,
+        )
+
+    @staticmethod
+    def _extract_usage(resp: Any) -> UsageStats | None:
+        """从 SDK 响应中提取 token 用量（供应商未返回 usage 时返回 None）。"""
+        usage = getattr(resp, "usage", None)
+        if usage is None:
+            return None
+        details = getattr(usage, "prompt_tokens_details", None)
+        return UsageStats(
+            prompt_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
+            completion_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
+            cached_input_tokens=int(getattr(details, "cached_tokens", 0) or 0),
         )
 
     def _request_once(self, payload: dict[str, Any]):

@@ -3,13 +3,15 @@
 验证：
 - 深推理路由（默认深推理模型）、tools=None、temperature=0.3、thinking 开启；
 - reasoning_effort / system / model 覆盖透传；
-- thinking 摘要写入 TraceReport（M2-04 推理可见）。
+- thinking 摘要写入 TraceReport（M2-04 推理可见）；
+- B0-2：深推理调用的 usage 同样计入 TraceReport（tokens 非 None）。
 """
 
 from __future__ import annotations
 
 from lighttrail.agent import Agent, registry
 from lighttrail.infra.trace import TraceRecorder
+from lighttrail.llm.client import UsageStats
 from lighttrail.tools import basic, exposure  # noqa: F401  确保工具已注册
 
 
@@ -19,6 +21,7 @@ class FakeChatClient:
     def __init__(self) -> None:
         self.calls: list[dict] = []
         self.thinking = ""
+        self.usage: UsageStats | None = None
 
     def chat(
         self,
@@ -29,7 +32,10 @@ class FakeChatClient:
         temperature=0.2,
         thinking=None,
         reasoning_effort=None,
+        usage_callback=None,
     ) -> dict:
+        if usage_callback is not None and self.usage is not None:
+            usage_callback(self.usage)
         self.calls.append(
             {
                 "messages": messages,
@@ -110,3 +116,15 @@ def test_reason_without_thinking_no_step() -> None:
     agent = Agent(fake, registry, recorder=recorder)
     agent.reason("简单问题")
     assert [s.name for s in recorder.to_report().steps] == []
+
+def test_reason_records_usage_tokens() -> None:
+    """B0-2：深推理通道同样把 usage 计入 TraceReport（tokens 非 None）。"""
+    fake = FakeChatClient()
+    fake.usage = UsageStats(prompt_tokens=200, completion_tokens=80)
+    recorder = TraceRecorder()
+    agent = Agent(fake, registry, recorder=recorder)
+    agent.reason("分析一下这个场景")
+    call = recorder.to_report().llm_calls[0]
+    assert call["tokens"] == 280
+    assert call["输入_tokens"] == 200
+    assert call["输出_tokens"] == 80

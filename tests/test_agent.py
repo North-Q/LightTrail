@@ -17,7 +17,7 @@ class FakeChatClient:
         self._responses = list(responses)
         self.calls: list[dict] = []
 
-    def chat(self, messages, *, model=None, tools=None, temperature=0.2) -> dict:
+    def chat(self, messages, *, model=None, tools=None, temperature=0.2, usage_callback=None) -> dict:
         self.calls.append({"messages": messages, "model": model, "tools": tools})
         return self._responses.pop(0)
 

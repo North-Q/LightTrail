@@ -28,7 +28,7 @@ class _FakeChatClient:
     def __init__(self) -> None:
         self.calls: list = []
 
-    def chat(self, messages, *, model=None, tools=None, temperature=0.2) -> dict:
+    def chat(self, messages, *, model=None, tools=None, temperature=0.2, usage_callback=None) -> dict:
         self.calls.append({"messages": messages, "model": model, "tools": tools})
         return {"role": "assistant", "content": "好的。"}
 

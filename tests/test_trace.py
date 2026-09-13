@@ -6,7 +6,8 @@
 - to_report 结构化报告（工具调用链 + 来源标注 tool/field/confidence）；
 - 轨迹注入 prompt 第⑤层（第二轮 LLM 请求的 system 含轨迹文本）；
 - run_with_trace 返回 (文本, 本轮 TraceReport)，报告按 cursor 切片；
-- 参数/结果截断、data_source 提取、关闭态零开销、注册表/Agent 接线。
+- 参数/结果截断、data_source 提取、关闭态零开销、注册表/Agent 接线；
+- B0-2 链路：LLM usage 经 usage_callback 进入 TraceReport（tokens/输入/输出）。
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from lighttrail.infra.trace import (
     TraceRecorder,
     null_trace,
 )
+from lighttrail.llm.client import UsageStats
 from lighttrail.tools import basic, exposure  # noqa: F401  确保全局工具注册
 
 
@@ -178,7 +180,7 @@ class _FakeChatClient:
         self._responses = list(responses)
         self.calls: list = []
 
-    def chat(self, messages, *, model=None, tools=None, temperature=0.2) -> dict:
+    def chat(self, messages, *, model=None, tools=None, temperature=0.2, usage_callback=None) -> dict:
         self.calls.append({"messages": messages, "model": model, "tools": tools})
         return self._responses.pop(0)
 
@@ -267,3 +269,55 @@ def test_run_with_trace_report_scoped_to_this_run() -> None:
     assert len(report2.tool_calls) == 1
     # 第二次的轨迹注入包含第一次的工具调用（对模型的记忆），但报告只含本轮
     assert len(recorder.to_prompt_section().splitlines()) >= 2
+
+# ------ B0-2：token 记账（LLM usage 接通 TraceReport）------
+class _UsageFakeChatClient:
+    """带 usage 的伪客户端：按 ChatClient 契约经 usage_callback 回传用量。"""
+
+    def __init__(self, responses: list, usage: UsageStats) -> None:
+        self._responses = list(responses)
+        self.usage = usage
+        self.calls: list = []
+
+    def chat(
+        self,
+        messages,
+        *,
+        model=None,
+        tools=None,
+        temperature=0.2,
+        usage_callback=None,
+    ) -> dict:
+        self.calls.append({"messages": messages, "model": model, "tools": tools})
+        if usage_callback is not None:
+            usage_callback(self.usage)
+        return self._responses.pop(0)
+
+
+def test_record_llm_tokens_from_usage_callback() -> None:
+    """B0-2：LLM 回传 usage 后 TraceReport 记录真实 token 数（不再恒 None）。"""
+    recorder = TraceRecorder()
+    fake = _UsageFakeChatClient(
+        [_tool_call_msg(), {"role": "assistant", "content": "现在是 23:40。"}],
+        UsageStats(prompt_tokens=120, completion_tokens=30, cached_input_tokens=40),
+    )
+    agent = Agent(fake, registry, model="ecnu-plus", recorder=recorder)
+    agent.run("现在几点？")
+
+    llm_calls = recorder.to_report().llm_calls
+    assert len(llm_calls) == 2
+    assert llm_calls[0]["tokens"] == 150  # 输入 120 + 输出 30
+    assert llm_calls[0]["输入_tokens"] == 120
+    assert llm_calls[0]["输出_tokens"] == 30
+
+
+def test_record_llm_tokens_none_without_usage() -> None:
+    """供应商 / 离线 Fake 未提供 usage 时 token 三项如实为 None（不填 0 冒充）。"""
+    recorder = TraceRecorder()
+    fake = _FakeChatClient([{"role": "assistant", "content": "你好"}])
+    agent = Agent(fake, registry, model="ecnu-plus", recorder=recorder)
+    agent.run("你好")
+    call = recorder.to_report().llm_calls[0]
+    assert call["tokens"] is None
+    assert call["输入_tokens"] is None
+    assert call["输出_tokens"] is None
