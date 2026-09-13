@@ -17,6 +17,7 @@ dependencies = [
     "fastapi>=0.110",
     "uvicorn>=0.29",
     "python-multipart>=0.0.9",
+    "pydantic-settings>=2.2",
 ]
 
 [project.optional-dependencies]
@@ -25,6 +26,7 @@ dev = [
     "pytest-asyncio>=0.23",
     "ruff>=0.5",
     "httpx>=0.27",
+    "import-linter>=2.0",
 ]
 
 [project.scripts]
@@ -41,3 +43,54 @@ target-version = "py310"
 testpaths = ["tests"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
+
+# ------ 架构边界门禁（B1-5 落地第一段；其余三段在目标分层就位后开启）------
+# 纪律：import-linter 抓模块级分层与禁止依赖；函数内 import / 动态 import 由
+# tests/test_architecture.py 的 AST 兜底；品牌字面量由同一测试静态检查。
+[tool.importlinter]
+root_package = "lighttrail"
+
+[[tool.importlinter.contracts]]
+name = "契约层零依赖"
+type = "forbidden"
+source_modules = ["lighttrail.contracts"]
+forbidden_modules = [
+    "lighttrail.api",
+    "lighttrail.agent",
+    "lighttrail.orchestrator",
+    "lighttrail.tools",
+    "lighttrail.memory",
+    "lighttrail.infra",
+    "lighttrail.llm",
+    "lighttrail.adapters",
+    "lighttrail.cli",
+]
+
+# TODO(B3-5): 目标分层（interface/application/runtime/domain）就位、旧包（agent/orchestrator/
+# tools/memory/infra/llm/api/cli）迁入后，开启下面三段契约（文本已按 v4 §2.2 备好）。
+#
+# [[tool.importlinter.contracts]]
+# name = "分层契约：非法方向依赖"
+# type = "layers"
+# layers = [
+#     "lighttrail.interface",
+#     "lighttrail.application",
+#     "lighttrail.runtime",
+#     "lighttrail.domain",
+#     "lighttrail.contracts",
+# ]
+#
+# [[tool.importlinter.contracts]]
+# name = "适配器只实现端口，不被领域反向依赖"
+# type = "forbidden"
+# source_modules = ["lighttrail.domain", "lighttrail.application", "lighttrail.runtime"]
+# forbidden_modules = ["lighttrail.adapters"]
+#
+# [[tool.importlinter.contracts]]
+# name = "交互层不被任何层依赖"
+# type = "forbidden"
+# source_modules = [
+#     "lighttrail.contracts", "lighttrail.domain", "lighttrail.runtime",
+#     "lighttrail.application", "lighttrail.adapters",
+# ]
+# forbidden_modules = ["lighttrail.interface"]

@@ -1,16 +1,15 @@
 """LLM 客户端封装：OpenAI 兼容接口的薄封装。
 
 设计要点：
-- 并发策略可配置：是否串行由 `serial_llm` 开关控制（默认开，适配 ECNU
-  平台「避免并行请求」的建议；接入支持并发的 API 时设为 False 即可）。
+- 并发策略可配置（B1-5 起由 settings 驱动）：迁移期仍由 `serial_llm` 开关决定是否串行，
+  其取值来自 `settings.concurrency == 1`——并发是**纯配置**，无平台语义（ADR-004）。
   串行锁是**实例级**且只包住单次 API 往返（`chat.completions.create`），
   重试循环在锁外——关闭串行后并发与重试互不阻塞；
 - 容错：对限流（429）与服务器错误（5xx）做指数退避重试；
 - 超时：连接 30s、读取 120s，容忍模型 thinking 模式下的长响应。
 
-并发策略属于「平台适配」而非业务逻辑：产品层面默认关闭并行是 ECNU 的
-建议，不是 LightTrail 的需求。换 API 时通过 Settings.serial_llm 调整，
-业务层（Agent/管线）不感知。
+并发是配置不是架构：默认 LLM_CONCURRENCY=4（settings.concurrency），业务层（Agent/管线）
+不感知；B3 批次用单个 asyncio.Semaphore 接替本文件的 serial_llm 开关。
 """
 
 from __future__ import annotations
@@ -144,8 +143,7 @@ class ChatClient:
         api_key: API 密钥。
         base_url: OpenAI 兼容接口地址。
         timeout: (连接超时, 读取超时)。
-        serial_llm: 是否串行调用（默认 True，适配 ECNU「避免并行请求」建议；
-            接入支持并发的 API 时设 False）。
+        serial_llm: 是否串行调用；由 settings.serial_llm（concurrency == 1）派生，B3 删除。
     """
 
     def __init__(
