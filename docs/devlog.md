@@ -1,5 +1,56 @@
 # LightTrail 开发日志
 
+## 2026-09-13（B0 止血护栏：修三 bug + 补 tokens + 清假注释）
+
+> 批次定位：`docs/REFACTOR-ROADMAP.md` §2。B0 不改架构，只修已确诊 bug 与「注释承诺 > 实现」
+> 的不实注释，让重构从干净基线起步。基线起点 `c3cdafb`（文档体系切 v4）→ B0 四任务全部完成。
+
+### B0-1 修复 SessionManager 并发三 bug — 已提交（f875f5d）
+
+- **死锁**：`_evict_if_needed` 改为锁内只摘出（返回待落盘列表）、落盘在锁外完成，不再
+  「持不可重入锁再调 save」；复现路径（新建会话被淘汰）不再挂死。
+- **共享可变**：`create/get/restore` 一律返回深拷贝，缓存主体不外借，调用方改动须 `save()`
+  才生效（路由层直接改缓存对象的问题消除）。
+- **锁外非原子写**：落盘改「同目录临时文件 + `os.replace`」，加实例级写锁串行化落盘 +
+  Windows 目标占用（WinError 5）退避重试，同 id 并发保存不再写出半截 JSON。
+- **测试**：新增 4 用例（淘汰不死锁含线程超时兜底 / 淘汰补落盘 / 同 id 并发保存文件始终可
+  解析 / get-create 深拷贝隔离），`tests/test_session.py` 12 → 16；连续 6 轮跑无 flake。
+
+### B0-2 LLM usage 接通 tokens 记账 — 已提交（18d47c6）
+
+- `llm/client.py`：新增 `UsageStats` 与每次调用可选 `usage_callback`（chat/acall 共用
+  `_extract_usage`），usage 既回传上层记账、又照旧折算 QuotaLedger credits。
+- `agent/loop.py`（ReAct）与 `agent/core.py`（深推理 reason，管线末端综合走它）把 usage 折算
+  为 tokens/输入/输出 传入 `record_llm`；`TraceReport` 不再恒 None，供应商未返回 usage 时
+  三项如实 None（不填 0 冒充）。
+- **测试**：新增 3 用例（ReAct 真实 token / reason 通道 / 无 usage 如实 None），5 个测试
+  伪客户端对齐新签名；pytest 223 → 230。
+
+### B0-3 假注释清理（四处）— 已提交（9fca611）
+
+| 位置 | 处置 | 理由 |
+|---|---|---|
+| `llm/client.py:7`、`config.py:11`「缓存策略」 | 删注释 | 全仓无 LLM 响应缓存实现；响应缓存属 v4 非本期项 |
+| `infra/trace.py` tokens | 复核一致 | B0-2 已兑现，docstring 改为与实现一致（本批无新增改动） |
+| `orchestrator/pipelines.py` 时效 | 删注释 | 承诺的时效计算不存在；本批不扩大范围，时效判据随 B7 受控规划通道再评估 |
+| `orchestrator/orchestrator.py` 档案定位 | 改诚实描述 | 坐标仍为兜底常量，接 `favorite_spots` 属 B5-3 |
+
+- 顺带修正：`_candidate_sites` 的坐标是按序偏移的**占位值**（非真实机位坐标）已在 docstring
+  如实标注；`memory/semantic.py` 过期表述「E6-3 再做事件自动提炼」改为已落地表述。
+- 纯注释变更：pytest 230 全绿、ruff 0；grep 复查无残留空头承诺。
+
+### B0-4 B0 收口（回归 + 重构前基线）— 已提交（HEAD <B0-4 收口提交>）
+
+- **门禁**：`pytest tests/` 230 全绿；`ruff check src tests` 0 告警；离线冒烟 21 项通过
+  （同步修掉 `smoke.py` 伪客户端的 `usage_callback` 签名，B0-2 遗留）。
+- **真实实跑（B0 出口检查单）**：CLI `python -m lighttrail.cli` 自由对话一次真实查询通过
+  （`get_current_time` 工具链路 + 2 次 LLM 往返）；Web `uvicorn lighttrail.api.app:app` +
+  `POST /api/chat` SSE 一次真实查询通过（事件序列 queued → tool_call → tool_result → token → done）。
+- **基线标记**：本地 tag `refactor-baseline`（按纪律不 push tag）。
+- **平台中立性审计**：B0 新增代码无任何供应商品牌字面量——`UsageStats`/`usage_callback` 是
+  通用 OpenAI 兼容语义；模型名一律沿用既有 `ModelRouter` 解析结果，未新增品牌判断；新注释中
+  的 B5-3/B7 引用均为批次编号。结论：**通过**。
+- **下一步**：停在闸门 0，等主理人确认后进 B1（契约层 + 配置，B1-1 ~ B1-5）。
 ## 2026-09-12（架构重建启动：文档体系切换至 v4 方案）
 
 > 背景：v4 重构方案（`docs/architecture-v4-proposal.md`，D1–D14）已定稿，本期重心 = 架构重构（B0–B7）。

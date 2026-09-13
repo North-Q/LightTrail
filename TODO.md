@@ -1,19 +1,19 @@
 # TODO · LightTrail（光迹）
 
-> 项目待办 + 灵感收集。更新日期：2026-09-12
+> 项目待办 + 灵感收集。更新日期：2026-09-13
 > **当前阶段：架构重建期**——任务编号见 `docs/REFACTOR-ROADMAP.md`（B0-1 … B7-6）；方案权威 `docs/architecture-v4-proposal.md`；codex 入口 `docs/codex-longterm-goal.md` v7。
 > E1–E8 已完成（旧 E 系列路线图归档至 `docs/archive/DEVELOPMENT-ROADMAP-v2.5.md`）；E9/E10 等未做功能项的处置见 PRD 附录 A2（v0.4 范围修订）。
 
 ## 待办（当前阶段：架构重构 B0–B7）
 
-### B0 止血护栏 ★ 下一步
+### B0 止血护栏 ✅ 已完成（2026-09-13，停闸门 0）
 
-- [ ] B0-1 修复 SessionManager 并发三 bug（死锁 / 共享可变 / 锁外写）+ 淘汰与并发写测试
-- [ ] B0-2 record_llm 接通 tokens 记账（TraceReport 不再恒 None）
-- [ ] B0-3 四处假注释清理（client 缓存 / trace tokens / pipelines 时效 / orchestrator 档案定位）
-- [ ] B0-4 B0 收口（回归 + 重构前基线）
+- [x] B0-1 修复 SessionManager 并发三 bug（死锁 / 共享可变 / 锁外写）+ 淘汰与并发写测试
+- [x] B0-2 record_llm 接通 tokens 记账（TraceReport 不再恒 None）
+- [x] B0-3 四处假注释清理（client 缓存 / trace tokens / pipelines 时效 / orchestrator 档案定位）
+- [x] B0-4 B0 收口（回归 + 重构前基线：pytest 230 / ruff 0 / 冒烟 21 / CLI+Web 真实实跑 / tag refactor-baseline）
 
-### B1 契约层 + 配置
+### B1 契约层 + 配置 ★ 下一步
 
 - [ ] B1-1 contracts/ 骨架（ToolSpec / ToolContext / RequestContext）
 - [ ] B1-2 契约模型迁移（Intent / DecisionCard / TraceEvent / Plan + shim）

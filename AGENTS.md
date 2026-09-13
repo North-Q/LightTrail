@@ -25,7 +25,7 @@
 ## 协作约定
 - 沟通口语化、简洁直接；正式产出（文档/README/代码注释/邮件）用书面化
 - 涉及外部动作（发邮件、发布、对外提交）必须先经小北确认
-- 当前阶段：**E1–E7 已全部交付**（37 commits 已 push 至 origin/main，HEAD 8b58fd5）：地基拆分 / TraceRecorder / 四层记忆 / ModelRouter+QuotaLedger / 四管线编排与一句话出方案闭环 / 照片分析智能工具（depth=1 红线）+ 照片反推 + 复盘管线闭环 + 语义记忆提炼 / **Web 服务层**（async ChatClient 串行闸门 + SessionManager 会话持久化 + FastAPI 五端点 SSE + trace→SSE 桥接 + SPA 三核心页）；pytest **212 全绿**、ruff 0 告警、smoke 21 项通过、**15 个已注册工具**；ADR-002 平台中立性 + ADR-003 扩展参数适配已落地；E6-0 四管线真实联调 + E7-0 SSE 真实联调均通过、远程基线已建立。**下一步 E8 评估体系**（三层评估：黄金用例集 cassette 回放 + LLM-as-judge，质量回归门禁）。项目已具备可演示的 Web 形态（`uvicorn lighttrail.api.app:app` + `npm run dev`）。项目对话记忆详见 `.workbuddy/memory/`。
+- 当前阶段：**架构重建期**——依据 docs/architecture-v4-proposal.md（D1–D14 定稿）与 docs/REFACTOR-ROADMAP.md（唯一任务清单）推进 B0–B7；E1–E8 已交付并作为重构资产保留（旧路线图归档 docs/archive/DEVELOPMENT-ROADMAP-v2.5.md）。**B0 止血护栏已完成（2026-09-13，停闸门 0）**：SessionManager 三 bug 修复 / tokens 记账接通 / 四处假注释清理。既有交付：地基拆分 / TraceRecorder / 四层记忆 / ModelRouter+QuotaLedger / 四管线编排与一句话出方案闭环 / 照片分析智能工具（depth=1 红线）+ 照片反推 + 复盘管线闭环 + 语义记忆提炼 / **Web 服务层**（async ChatClient 串行闸门 + SessionManager 会话持久化 + FastAPI 五端点 SSE + trace→SSE 桥接 + SPA 三核心页）；pytest **230 全绿**、ruff 0 告警、smoke 21 项通过、**15 个已注册工具**；ADR-002 平台中立性 + ADR-003 扩展参数适配已落地；E6-0 四管线真实联调 + E7-0 SSE 真实联调均通过、远程基线已建立。**下一步 B1 契约层 + 配置**（B1-1 ~ B1-5，任务清单见 REFACTOR-ROADMAP §3；等主理人确认闸门 0）。项目已具备可演示的 Web 形态（`uvicorn lighttrail.api.app:app` + `npm run dev`）。项目对话记忆详见 `.workbuddy/memory/`。
 
 ## 代码风格（基于现有代码反推，新增代码遵守）
 
@@ -60,8 +60,8 @@ src/lighttrail/
 ├── memory/             # 四层记忆：profile（档案）/ events（SQLite）/ semantic / manager
 ├── infra/              # TraceRecorder / confidence（置信度规则）/ quota（配额账本）/ validation
 ├── tools/              # 具体工具实现（…/memory_tool/photo_analysis，共 15 工具）
-└── smoke.py            # 离线冒烟测试（19 项检查，发布前冒烟入口）
-tests/                  # 21 个测试文件，176 用例（离线 Fake 数据源，不触网）
+└── smoke.py            # 离线冒烟测试（21 项检查，发布前冒烟入口）
+tests/                  # 26 个测试文件，230 用例（离线 Fake 数据源，不触网）
 ```
 
 ## ECNU API 调用模式（见 `llm/client.py`，新增工具遵守；B3 起由 `adapters/llm` 接替）
