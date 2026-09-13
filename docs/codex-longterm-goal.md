@@ -8,10 +8,10 @@
 ## 📍 当前位置（开工第一眼先看这里）
 
 ```
-📍 当前位置：B2 批次进行中（B2-1 ~ B2-4 已完成，剩 B2-5 ~ B2-7）
-  代码基线：main 分支 HEAD 578fbf4 ｜ pytest 279 全绿 ｜ ruff 0 ｜ lint-imports 2 kept / 0 broken
-  实跑基线：CLI 自由对话 + Web /api/chat SSE 真实查询通过（装配根接管后复跑）｜ 冒烟 21 项 ｜ 15 工具全部声明式
-🎯 当前目标：B2-5 PydanticAI 自定义 Model 桥 → B2-6 AgentRuntime + ContextBuilder 迁入 runtime → B2-7 TestModel + test_hotplug + 批次收口
+📍 当前位置：B2 批次进行中（B2-1 ~ B2-6 已完成；B2-7 部分：热插拔 + 架构禁止边已过）
+  代码基线：main 分支 HEAD <B2-7 部分> ｜ pytest 295 全绿 ｜ ruff 0 ｜ lint-imports 2 kept / 0 broken
+  实跑基线：CLI + Web 真实查询通过 ｜ 冒烟 21 项 ｜ 15 工具全部声明式 ｜ PydanticAI Model 桥 + AgentRuntime 已落地（尚未接管生产路径）
+🎯 当前目标：B2-7 剩余——① 生产路径切 AgentRuntime（api 会话历史 dict→ModelMessage、orchestrator/cli 换装）② TestModel 替换 8 处 FakeChatClient ③ shim 清理 → 然后 B2 收口（闸门 2 汇报）
 🏁 本期终点：B0–B7 全部批次通过出口检查，目标架构（契约层+声明式注册+async-first+知识库+意图路由）落地，随时可演示
 ```
 
@@ -23,7 +23,7 @@
 
 ```mermaid
 graph TD
-    S([📍当前位置<br/>B2 进行中 / B2-1~B2-4 已完成<br/>279 测试全绿 / B2-5~B2-7 待做]) --> B0
+    S([📍当前位置<br/>B2 进行中 / B2-1~B2-6 已完成<br/>295 测试全绿 / B2-7 剩生产路径切换]) --> B0
 
     B0[B0 止血护栏<br/>B0-1~B0-4 修3 bug+tokens+假注释] --> G0{{闸门0 B0 出口<br/>pytest绿+淘汰/并发写用例过<br/>CLI/Web可跑 → 汇报}}
     G0 --> B1[B1 契约层+配置<br/>B1-1~B1-5 contracts/+pydantic-settings]
@@ -83,9 +83,9 @@ graph TD
 | B2-2 | ✅ e7f774b | astronomy + weather 声明式 + 动态置信度规则（confidence_rule） |
 | B2-3 | ✅ a6c6212 | site_match / memory_tool / photo_analysis 声明式 + 去模块级全局（构造注入） |
 | B2-4 | ✅ 6000683 | runtime/registry.py + composition.py + agent/tools 转 shim + 适配器契约开启 |
-| B2-5 | ⏳ | PydanticAI 自定义 Model 桥（adapters/llm/pydantic_bridge.py + pin pydantic-ai） |
-| B2-6 | ⏳ | AgentRuntime（runtime/agent.py）+ ContextBuilder 迁 runtime（能力叙述自动生成） |
-| B2-7 | ⏳ | TestModel 替换 FakeChatClient + tests/test_hotplug.py + B2 收口（shim 清理） |
+| B2-5 | ✅ 230dbbc | PydanticAI 自定义 Model 桥（adapters/llm/pydantic_bridge.py + pin pydantic-ai-slim） |
+| B2-6 | ✅ f0c5060 | AgentRuntime（runtime/agent.py）+ ContextBuilder 迁 runtime（能力叙述自动生成） |
+| B2-7 | 🔄 5756583（部分） | ✅ 热插拔 test_hotplug + 架构禁止边；⏳ 生产路径切 AgentRuntime + TestModel 替换 + shim 清理 + 收口 |
 
 ### B3 ~ B7
 

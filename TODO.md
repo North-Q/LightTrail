@@ -21,15 +21,16 @@
 - [x] B1-4 剩余 Protocol（MemoryStore / KnowledgeProvider / DataSource / TraceSink）
 - [x] B1-5 config.py 换 pydantic-settings + 护栏配置项 + import-linter 契约门禁
 
-### B2 引擎重写 🔄 进行中（B2-1 ~ B2-4 已完成 2026-09-13，剩 B2-5 ~ B2-7）
+### B2 引擎重写 🔄 进行中（B2-1 ~ B2-6 已完成；B2-7 部分完成，2026-09-14）
 
 - [x] B2-1 声明式 ToolSpec 改造：basic + exposure
 - [x] B2-2 声明式 ToolSpec 改造：astronomy + weather（+ confidence_rule 动态置信度）
 - [x] B2-3 声明式 ToolSpec 改造：site_match / memory_tool / photo_analysis + TOOLS 收集点
 - [x] B2-4 ToolRegistry 迁入 runtime/ + composition root（agent/tools 转 shim；适配器契约开启）
-- [ ] B2-5 PydanticAI 自定义 Model 桥（ADR-002/003 语义不丢）★ 下一步
-- [ ] B2-6 AgentRuntime 接入 + ContextBuilder 迁入 runtime
-- [ ] B2-7 TestModel 替换 FakeChatClient + test_hotplug + B2 收口
+- [x] B2-5 PydanticAI 自定义 Model 桥（ADR-002/003 语义不丢）
+- [x] B2-6 AgentRuntime 接入 + ContextBuilder 迁入 runtime（能力叙述自动生成）
+- [~] B2-7 热插拔验收 ✅ + 架构禁止边 ✅；★ 下一步：生产路径切 AgentRuntime（api 会话历史
+      dict→ModelMessage、orchestrator/cli 换装）→ TestModel 替换 FakeChatClient → shim 清理 → B2 收口
 
 ### B3 适配层 + 并发
 

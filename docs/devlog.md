@@ -54,12 +54,56 @@
   （观测与规则收敛到 contracts 端口 / adapters 后消除，B3-5）；旧包 agent / orchestrator / tools
   与目标层目录（runtime/domain/interface）的搬迁随 B3-5 一并落位。
 
-### B2 中间态验证（B2-1 ~ B2-4 后）
+### B2-5 PydanticAI 自定义 Model 桥 — 已提交（230dbbc）
 
-- pytest **279 全绿**；ruff 0；`lint-imports` 2 kept / 0 broken；离线冒烟 21 项；`npm run build` 通过；
+- `contracts/llm.py`：`LLMProvider.complete` 增 `usage_callback`（(输入, 输出) 回调）；
+- `adapters/llm/provider.py`：`ChatClientProvider` 把既有 ChatClient（acall async 通道）适配成
+  LLMProvider 端口（B3 会以同层 async-first 实现接替，端口不变）；
+- `adapters/llm/pydantic_bridge.py`：`LightTrailModel`（继承 `pydantic_ai.models.Model`）——
+  instructions / SystemPromptPart → 前置 system（静态前缀利缓存）、tool / retry 分片 → OpenAI 消息、
+  `ToolDefinition` → function schema、`extra_body` 的 thinking / reasoning_effort 透传
+  （ADR-003 的命名参数 vs extra_body 双路径仍在 llm/client）、usage → `RequestUsage`、
+  异常 → `ModelAPIError`；流式按 PRD 附录 A2 延后（docstring 明示）；
+- 依赖：`pydantic-ai-slim>=2.41,<3`（slim：自研 provider 桥，不引框架内建供应商 extras）；
+- 测试：`tests/test_pydantic_bridge.py` 7 用例（含 Agent 全链路 ReAct）；pytest 279 → 286。
+
+### B2-6 AgentRuntime + ContextBuilder 迁入 runtime — 已提交（f0c5060）
+
+- `runtime/context.py`：五层上下文自 `agent/context.py` 迁入；`DEFAULT_ROLE_PROMPT` 删掉手写工具清单
+  （能力叙述由注册表自动生成，layer:role 版本 1→2）；`agent/context.py` 转 re-export shim（TODO(B2-7)）；
+- `runtime/agent.py`：`AgentRuntime`——
+  · 工具：`ToolSpec → Tool.from_schema(partial(registry.dispatch), json_schema=spec.parameters)`
+    （**schema 真源仍是 ToolSpec**，新增工具无需改运行时与任何提示词）；
+  · trace 口径不变：LLM 事件由 Model 桥记录（耗时 + tokens），工具事件由注册表记录（spec 元数据）；
+  · 轮数护栏：`max_tool_rounds → UsageLimits.request_limit`（settings.REACT_MAX_ROUNDS=12）；
+  · 深推理：`reason_model`、无工具、temperature=0.3，`reason_thinking` 时透传扩展参数；
+  · 同步门面 `run/reason` + 异步 `arun/areason`（事件循环内调同步门面显式报错）；
+- **分层修正（门禁抓到）**：初版把 Model 桥构造放在 AgentRuntime 内 → `lint-imports` 报
+  `runtime → adapters` 违规；改为装配根构造 Model、runtime 只收 pydantic-ai Model，契约恢复
+  2 kept / 0 broken；
+- 测试：`tests/test_runtime_agent.py` 5 用例；pytest 286 → 291。
+
+### B2-7 热插拔验收 + 架构禁止边 — 部分完成（5756583）
+
+- `tests/test_hotplug.py`（3 用例）：动态 ToolSpec 注入后四处自动生效——dispatch / trace 元数据
+  （main_field + confidence）/ 动态置信度规则（confidence_rule=forecast）/ 能力叙述自动包含新工具；
+  另证框架侧 schema 与 ToolSpec 同源；
+- `tests/test_architecture.py` 新增「禁止边」AST 断言（含函数内 import）：contracts / runtime /
+  tools / memory 不得依赖 adapters / api / cli / orchestrator——当前零违规，R2 诊断的
+  tools→orchestrator 反向依赖确已消除；
+- pytest 291 → 295。
+- **剩余（B2-7 未完）**：① 生产路径切换到 AgentRuntime（api 会话历史需从 OpenAI dict 迁到
+  pydantic-ai ModelMessage、orchestrator / cli 换装）；② TestModel 替换 8 处自建 FakeChatClient
+  （依赖①完成后才有意义——现 FakeChatClient 喂的是旧 ChatClient 路径）；③ shim 清理
+  （agent/tools.py 与 agent/context.py 的 re-export、旧 Agent 门面）。③ 的启动条件是①，
+  三者同批推进，B2 收口（devlog 批次总结 + 闸门 2）在①完成后进行。
+
+### B2 中间态验证（B2-1 ~ B2-6 后）
+
+- pytest **295 全绿**；ruff 0；`lint-imports` 2 kept / 0 broken；离线冒烟 21 项；`npm run build` 通过；
 - **CLI 自由对话 + Web /api/chat SSE 真实查询复跑通过**（装配根接管后系统可用）；
-- 下一步：**B2-5 PydanticAI 自定义 Model 桥**（含 `pydantic-ai` 依赖 pin 与桥接单测），
-  随后 B2-6 AgentRuntime / B2-7 TestModel + test_hotplug + 批次收口。
+- 下一步：**B2-7 生产路径切换到 AgentRuntime**（api 会话历史迁移 + orchestrator / cli 换装），
+  随后 TestModel 替换 FakeChatClient、shim 清理与 B2 批次收口。
 ## 2026-09-13（B1 契约层 + 配置：零依赖契约 + 用户体系预留 + 统一护栏）
 
 > 批次定位：`docs/REFACTOR-ROADMAP.md` §3。目标 = 新建零依赖 `contracts/`（R1/R2 的解药）+
