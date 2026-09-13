@@ -9,7 +9,7 @@
 
 ```
 📍 当前位置：B2 批次进行中（B2-1 ~ B2-4 已完成，剩 B2-5 ~ B2-7）
-  代码基线：main 分支 HEAD <B2 中间态提交> ｜ pytest 279 全绿 ｜ ruff 0 ｜ lint-imports 2 kept / 0 broken
+  代码基线：main 分支 HEAD 578fbf4 ｜ pytest 279 全绿 ｜ ruff 0 ｜ lint-imports 2 kept / 0 broken
   实跑基线：CLI 自由对话 + Web /api/chat SSE 真实查询通过（装配根接管后复跑）｜ 冒烟 21 项 ｜ 15 工具全部声明式
 🎯 当前目标：B2-5 PydanticAI 自定义 Model 桥 → B2-6 AgentRuntime + ContextBuilder 迁入 runtime → B2-7 TestModel + test_hotplug + 批次收口
 🏁 本期终点：B0–B7 全部批次通过出口检查，目标架构（契约层+声明式注册+async-first+知识库+意图路由）落地，随时可演示
