@@ -8,10 +8,10 @@
 ## 📍 当前位置（开工第一眼先看这里）
 
 ```
-📍 当前位置：闸门 1 已到达（B1 契约层 + 配置完成，等主理人确认后进 B2）
-  代码基线：main 分支 HEAD a22f006 ｜ pytest 272 全绿 ｜ ruff 0 ｜ lint-imports「契约层零依赖」KEPT
-  实跑基线：CLI 自由对话 + Web /api/chat SSE 各一次真实查询通过（B1-5 配置重写后复跑）｜ 冒烟 21 项 ｜ 15 工具
-🎯 当前目标：等闸门 1 确认 → B2 引擎重写（B2-1 ~ B2-7：声明式 ToolSpec + 装配根 + PydanticAI）
+📍 当前位置：B2 批次进行中（B2-1 ~ B2-4 已完成，剩 B2-5 ~ B2-7）
+  代码基线：main 分支 HEAD <B2 中间态提交> ｜ pytest 279 全绿 ｜ ruff 0 ｜ lint-imports 2 kept / 0 broken
+  实跑基线：CLI 自由对话 + Web /api/chat SSE 真实查询通过（装配根接管后复跑）｜ 冒烟 21 项 ｜ 15 工具全部声明式
+🎯 当前目标：B2-5 PydanticAI 自定义 Model 桥 → B2-6 AgentRuntime + ContextBuilder 迁入 runtime → B2-7 TestModel + test_hotplug + 批次收口
 🏁 本期终点：B0–B7 全部批次通过出口检查，目标架构（契约层+声明式注册+async-first+知识库+意图路由）落地，随时可演示
 ```
 
@@ -23,7 +23,7 @@
 
 ```mermaid
 graph TD
-    S([📍当前位置<br/>闸门 1 / HEAD a22f006<br/>272 测试全绿 / B1 已完成]) --> B0
+    S([📍当前位置<br/>B2 进行中 / B2-1~B2-4 已完成<br/>279 测试全绿 / B2-5~B2-7 待做]) --> B0
 
     B0[B0 止血护栏<br/>B0-1~B0-4 修3 bug+tokens+假注释] --> G0{{闸门0 B0 出口<br/>pytest绿+淘汰/并发写用例过<br/>CLI/Web可跑 → 汇报}}
     G0 --> B1[B1 契约层+配置<br/>B1-1~B1-5 contracts/+pydantic-settings]
@@ -75,7 +75,19 @@ graph TD
 | B1-4 | 剩余 Protocol（MemoryStore / KnowledgeProvider / DataSource / TraceSink） | 知识库签名不含 user_id、记录器满足 TraceSink |
 | B1-5 | pydantic-settings + 统一护栏 + import-linter 门禁 | 护栏项默认值落地、lint-imports「契约零依赖」通过 |
 
-### B2 ~ B7
+### B2 引擎重写 🔄 进行中（2026-09-13：B2-1 ~ B2-4 已完成）
+
+| 任务 | 状态 | 一句话目标 |
+|---|---|---|
+| B2-1 | ✅ 72ebe68 | basic + exposure 声明式（ToolSpec + TOOLS、去 agent.tools import） |
+| B2-2 | ✅ e7f774b | astronomy + weather 声明式 + 动态置信度规则（confidence_rule） |
+| B2-3 | ✅ a6c6212 | site_match / memory_tool / photo_analysis 声明式 + 去模块级全局（构造注入） |
+| B2-4 | ✅ 6000683 | runtime/registry.py + composition.py + agent/tools 转 shim + 适配器契约开启 |
+| B2-5 | ⏳ | PydanticAI 自定义 Model 桥（adapters/llm/pydantic_bridge.py + pin pydantic-ai） |
+| B2-6 | ⏳ | AgentRuntime（runtime/agent.py）+ ContextBuilder 迁 runtime（能力叙述自动生成） |
+| B2-7 | ⏳ | TestModel 替换 FakeChatClient + tests/test_hotplug.py + B2 收口（shim 清理） |
+
+### B3 ~ B7
 
 任务细节（目标/前置/输入上下文/交付物/验收标准/涉及文件）**全部见 `docs/REFACTOR-ROADMAP.md` 对应章节**，此处不重复。每批出口检查单见路线图 §1.3/§1.4 与各批次末任务。
 

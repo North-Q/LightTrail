@@ -1,5 +1,65 @@
 # LightTrail 开发日志
 
+## 2026-09-13（B2 引擎重写 · 进行中：B2-1 ~ B2-4 已完成）
+
+> 批次定位：`docs/REFACTOR-ROADMAP.md` §4。目标 = 注册表方向反转（声明式 ToolSpec + 装配根）+
+> 去全局单例 + 接入 PydanticAI。本段记录已完成的四个任务；B2-5（Model 桥）/ B2-6（AgentRuntime）/
+> B2-7（TestModel + test_hotplug + 收口）待续。**15 个工具名与行为不变。**
+
+### B2-1 声明式 ToolSpec 改造：basic + exposure — 已提交（72ebe68）
+
+- 新增 `tools/_base.py` 的 `PureTool`（ToolSpec + 无状态函数 → Tool 端口）；
+- 两个工具模块的 `@registry.tool` 装饰器改为模块级 `ToolSpec` + 文件末 `TOOLS` 元组，
+  **不再 import `agent.tools`**；description / parameters 原文保留，新增 main_field /
+  confidence / capabilities（等价迁自 `trace._MAIN_FIELD` 与 `confidence` 三集合）；
+- 注册表：`register_tool(Tool)` 主路径 + `dispatch(ctx=...)` + `to_openai_schema/specs` 以
+  ToolSpec 为真源；`infra/trace.record_tool` 支持 main_field / confidence 显式覆盖；
+- 测试：`tests/test_registry.py`（6 用例）；pytest 272 → 278。
+
+### B2-2 声明式 ToolSpec 改造：astronomy + weather — 已提交（e7f774b）
+
+- 7 个工具（5 天文 + 2 天气）同 B2-1 改造；
+- `ToolSpec` 增 `confidence_rule`；`infra/confidence.resolve_confidence(spec, data)` 让动态规则
+  （预报时效：覆盖当日 high / 跨天 medium）挂在 spec 上，不再靠工具名手抄表；
+- pytest 278 → 279。
+
+### B2-3 声明式改造：site_match / memory_tool / photo_analysis + 去模块级全局 — 已提交（a6c6212）
+
+- **删除两处服务定位器**：`memory_tool` 的 `_DEFAULT_STORE` / `set_event_store` /
+  `_get_store`、`photo_analysis` 的 `_DEFAULT_CLIENT` / `set_client` / `_get_client`；
+  改为 `SearchMemoryTool(store_factory)` / `AnalyzePhotoTool(client_factory)` /
+  `ReverseEngineerPhotoTool(client_factory)` 构造注入 + `build_tools()` 工厂；
+- 工具函数增显式依赖参数（`search_memory(store, ...)`、`analyze_photo(..., client=...)`）；
+- `orchestrator` 增 `photo_reverse` 钩子（此前 reverse_plan 硬编码 import 模块并靠 monkeypatch
+  全局注入，测试只能污染模块态）；
+- 顺带修复潜在循环依赖：`llm/client.py` 的 QuotaLedger 改 TYPE_CHECKING（client ↔ quota）；
+- 测试改造 4 个文件（test_events / test_photo_analysis / test_reverse_plan / test_pipeline_e2e）；
+- **偏差记录**：智能工具的 LLM 依赖走构造注入而非 `ToolContext.llm`——后者是 async 端口，
+  同步工具无法 await，等 B3 async-first 后再切（devlog 与 AGENTS 同记）。
+
+### B2-4 ToolRegistry(specs) + composition root — 已提交（6000683）
+
+- 新增 `runtime/registry.py`：`ToolRegistry(tools)` 构造注入、dispatch 走 Tool 端口、trace
+  元数据来自 spec、动态注册保留给测试替身；**无模块级单例**；
+  签名说明：v4 §2.3 示意写作 `ToolRegistry(specs)`，实现按「spec 挂在 Tool 实例上」调整为
+  `ToolRegistry(tools)`——dispatch 需要实现体，只传 spec 无法调用；
+- 新增 `composition.py`：全仓唯一 new 点（build_registry / build_client / build_memory /
+  build_agent / build_orchestrator / build_recorder / build_ledger），参数显式传入；
+- `agent/tools.py` 转 re-export shim（ToolRegistry / ToolError / 迁移期全局单例，TODO(B2-7) 删除）；
+  `tools/__init__.py` 不再向全局注册表自注册；
+- `cli.py` / `api/app.py` 改从装配根取实例（`ApiDeps.registry` 改 default_factory）；
+- 门禁：import-linter 第二段契约「适配器只实现端口，不被其他层反向依赖」开启 →
+  **2 kept / 0 broken**（Analyzed 58 files, 160 dependencies）；
+- 遗留（如实记录）：`runtime/registry.py` 仍 import `infra.trace` / `infra.confidence`
+  （观测与规则收敛到 contracts 端口 / adapters 后消除，B3-5）；旧包 agent / orchestrator / tools
+  与目标层目录（runtime/domain/interface）的搬迁随 B3-5 一并落位。
+
+### B2 中间态验证（B2-1 ~ B2-4 后）
+
+- pytest **279 全绿**；ruff 0；`lint-imports` 2 kept / 0 broken；离线冒烟 21 项；`npm run build` 通过；
+- **CLI 自由对话 + Web /api/chat SSE 真实查询复跑通过**（装配根接管后系统可用）；
+- 下一步：**B2-5 PydanticAI 自定义 Model 桥**（含 `pydantic-ai` 依赖 pin 与桥接单测），
+  随后 B2-6 AgentRuntime / B2-7 TestModel + test_hotplug + 批次收口。
 ## 2026-09-13（B1 契约层 + 配置：零依赖契约 + 用户体系预留 + 统一护栏）
 
 > 批次定位：`docs/REFACTOR-ROADMAP.md` §3。目标 = 新建零依赖 `contracts/`（R1/R2 的解药）+
