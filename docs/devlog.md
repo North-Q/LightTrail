@@ -138,6 +138,20 @@
   否则违反「不做永久白名单/双实现」纪律；`runtime/registry.py` 仍 import `infra.trace` / `infra.confidence`
   （B3-5 随观测端口收敛消除）。
 
+### B2-7 尾巴细化（2026-09-14，供接续执行）
+
+- **已完成换装的用例文件（6/9）**：test_orchestrator、test_pipeline_e2e、test_reverse_plan、test_reason、
+  test_agent、test_context；
+- **剩余换装**：`tests/test_trace.py`（Agent + ToolRegistry）、`tests/test_memory.py`（Agent）、
+  `evals/runner.py`（2 处 Orchestrator 构造）；
+- **shim 清理的真实工作量（重要）**：`lighttrail.agent.tools` 的**迁移期全局 registry** 被 13 个文件引用
+  （test_astronomy / test_events / test_exposure_rules / test_memory / test_orchestrator /
+  test_photo_analysis / test_pipeline_e2e / test_reason / test_registry / test_reverse_plan /
+  test_site_match / test_tools / test_weather；另有 evals/runner.py）。删除 shim 前需给它们一个
+  替代入口——推荐在 `tests/conftest.py` 提供共享 `registry`（`ToolRegistry(TOOLS)`）或改为显式构造，
+  然后按序删除：orchestrator 旧 Agent 分支 → agent/core.py 旧门面 → agent/loop.py → agent/context.py →
+  agent/tools.py（最后，等 13 处引用清零）。
+
 ### B2 中间态验证（B2-1 ~ B2-7 第一批后）
 
 - pytest **295 全绿**；ruff 0；`lint-imports` 2 kept / 0 broken；离线冒烟 21 项；`npm run build` 通过；

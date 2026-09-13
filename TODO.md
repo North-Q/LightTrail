@@ -29,9 +29,10 @@
 - [x] B2-4 ToolRegistry 迁入 runtime/ + composition root（agent/tools 转 shim；适配器契约开启）
 - [x] B2-5 PydanticAI 自定义 Model 桥（ADR-002/003 语义不丢）
 - [x] B2-6 AgentRuntime 接入 + ContextBuilder 迁入 runtime（能力叙述自动生成）
-- [~] B2-7 主体完成 ✅（热插拔 / 架构禁止边 / CLI+Web+编排器切 runtime / 5 个用例文件换装）；
-      ★ B2 尾巴：① test_trace / test_context / test_memory + evals/runner 换装 ② 删 orchestrator 旧 Agent 分支
-      与 agent/ 下 shim（tools/context/旧门面）→ 然后 B2 真正收口
+- [~] B2-7 主体完成 ✅（热插拔 / 架构禁止边 / CLI+Web+编排器切 runtime / **6 个用例文件换装**）；
+      ★ B2 尾巴：① 剩余换装：test_trace / test_memory + evals/runner（2 处）；② `agent.tools` 全局 registry
+      有 13 处引用，需先在 tests/conftest.py 提供共享 registry 替代，再按序删 orchestrator 旧分支、
+      agent/core.py 旧门面、loop.py、context.py、tools.py → 然后 B2 真正收口（细节见 devlog「B2-7 尾巴细化」）
 
 ### B3 适配层 + 并发
 

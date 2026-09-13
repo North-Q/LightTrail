@@ -12,8 +12,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from lighttrail.agent import Agent
-from lighttrail.agent.context import (
+from lighttrail.adapters.llm.provider import ChatClientProvider
+from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
+from lighttrail.runtime.agent import AgentRuntime
+from lighttrail.runtime.context import (
     DEFAULT_CONDUCT_PROMPT,
     DEFAULT_ROLE_PROMPT,
     LAYER_CONDUCT,
@@ -23,7 +25,7 @@ from lighttrail.agent.context import (
     LAYER_TRACE,
     ContextBuilder,
 )
-from lighttrail.agent.tools import ToolRegistry
+from lighttrail.runtime.registry import ToolRegistry
 
 _HEADING_ROLE = "## 角色与使命"
 _HEADING_CONDUCT = "## 行为准则"
@@ -210,13 +212,21 @@ class _FakeChatClient:
         self.calls.append({"messages": messages, "model": model, "tools": tools})
         return self._responses.pop(0)
 
+    async def acall(self, messages, **kwargs) -> dict:
+        """async 通道：B2-7 起 runtime 经 Model 桥走 acall。"""
+        allowed = {k: v for k, v in kwargs.items() if k in {"model", "tools", "temperature"}}
+        return self.chat(messages, **allowed)
 
-def test_agent_system_prompt_is_layered() -> None:
-    """Agent.run 经 ReActLoop 默认走分层组装：首轮 messages[0] 为分层 system。"""
+
+def test_runtime_system_prompt_is_layered() -> None:
+    """runtime.run 默认走分层组装：首轮 messages[0] 为分层 system（B2-7 换装）。"""
     tech = {"role": "assistant", "content": "已查询完毕。"}
     fake = _FakeChatClient([tech])
-    agent = Agent(fake, _make_registry(("x", "工具X")), model="ecnu-plus")
-    agent.run("现在几点？")
+    provider = ChatClientProvider(fake)
+    runtime = AgentRuntime(
+        LightTrailModel(provider, model_name="ecnu-plus"), _make_registry(("x", "工具X"))
+    )
+    runtime.run("现在几点？")
     system = fake.calls[0]["messages"][0]
     assert system["role"] == "system"
     assert _HEADING_ROLE in system["content"]
