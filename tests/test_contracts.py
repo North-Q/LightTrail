@@ -6,7 +6,8 @@
   main_field=""、user_id="_local"、llm_overrides=None）；
 - Confidence 三档取值与既有字符串口径一致（str 混用，存量代码零改动）；
 - Tool 是结构化端口（runtime_checkable：实现 spec + __call__ 即满足）；
-- ToolContext 关闭态（无 sink）emit 零开销。
+- ToolContext 关闭态（无 sink）emit 零开销，有 sink 时投递 TraceEvent（B1-2）；
+- B1-2 契约下沉：Plan 步数护栏、TraceEvent/SSEEvent 单一真源、旧路径 shim 同一对象。
 """
 
 from __future__ import annotations
@@ -23,6 +24,8 @@ from lighttrail.contracts import (
     ToolResult,
     ToolSpec,
 )
+from lighttrail.contracts.events import KIND_TOOL, SSEEvent, TraceEvent
+from lighttrail.contracts.plan import Plan, PlanStep
 
 
 def test_tool_spec_to_openai_schema() -> None:
@@ -94,3 +97,77 @@ def test_tool_context_emit_without_sink_is_noop() -> None:
     """关闭态：无 sink 时 emit 零开销、不抛错（不 import 事件类型）。"""
     ctx = ToolContext(request=RequestContext(), llm=object(), datasource=object())
     ctx.emit("tool", "sun_times", 结果="日出 05:12")  # 不应抛错
+
+# ------ B1-2：契约下沉（事件 / 计划 / shim）------
+def test_tool_context_emit_forwards_trace_event() -> None:
+    """有 sink 时 emit 投递契约层 TraceEvent（kind/name/payload 口径与 trace 一致）。"""
+    captured: list[TraceEvent] = []
+
+    class _Sink:
+        def emit(self, event: TraceEvent) -> None:
+            captured.append(event)
+
+    ctx = ToolContext(request=RequestContext(), llm=object(), datasource=object(), sink=_Sink())
+    ctx.emit(KIND_TOOL, "sun_times", 结果="日出 05:12")
+    assert len(captured) == 1
+    assert captured[0].kind == KIND_TOOL
+    assert captured[0].name == "sun_times"
+    assert captured[0].payload == {"结果": "日出 05:12"}
+    assert captured[0].ts  # 自动打时间戳
+
+
+def test_plan_step_guard() -> None:
+    """Plan 步数护栏：超限与非法上限都直接拒绝（不做静默截断）。"""
+    steps = tuple(PlanStep(tool=f"tool_{index}") for index in range(3))
+    plan = Plan(goal="今晚拍火烧云", steps=steps, max_steps=3)
+    assert len(plan.steps) == 3
+    assert plan.max_steps == 3
+    with pytest.raises(ValueError):
+        Plan(goal="超限", steps=steps, max_steps=2)
+    with pytest.raises(ValueError):
+        Plan(goal="非法上限", max_steps=0)
+
+
+def test_trace_event_frozen_and_default_payload() -> None:
+    """TraceEvent 为 frozen 契约，payload 默认空 dict 且每次实例独立。"""
+    first = TraceEvent(kind=KIND_TOOL, name="a")
+    second = TraceEvent(kind=KIND_TOOL, name="b")
+    assert first.payload == {}
+    assert first.payload is not second.payload  # 默认工厂不共享可变对象
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        first.name = "c"  # type: ignore[misc]
+
+
+def test_schemas_shim_reexports_same_objects() -> None:
+    """旧路径 shim 与新真源指向同一对象（迁移期零行为变化）。"""
+    from lighttrail.contracts import models
+    from lighttrail.orchestrator import schemas
+
+    for name in ("DecisionCard", "Intent", "Source", "PhotoAnalysisReport", "PhotoReverseReport"):
+        assert getattr(schemas, name) is getattr(models, name)
+
+
+def test_trace_event_reexported_from_infra_trace() -> None:
+    """infra.trace 迁移期仍可导出 TraceEvent / KIND_*（旧 import 路径可用）。"""
+    from lighttrail.infra import trace
+
+    assert trace.TraceEvent is TraceEvent
+    assert trace.KIND_TOOL == KIND_TOOL
+
+
+def test_sse_event_types_single_source() -> None:
+    """SSE 事件类型单一真源：api.events 的常量由 contracts.events.SSEEvent 派生。"""
+    from lighttrail.api import events
+
+    assert events.EVENT_TOOL_CALL == SSEEvent.TOOL_CALL.value
+    assert events.EVENT_DONE == SSEEvent.DONE.value
+    assert {item.value for item in SSEEvent} == {
+        "queued",
+        "step",
+        "tool_call",
+        "tool_result",
+        "token",
+        "card",
+        "error",
+        "done",
+    }

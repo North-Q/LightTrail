@@ -32,8 +32,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from lighttrail.contracts.models import DecisionCard, Intent
 from lighttrail.orchestrator.context import PipelineContext
-from lighttrail.orchestrator.schemas import DecisionCard, Intent
 
 logger = logging.getLogger("lighttrail.api.session")
 

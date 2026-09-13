@@ -31,10 +31,10 @@ from lighttrail.api.events import (
     TraceBridge,
     pump,
 )
+from lighttrail.contracts.models import DecisionCard
 from lighttrail.infra.trace import Recorder, TraceRecorder
 from lighttrail.orchestrator import Orchestrator
 from lighttrail.orchestrator.orchestrator import _render_card
-from lighttrail.orchestrator.schemas import DecisionCard
 
 logger = logging.getLogger("lighttrail.api.routes")
 

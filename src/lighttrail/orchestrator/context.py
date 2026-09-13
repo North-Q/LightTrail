@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from lighttrail.orchestrator.schemas import DecisionCard, Intent
+from lighttrail.contracts.models import DecisionCard, Intent
 
 
 @dataclass

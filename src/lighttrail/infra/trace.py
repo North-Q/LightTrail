@@ -25,18 +25,13 @@ import json
 import logging
 import threading
 from collections.abc import Callable
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
 from typing import Any
 
+from lighttrail.contracts.events import KIND_LLM, KIND_STEP, KIND_TOOL, TraceEvent
 from lighttrail.infra.confidence import confidence_for_tool
 
 logger = logging.getLogger("lighttrail.trace")
-
-# 事件类型
-KIND_LLM = "llm"
-KIND_TOOL = "tool"
-KIND_STEP = "step"
 
 # 参数 / 结果截断上限（字符）
 _MAX_ARGS_CHARS = 200
@@ -74,28 +69,6 @@ def _truncate(text: str, limit: int) -> str:
         return text
     cut = max(0, limit - 1)
     return text[:cut] + "…"
-
-
-def _now_iso() -> str:
-    """当前 UTC 时间的 ISO 8601 字符串（事件时间戳）。"""
-    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
-
-
-@dataclass(frozen=True)
-class TraceEvent:
-    """一次可观测事件的快照。
-
-    Attributes:
-        kind: 事件类型，llm / tool / step。
-        name: 事件名（模型名 / 工具名 / 步骤名）。
-        payload: 事件详情（参数、结果摘要、耗时等）。
-        ts: 事件时间戳（UTC ISO 8601）。
-    """
-
-    kind: str
-    name: str
-    payload: dict[str, Any] = field(default_factory=dict)
-    ts: str = field(default_factory=_now_iso)
 
 
 @dataclass(frozen=True)

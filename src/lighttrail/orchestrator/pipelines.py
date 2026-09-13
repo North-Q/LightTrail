@@ -16,12 +16,12 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from lighttrail.contracts.models import DecisionCard, Intent
 from lighttrail.infra.trace import Recorder, null_trace
 from lighttrail.infra.validation import parse_with_retry
 from lighttrail.llm.router import ModelRouter
 from lighttrail.memory import MemoryManager
 from lighttrail.orchestrator.context import PipelineContext
-from lighttrail.orchestrator.schemas import DecisionCard, Intent
 
 # 默认坐标：上海（档案常去机位精确坐标接线见 B5-3）
 _DEFAULT_LAT = 31.23

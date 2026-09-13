@@ -21,19 +21,21 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
 from typing import Any
 
-from lighttrail.infra.trace import Recorder, TraceEvent
+from lighttrail.contracts.events import SSEEvent, TraceEvent
+from lighttrail.infra.trace import Recorder
 
 logger = logging.getLogger("lighttrail.api.events")
 
-# SSE 协议事件类型（与架构 v2.0 §2.8 一致）
-EVENT_QUEUED = "queued"
-EVENT_STEP = "step"
-EVENT_TOOL_CALL = "tool_call"
-EVENT_TOOL_RESULT = "tool_result"
-EVENT_TOKEN = "token"
-EVENT_CARD = "card"
-EVENT_ERROR = "error"
-EVENT_DONE = "done"
+# SSE 协议事件类型：真源在 contracts.events.SSEEvent（B1-2 下沉，B4 生成前端类型）
+# 这里保留模块级常量名，迁移期调用方零改动
+EVENT_QUEUED = SSEEvent.QUEUED.value
+EVENT_STEP = SSEEvent.STEP.value
+EVENT_TOOL_CALL = SSEEvent.TOOL_CALL.value
+EVENT_TOOL_RESULT = SSEEvent.TOOL_RESULT.value
+EVENT_TOKEN = SSEEvent.TOKEN.value
+EVENT_CARD = SSEEvent.CARD.value
+EVENT_ERROR = SSEEvent.ERROR.value
+EVENT_DONE = SSEEvent.DONE.value
 
 
 def map_trace_event(event: TraceEvent, *, session_id: str = "") -> list[dict[str, Any]] | None:

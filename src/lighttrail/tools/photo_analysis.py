@@ -25,11 +25,11 @@ from PIL import Image, ImageOps
 
 from lighttrail.agent.tools import registry
 from lighttrail.config import load_settings
+from lighttrail.contracts.models import PhotoAnalysisReport, PhotoReverseReport
 from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.validation import _extract_json
 from lighttrail.llm.client import ChatClient
 from lighttrail.llm.router import ModelRouter, RouteIntent
-from lighttrail.orchestrator.schemas import PhotoAnalysisReport, PhotoReverseReport
 
 logger = logging.getLogger("lighttrail.tools.photo")
 
