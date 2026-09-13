@@ -31,7 +31,7 @@ from lighttrail.tools.astronomy import _parse_date  # noqa: F401  日期校验�
 
 logger = logging.getLogger("lighttrail.orchestrator")
 
-# 反推采集默认坐标（上海）；E6-3 favorite_spots 落地后按档案精确定位
+# 反推采集默认坐标（上海）：档案 favorite_spots 精确坐标接线见 B5-3（当前仍为兜底常量）
 _DEFAULT_LAT = 31.23
 _DEFAULT_LON = 121.47
 
@@ -308,7 +308,7 @@ class Orchestrator:
 
     def _collect_candidate_day(self) -> tuple[str, dict[str, Any]]:
         """为复刻选候选日：未来 3 天取平均云量最低（通透优先）作为基准日并采集数据。"""
-        lat, lon = _DEFAULT_LAT, _DEFAULT_LON  # 反推阶段默认坐标，档案精确定位在 E6-3 接 favorite_spots
+        lat, lon = _DEFAULT_LAT, _DEFAULT_LON  # 反推阶段用默认坐标（上海）；接档案 favorite_spots 属 B5-3
         weather_raw = self._env.dispatch(
             "weather_forecast",
             json.dumps({"latitude": lat, "longitude": lon, "days": 3, "tz_offset": "+08:00"}, ensure_ascii=False),

@@ -23,7 +23,7 @@ from lighttrail.memory import MemoryManager
 from lighttrail.orchestrator.context import PipelineContext
 from lighttrail.orchestrator.schemas import DecisionCard, Intent
 
-# 默认坐标：上海（可与档案常去机位后续联动精确化）
+# 默认坐标：上海（档案常去机位精确坐标接线见 B5-3）
 _DEFAULT_LAT = 31.23
 _DEFAULT_LON = 121.47
 # 默认时区（与工具层 tz_offset 默认值一致）
@@ -53,7 +53,7 @@ def _target_date(time_hint: str) -> str:
 
 
 def _candidate_sites(memory: MemoryManager | None) -> list[dict[str, Any]]:
-    """候选机位：档案常去机位（无精确坐标时用默认坐标兜底）。"""
+    """候选机位：档案常去机位名 + 占位坐标（非真实坐标，B5-3 接 favorite_spots 后取真实值）。"""
     sites: list[dict[str, Any]] = []
     if memory is not None:
         for index, name in enumerate(memory.profile.common_locations):
@@ -237,7 +237,7 @@ class PlanningPipeline(Pipeline):
 
 
 class LiveDecisionPipeline(Pipeline):
-    """临场决策管线（D3.1 火烧云赌注等）：当前评分 + 时效临近 → 去/等/放弃卡片。"""
+    """临场决策管线（D3.1 火烧云赌注等）：当前评分 → 去/等/放弃卡片。"""
 
     name = "live"
     description = "临场赌注决策（临场）"
@@ -253,7 +253,6 @@ class LiveDecisionPipeline(Pipeline):
         ]
         ctx.data = _collect(env, ctx, steps)
         ctx.scores = _score(ctx.data)
-        # 时效：距日落还有多少小时（1 小时内 → 临场可决策）
         prompt = _build_synthesis_prompt(ctx, env)
         ctx.card = parse_with_retry(DecisionCard, lambda p: env.reason(p, ""), prompt)
         return ctx.card
