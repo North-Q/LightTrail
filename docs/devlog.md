@@ -39,7 +39,7 @@
   如实标注；`memory/semantic.py` 过期表述「E6-3 再做事件自动提炼」改为已落地表述。
 - 纯注释变更：pytest 230 全绿、ruff 0；grep 复查无残留空头承诺。
 
-### B0-4 B0 收口（回归 + 重构前基线）— 已提交（HEAD <B0-4 收口提交>）
+### B0-4 B0 收口（回归 + 重构前基线）— 已提交（HEAD 58a530c）
 
 - **门禁**：`pytest tests/` 230 全绿；`ruff check src tests` 0 告警；离线冒烟 21 项通过
   （同步修掉 `smoke.py` 伪客户端的 `usage_callback` 签名，B0-2 遗留）。

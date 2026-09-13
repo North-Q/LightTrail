@@ -9,7 +9,7 @@
 
 ```
 📍 当前位置：闸门 0 已到达（B0 止血护栏完成，等主理人确认后进 B1）
-  代码基线：main 分支 HEAD <B0-4 收口提交> ｜ pytest 230 全绿 ｜ ruff 0 ｜ 冒烟 21 项 ｜ 15 工具
+  代码基线：main 分支 HEAD 58a530c ｜ pytest 230 全绿 ｜ ruff 0 ｜ 冒烟 21 项 ｜ 15 工具
   实跑基线：CLI 自由对话 + Web /api/chat SSE 各一次真实查询通过 ｜ tag refactor-baseline（本地）
 🎯 当前目标：等闸门 0 确认 → B1 契约层 + 配置（B1-1 ~ B1-5）
 🏁 本期终点：B0–B7 全部批次通过出口检查，目标架构（契约层+声明式注册+async-first+知识库+意图路由）落地，随时可演示
@@ -23,7 +23,7 @@
 
 ```mermaid
 graph TD
-    S([📍当前位置<br/>闸门 0 / HEAD <B0-4 收口提交><br/>230 测试全绿 / B0 已完成]) --> B0
+    S([📍当前位置<br/>闸门 0 / HEAD 58a530c<br/>230 测试全绿 / B0 已完成]) --> B0
 
     B0[B0 止血护栏<br/>B0-1~B0-4 修3 bug+tokens+假注释] --> G0{{闸门0 B0 出口<br/>pytest绿+淘汰/并发写用例过<br/>CLI/Web可跑 → 汇报}}
     G0 --> B1[B1 契约层+配置<br/>B1-1~B1-5 contracts/+pydantic-settings]
