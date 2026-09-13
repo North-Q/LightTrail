@@ -7,12 +7,15 @@
 - Confidence 三档取值与既有字符串口径一致（str 混用，存量代码零改动）；
 - Tool 是结构化端口（runtime_checkable：实现 spec + __call__ 即满足）；
 - ToolContext 关闭态（无 sink）emit 零开销，有 sink 时投递 TraceEvent（B1-2）；
-- B1-2 契约下沉：Plan 步数护栏、TraceEvent/SSEEvent 单一真源、旧路径 shim 同一对象。
+- B1-2 契约下沉：Plan 步数护栏、TraceEvent/SSEEvent 单一真源、旧路径 shim 同一对象；
+- B1-4 端口契约：MemoryStore / KnowledgeProvider / DataSource / TraceSink 可被实现，
+  知识库签名不接 user_id（D10 判定规则），记忆端口首参为 RequestContext。
 """
 
 from __future__ import annotations
 
 import dataclasses
+import inspect
 
 import pytest
 
@@ -24,7 +27,11 @@ from lighttrail.contracts import (
     ToolResult,
     ToolSpec,
 )
+from lighttrail.contracts.datasource import DataSource
 from lighttrail.contracts.events import KIND_TOOL, SSEEvent, TraceEvent
+from lighttrail.contracts.knowledge import KnowledgeChunk, KnowledgeProvider
+from lighttrail.contracts.memory import MemoryBlock, MemoryStore, TokenBudget
+from lighttrail.contracts.observability import TraceSink
 from lighttrail.contracts.plan import Plan, PlanStep
 
 
@@ -171,3 +178,89 @@ def test_sse_event_types_single_source() -> None:
         "error",
         "done",
     }
+
+# ------ B1-4：端口契约（记忆 / 知识库 / 数据源 / 观测）------
+def test_memory_store_protocol_structural() -> None:
+    """MemoryStore：实现三个方法即满足端口（首参为 RequestContext）。"""
+
+    class _Store:
+        def build_injections(self, ctx: RequestContext, intent: str = "", *, budget: TokenBudget | None = None) -> list[MemoryBlock]:
+            return [MemoryBlock(name="profile", text="档案")]
+
+        def write_event(self, ctx: RequestContext, event: object) -> int:
+            return 7
+
+        def propose_semantic(self, ctx: RequestContext, content: str, keywords: list[str]) -> int:
+            return 8
+
+    store = _Store()
+    assert isinstance(store, MemoryStore)
+    assert store.build_injections(RequestContext())[0].name == "profile"
+    assert store.write_event(RequestContext(), object()) == 7
+
+
+def test_memory_port_takes_request_context_first() -> None:
+    """记忆是 per-user 链路：端口方法首参必须是 RequestContext（§7.1 预留点①）。"""
+    for method in (
+        MemoryStore.build_injections,
+        MemoryStore.write_event,
+        MemoryStore.propose_semantic,
+    ):
+        params = list(inspect.signature(method).parameters.values())
+        assert params[0].name == "self"
+        assert params[1].name == "ctx"
+
+
+def test_knowledge_provider_has_no_user_id() -> None:
+    """知识库全局只读：端口签名不含 user_id（D10 / D14 判定规则）。"""
+    for method in (KnowledgeProvider.lookup, KnowledgeProvider.search):
+        assert "user_id" not in inspect.signature(method).parameters
+
+
+def test_knowledge_chunk_requires_source_and_version() -> None:
+    """知识条目必须可溯源、可版本化（source / version 无默认值）。"""
+    chunk = KnowledgeChunk(id="S5M2", text="全画幅 2420 万像素", source="松下官网", version="2026-09")
+    assert (chunk.id, chunk.source, chunk.version) == ("S5M2", "松下官网", "2026-09")
+    fields = set(KnowledgeChunk.__dataclass_fields__)
+    assert {"source", "version"} <= fields
+
+
+def test_knowledge_provider_protocol_structural() -> None:
+    """KnowledgeProvider：lookup / search 齐备即满足端口（结构化校验）。"""
+
+    class _Knowledge:
+        def lookup(self, key: str, *, table: str = "") -> KnowledgeChunk | None:
+            return None
+
+        def search(self, query: str, *, k: int = 3, scope: str = "") -> list[KnowledgeChunk]:
+            return []
+
+    assert isinstance(_Knowledge(), KnowledgeProvider)
+
+
+def test_data_source_protocol_structural() -> None:
+    """DataSource：提供异步 get 即满足端口（async-first 口径）。"""
+
+    class _Source:
+        async def get(self, name: str, params: dict[str, object]) -> dict[str, object]:
+            return {"name": name}
+
+    assert isinstance(_Source(), DataSource)
+    assert inspect.iscoroutinefunction(_Source.get)
+
+
+def test_trace_sink_satisfied_by_recorder() -> None:
+    """TraceSink 与既有记录器一致：TraceRecorder / NullTrace 结构化满足端口。"""
+    from lighttrail.infra.trace import TraceRecorder, null_trace
+
+    assert isinstance(TraceRecorder(), TraceSink)
+    assert isinstance(null_trace, TraceSink)
+
+
+def test_token_budget_and_memory_block_defaults() -> None:
+    """注入预算与记忆块的默认值符合设计（300 token 预算、空来源标记）。"""
+    assert TokenBudget().max_tokens == 300
+    assert TokenBudget().max_blocks == 0
+    block = MemoryBlock(name="events")
+    assert block.text == ""
+    assert block.source == ""

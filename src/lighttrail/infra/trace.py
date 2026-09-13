@@ -180,6 +180,21 @@ class TraceRecorder:
         self._lock = threading.Lock()
 
     # ------ 对外接口：记录 ------
+    def emit(self, event: TraceEvent) -> None:
+        """写入一条已构造好的观测事件并同步派发订阅者（TraceSink 端口实现）。
+
+        Args:
+            event: 事件快照（保留其自身时间戳）。
+        """
+        with self._lock:
+            self._events.append(event)
+            listeners = list(self._listeners)
+        for callback in listeners:
+            try:
+                callback(event)
+            except Exception:
+                logger.exception("trace 订阅者处理事件失败：%s", event.kind)
+
     def record_llm(
         self,
         model: str,
@@ -372,20 +387,15 @@ class TraceRecorder:
 
     # ------ 内部实现 ------
     def _emit(self, kind: str, name: str, payload: dict[str, Any]) -> None:
-        """记录事件并向订阅者同步派发（列表与监听器快照在锁内完成）。"""
-        event = TraceEvent(kind=kind, name=name, payload=payload)
-        with self._lock:
-            self._events.append(event)
-            listeners = list(self._listeners)
-        for callback in listeners:
-            try:
-                callback(event)
-            except Exception:
-                logger.exception("trace 订阅者处理事件失败：%s", event.kind)
+        """构造事件并转交 emit（保持既有记录 API 不变）。"""
+        self.emit(TraceEvent(kind=kind, name=name, payload=payload))
 
 
 class NullTrace:
     """关闭态记录器：全部方法零实现，行为与「未接入 trace」完全一致。"""
+
+    def emit(self, event: TraceEvent) -> None:
+        """关闭态空实现（TraceSink 端口实现）。"""
 
     def record_llm(self, model: str, **kwargs: Any) -> None:
         """关闭态空实现。"""
