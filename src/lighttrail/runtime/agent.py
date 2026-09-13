@@ -19,6 +19,7 @@ from functools import partial
 from typing import Any
 
 from pydantic_ai import Agent
+from pydantic_ai.messages import ThinkingPart
 from pydantic_ai.models import Model, ModelSettings
 from pydantic_ai.tools import Tool as PydanticTool
 from pydantic_ai.usage import UsageLimits
@@ -195,6 +196,16 @@ class AgentRuntime:
             instructions=system or self.system_prompt(),
             model_settings=ModelSettings(temperature=temperature, extra_body=extra_body or None),
         )
+        # M2-04 推理可见：把供应商回传的思考摘要落成步骤事件（对齐旧 Agent 行为）
+        thinking = "".join(
+            part.content for part in result.response.parts if isinstance(part, ThinkingPart)
+        )
+        if thinking:
+            self._recorder.record_step(
+                "reason_thinking",
+                input_summary=f"问题：{prompt[:80]}",
+                output_summary=thinking[:120],
+            )
         return str(result.output).strip()
 
     def reason(

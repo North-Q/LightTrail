@@ -9,9 +9,12 @@
 
 from __future__ import annotations
 
-from lighttrail.agent import Agent, registry
+from lighttrail.adapters.llm.provider import ChatClientProvider
+from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
+from lighttrail.agent.tools import registry
 from lighttrail.infra.trace import TraceRecorder
 from lighttrail.llm.client import UsageStats
+from lighttrail.runtime.agent import AgentRuntime
 from lighttrail.tools import basic, exposure  # noqa: F401  确保工具已注册
 
 
@@ -51,12 +54,38 @@ class FakeChatClient:
             resp["thinking"] = self.thinking
         return resp
 
+    async def acall(self, messages, **kwargs) -> dict:
+        """async 通道：B2-7 起深推理经 AgentRuntime → Model 桥走 acall。"""
+        return self.chat(messages, **kwargs)
+
+
+def _runtime(
+    fake: FakeChatClient,
+    *,
+    model: str = "ecnu-plus",
+    reason_model: str = "ecnu-max",
+    reason_thinking: bool = False,
+    recorder: TraceRecorder | None = None,
+) -> AgentRuntime:
+    """把伪客户端经自定义 Model 桥接成 AgentRuntime（B2-7：替代旧 Agent 门面）。
+
+    记录器同时注入两个 Model 桥（LLM 事件）与 runtime（工具/步骤事件）。
+    """
+    provider = ChatClientProvider(fake)
+    return AgentRuntime(
+        LightTrailModel(provider, model_name=model, recorder=recorder),
+        registry,
+        reason_model=LightTrailModel(provider, model_name=reason_model, recorder=recorder),
+        recorder=recorder,
+        reason_thinking=reason_thinking,
+    )
+
 
 def test_reason_default_uses_deep_model_without_tools() -> None:
     """reason 缺省：路由深推理模型、tools=None、temperature=0.3、不携带扩展参数。"""
     fake = FakeChatClient()
-    agent = Agent(fake, registry)
-    reply = agent.reason("分析一下这个场景")
+    runtime = _runtime(fake)
+    reply = runtime.reason("分析一下这个场景")
     assert reply == "推理结论"
     call = fake.calls[0]
     assert call["model"] == "ecnu-max"
@@ -70,8 +99,8 @@ def test_reason_default_uses_deep_model_without_tools() -> None:
 def test_reason_thinking_enabled_when_configured() -> None:
     """reason_thinking=True 时携带 thinking 扩展参数与 reasoning_effort。"""
     fake = FakeChatClient()
-    agent = Agent(fake, registry, reason_thinking=True)
-    agent.reason("综合判断", reasoning_effort="high")
+    runtime = _runtime(fake, reason_thinking=True)
+    runtime.reason("综合判断", reasoning_effort="high")
     call = fake.calls[0]
     assert call["thinking"] == {"type": "enabled"}
     assert call["reasoning_effort"] == "high"
@@ -80,16 +109,16 @@ def test_reason_thinking_enabled_when_configured() -> None:
 def test_reason_thinking_disabled_ignores_effort() -> None:
     """reason_thinking 关闭时即便传入 reasoning_effort 也不发送（平台中立）。"""
     fake = FakeChatClient()
-    agent = Agent(fake, registry)
-    agent.reason("综合判断", reasoning_effort="high")
+    runtime = _runtime(fake)
+    runtime.reason("综合判断", reasoning_effort="high")
     assert fake.calls[0]["reasoning_effort"] is None
 
 
 def test_reason_custom_model_and_system() -> None:
     """model 覆盖 + system 覆盖（管线结构化指令）。"""
     fake = FakeChatClient()
-    agent = Agent(fake, registry)
-    agent.reason("判断", model="custom-reason", system="按 JSON 输出")
+    runtime = _runtime(fake, reason_model="custom-reason")
+    runtime.reason("判断", system="按 JSON 输出")
     call = fake.calls[0]
     assert call["model"] == "custom-reason"
     assert call["messages"][0]["content"] == "按 JSON 输出"
@@ -100,8 +129,8 @@ def test_reason_thinking_recorded_in_trace() -> None:
     fake = FakeChatClient()
     fake.thinking = "先看云量，再判断火烧云概率…（思考过程）"
     recorder = TraceRecorder()
-    agent = Agent(fake, registry, recorder=recorder)
-    agent.reason("今晚火烧云值得冲吗")
+    runtime = _runtime(fake, recorder=recorder)
+    runtime.reason("今晚火烧云值得冲吗")
     report = recorder.to_report()
     assert len(report.llm_calls) == 1
     assert report.llm_calls[0]["模型"] == "ecnu-max"
@@ -113,8 +142,8 @@ def test_reason_without_thinking_no_step() -> None:
     """平台未返回 thinking 时不计 reason_thinking 步骤。"""
     fake = FakeChatClient()
     recorder = TraceRecorder()
-    agent = Agent(fake, registry, recorder=recorder)
-    agent.reason("简单问题")
+    runtime = _runtime(fake, recorder=recorder)
+    runtime.reason("简单问题")
     assert [s.name for s in recorder.to_report().steps] == []
 
 def test_reason_records_usage_tokens() -> None:
@@ -122,8 +151,8 @@ def test_reason_records_usage_tokens() -> None:
     fake = FakeChatClient()
     fake.usage = UsageStats(prompt_tokens=200, completion_tokens=80)
     recorder = TraceRecorder()
-    agent = Agent(fake, registry, recorder=recorder)
-    agent.reason("分析一下这个场景")
+    runtime = _runtime(fake, recorder=recorder)
+    runtime.reason("分析一下这个场景")
     call = recorder.to_report().llm_calls[0]
     assert call["tokens"] == 280
     assert call["输入_tokens"] == 200
