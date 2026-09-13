@@ -1,5 +1,7 @@
 # LightTrail（光迹）Agent 架构设计文档
 
+> ⚠️ **重要提示（2026-09-12）**：本文档描述的是**重构前现状架构**（六层，E1–E8 落地形态）。经 v4 方案诊断，该六层在依赖图上不成立（工具层反向依赖核心层等四组反向边，详见 v4 §1）。**目标架构以 `docs/architecture-v4-proposal.md` 为唯一权威**（契约层 + 声明式注册 + 五层分层，D1–D14 已拍板）；重构任务见 `docs/REFACTOR-ROADMAP.md`（B0–B7）。本文档将在 **B5-5 批次重写为 v3.0（目标架构）**，重写前仅作历史基线查阅，不再作为新增代码的设计依据。
+
 **版本**：v2.0.3 ｜ **作者**：高见远（Gao，软件架构）｜ **v2.0 修订**：架构通 ｜ **对应 PRD**：v0.3
 **代码基线**：**E1–E7 已实现**（37 commits，已 push 至 origin/main，HEAD 8b58fd5）——src+tests ~1.1w 行 + `frontend/`（Vite + React + TS），15 个已注册工具（含 analyze_photo / reverse_engineer_photo / search_memory），pytest 212 全绿、ruff 0 告警、smoke 21 项通过；E6-0 四管线真实联调 + E7-0 SSE 真实联调均通过；`npm run build` 通过
 

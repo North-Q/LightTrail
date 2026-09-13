@@ -27,23 +27,24 @@
   - 结构化输出契约（pydantic 自愈重试）+ 三层评估体系（工具 pytest / 黄金用例集 / LLM-as-judge）
 - **语言**：Python（近期主用）
 - 探索大模型在垂直场景（摄影）中的应用方法
-- 架构设计详见 [`docs/architecture.md`](docs/architecture.md)（v2.0）
+- 架构设计详见 [`docs/architecture-v4-proposal.md`](docs/architecture-v4-proposal.md)（v4 定稿，目标架构）；旧架构文档 `docs/architecture.md` 为重构前现状基线
 
 ## 目录结构
 
 ```
 LightTrail/
-├── docs/                # PRD v0.3 / 架构 v2.0 / 开发路线图 v2.3 / ADR / 设计原型
-├── src/lighttrail/      # 源码
+├── docs/                # PRD v0.3(+v0.4 修订) / 架构 v4 方案 / 重构路线图 / ADR / 设计原型
+├── src/lighttrail/      # 源码（重构前形态，B0–B7 逐步迁移至 v4 目标结构）
 │   ├── agent/           # ReAct 循环 / ContextBuilder 五层组装 / 工具注册表
-│   ├── llm/             # ChatClient（串行可配置 + 重试）/ ModelRouter 能力矩阵
+│   ├── llm/             # ChatClient / ModelRouter 能力矩阵
 │   ├── orchestrator/    # 四管线编排 + Intent/DecisionCard 契约（pydantic 自愈）
 │   ├── memory/          # 四层记忆：档案 / 事件（SQLite）/ 语义 / Manager
 │   ├── infra/           # TraceRecorder / 置信度规则 / QuotaLedger 配额账本
-│   ├── api/             # Web 服务层：FastAPI 五端点 + SSE + SessionManager（E7）
+│   ├── api/             # Web 服务层：FastAPI 五端点 + SSE + SessionManager
 │   └── tools/           # 15 个已注册工具（曝光/天文/天气/机位匹配/记忆/照片分析/反推）
-├── frontend/            # SPA 前端（Vite + React + TS：对话 / 会话列表 / 决策卡片）
-├── tests/               # 212 项 pytest 用例（离线 Fake 数据源，不触网）
+├── frontend/            # SPA 前端（Vite + React + TS，6 页决策旅程）
+├── evals/               # 三层评估：黄金用例 cassette + LLM-as-judge
+├── tests/               # 223 项 pytest 用例（离线 Fake 数据源，不触网）
 ├── data/                # 本地记忆数据（profile/events.db/semantic，不入库）
 └── README.md
 ```
@@ -52,16 +53,17 @@ LightTrail/
 
 - [x] 项目初始化
 - [x] Agent 骨架（多轮对话 + 工具调用最小链路）
-- [x] 需求文档 v0.3（[docs/PRD-v0.3.md](docs/PRD-v0.3.md)，含主动提醒能力族）
+- [x] 需求文档 v0.3（[docs/PRD-v0.3.md](docs/PRD-v0.3.md)，含主动提醒能力族 + v0.4 范围修订）
 - [x] 决策主线工具层：**15 个工具已注册**（参数推荐 / 天文查询 / 天气 / 火烧云评分 / 机位×天象匹配 / 记忆检索 / 照片分析 / 反推）
 - [x] UI 高保真原型（[docs/design/delivery/lighttrail-prototype.html](docs/design/delivery/lighttrail-prototype.html)，6 页 SPA）
 - [x] 地基拆分与可观测性（E1+E2：ContextBuilder 五层组装 / TraceRecorder / 置信度规则表）
 - [x] 记忆层与配额感知（E3+E4：四层记忆 / ModelRouter 能力矩阵 / QuotaLedger / reason 深推理通道）
 - [x] 决策编排（E5：四管线端到端闭环 + 一句话出方案 + 追问回落 ReAct；ADR-002 平台中立性落地）
-- [x] 多模态与差异化（E6-1~E6-5 + E6-0：照片分析 / 反推 / 复盘闭环 / 语义记忆提炼 / 黄金用例增量；四管线真实 Key 联调通过 + 远程基线已建立；ADR-003 扩展参数适配）
-- [x] Web 服务层（E7：async ChatClient 串行闸门 + SessionManager 会话持久化 + FastAPI 五端点 SSE + trace→SSE 桥接 + SPA 三核心页；E7-0 真实 Key SSE 长连接联调通过）
-- [ ] 评估体系（阶段六，E8）
-- [ ] 开源发布
-- [ ] 主动提醒服务（被动提醒 MVP，E9，开源后迭代）
+- [x] 多模态与差异化（E6：照片分析 / 反推 / 复盘闭环 / 语义记忆提炼；ADR-003 扩展参数适配）
+- [x] Web 服务层（E7：FastAPI 五端点 SSE + trace→SSE 桥接 + SPA 六页旅程）
+- [x] 评估体系（E8：L2 黄金用例 cassette 回放零成本 + L3 LLM-as-judge「工具即裁判」）
+- [ ] **架构重建（进行中，B0–B7）**：契约层 + 声明式工具注册 + PydanticAI 引擎 + async-first 并发 + 前后端契约单一真源 + 记忆/知识库双链路 + 意图路由与受控规划通道——方案见 [docs/architecture-v4-proposal.md](docs/architecture-v4-proposal.md)（D1–D14 已定稿），任务见 [docs/REFACTOR-ROADMAP.md](docs/REFACTOR-ROADMAP.md)
+- [ ] 开源发布（重构后）
+- [ ] 主动提醒服务（被动提醒 MVP，重构后迭代）
 
-开发进度与任务拆解见 [docs/DEVELOPMENT-ROADMAP.md](docs/DEVELOPMENT-ROADMAP.md)（v2.3，任务编号 E1-1 … E9-3）。
+开发任务拆解见 [docs/REFACTOR-ROADMAP.md](docs/REFACTOR-ROADMAP.md)（v1.0，任务编号 B0-1 … B7-6）；E1–E8 时代的旧路线图已归档至 `docs/archive/`。

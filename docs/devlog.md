@@ -1,5 +1,22 @@
 # LightTrail 开发日志
 
+## 2026-09-12（架构重建启动：文档体系切换至 v4 方案）
+
+> 背景：v4 重构方案（`docs/architecture-v4-proposal.md`，D1–D14）已定稿，本期重心 = 架构重构（B0–B7）。
+> 本次为纯文档变更，无代码改动。
+
+- **新建** `docs/REFACTOR-ROADMAP.md` v1.0：B0–B7 八批次拆为 35 个原子任务（B0-1 ~ B7-6），
+  每任务含目标/前置/输入上下文/交付物/验收标准/涉及文件/难度，供 codex 单任务读取执行。
+- **重写** `docs/codex-longterm-goal.md` → v7：当前位置 = B0 之前；批次闸门 0–7；
+  硬约束更新（并发为纯配置 LLM_CONCURRENCY、shim 纪律、热插拔口径、知识写死红线）。
+- **归档**（移入 `docs/archive/`）：`architecture-v3-proposal.md`（被 v4 取代）、
+  `architecture-v4-deep-dive.md`（M1–M5 已并入 v4，v4 为单一权威）、
+  `DEVELOPMENT-ROADMAP.md` → `DEVELOPMENT-ROADMAP-v2.5.md`（E 系列时代结束）。
+- **更新**：PRD-v0.3 增附录 A2（v0.4 范围修订：本期=重构，D2.2 缩减，E9-3 砍，火烧云工具化低优先级待议）；
+  `architecture.md` 加「重构前现状」横幅（B5-5 重写为 v3.0）；`AGENTS.md` 当前阶段/目录结构/并发约定同步；
+  `README.md` 状态与文档链接同步；`TODO.md` 重排为 B0–B7 待办 + E1–E8 历史记录。
+- **下一步**：B0-1 修复 SessionManager 并发三 bug。
+
 ## 2026-09-10（前端产品化打磨 · 小北反馈）
 
 > 反馈：页面里充斥着「示例 / 原型规格 / 铁律编号 / 开发路径」等文字，不像产品。

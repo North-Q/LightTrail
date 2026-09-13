@@ -1,10 +1,86 @@
 # TODO · LightTrail（光迹）
 
-> 项目待办 + 灵感收集。更新日期：2026-09-07
-> 任务编号与 `docs/DEVELOPMENT-ROADMAP.md` v2.2（E1-1 … E9-2）对应（E9-3 定时推送为可选待议项，未入路线图）；架构见 `docs/architecture.md` v2.0.1。
-> PRD 已升至 v0.3（新增「主动提醒服务」能力族，见 PRD §8.4 / D2.3-06 / D2.3-07 / D3.1-04 / M1.1-04 / M1.1-05 / NF-16）——主动提醒以「查询时被动提醒」MVP 形式排 E9，定时推送延后。
+> 项目待办 + 灵感收集。更新日期：2026-09-12
+> **当前阶段：架构重建期**——任务编号见 `docs/REFACTOR-ROADMAP.md`（B0-1 … B7-6）；方案权威 `docs/architecture-v4-proposal.md`；codex 入口 `docs/codex-longterm-goal.md` v7。
+> E1–E8 已完成（旧 E 系列路线图归档至 `docs/archive/DEVELOPMENT-ROADMAP-v2.5.md`）；E9/E10 等未做功能项的处置见 PRD 附录 A2（v0.4 范围修订）。
 
-## 待办（当前阶段）
+## 待办（当前阶段：架构重构 B0–B7）
+
+### B0 止血护栏 ★ 下一步
+
+- [ ] B0-1 修复 SessionManager 并发三 bug（死锁 / 共享可变 / 锁外写）+ 淘汰与并发写测试
+- [ ] B0-2 record_llm 接通 tokens 记账（TraceReport 不再恒 None）
+- [ ] B0-3 四处假注释清理（client 缓存 / trace tokens / pipelines 时效 / orchestrator 档案定位）
+- [ ] B0-4 B0 收口（回归 + 重构前基线）
+
+### B1 契约层 + 配置
+
+- [ ] B1-1 contracts/ 骨架（ToolSpec / ToolContext / RequestContext）
+- [ ] B1-2 契约模型迁移（Intent / DecisionCard / TraceEvent / Plan + shim）
+- [ ] B1-3 用户体系预留接口（UserConfigProvider / KeyVault / LLMConfig，Key 掩码）
+- [ ] B1-4 剩余 Protocol（MemoryStore / KnowledgeProvider / DataSource / TraceSink）
+- [ ] B1-5 config.py 换 pydantic-settings + 护栏配置项 + import-linter 契约门禁
+
+### B2 引擎重写
+
+- [ ] B2-1 声明式 ToolSpec 改造：basic + exposure
+- [ ] B2-2 声明式 ToolSpec 改造：astronomy + weather
+- [ ] B2-3 声明式 ToolSpec 改造：site_match / memory_tool / photo_analysis + TOOLS 收集点
+- [ ] B2-4 ToolRegistry(specs) + composition root（agent/ 转 shim）
+- [ ] B2-5 PydanticAI 自定义 Model 桥（ADR-002/003 语义不丢）
+- [ ] B2-6 AgentRuntime 接入 + ContextBuilder 迁入 runtime
+- [ ] B2-7 TestModel 替换 FakeChatClient + test_hotplug + B2 收口
+
+### B3 适配层 + 并发
+
+- [ ] B3-1 async-first LLMProvider（单 Semaphore，LLM_CONCURRENCY 默认 4，删三套并发机制）
+- [ ] B3-2 tenacity 统一重试 + httpx 数据源
+- [ ] B3-3 管线并行取数（asyncio.TaskGroup，采集延迟降 ≥40%）
+- [ ] B3-4 TraceSink Protocol + OTel GenAI 命名 + 事件载荷白名单
+- [ ] B3-5 B3 收口（import-linter 全开 + QuotaLedger 加锁 + 死锁回归）
+
+### B4 契约单一真源 + 前端重接（可与 B2/B3 并行）
+
+- [ ] B4-1 OpenAPI→openapi-typescript 生成流水线（gen:api）
+- [ ] B4-2 前端删手抄类型，接 generated.ts
+- [ ] B4-3 D3Page 去伪造数据（置信度常量表 / verdictFrom 正则）
+- [ ] B4-4 D2Page 去正则解析工具 JSON
+- [ ] B4-5 B4 收口（gen:api && git diff --exit-code 门禁）
+
+### B5 记忆命名空间 + 清理 + 文档
+
+- [ ] B5-1 MemoryStore user_id 命名空间（data/users/{user_id}/）+ 存量迁移
+- [ ] B5-2 semantic 层拆分（用户偏好留记忆 / 领域结论迁知识库种子）
+- [ ] B5-3 坐标改用 favorite_spots（消灭 _DEFAULT_LAT 双份）+ 预算显式化
+- [ ] B5-4 死代码清理 + requirements.txt 对齐 pyproject + shim 到期删除
+- [ ] B5-5 ADR-004（并发为纯配置）+ architecture.md 重写 v3.0 + 文档同步
+
+### B6 知识库链路（可与 B7 并行）
+
+- [ ] B6-1 knowledge/ 骨架 + camera_specs.yaml 机型规格表（含 source/version）
+- [ ] B6-2 SQLite FTS5 中文检索（trigram 分词）
+- [ ] B6-3 KnowledgeProvider 装配 + 「命中才取」注入策略
+- [ ] B6-4 pixel_pitch 端到端案例（档案存机型 → 知识库查规格，去手填）
+- [ ] B6-5 B6 收口
+
+### B7 意图路由 + 受控规划通道（可与 B6 并行）
+
+- [ ] B7-1 意图路由器：规则优先通道
+- [ ] B7-2 意图路由器：轻量 LLM 兜底判定（判定落 trace）
+- [ ] B7-3 受控 Planner（Plan 一等对象 / 步数上限 8 / 每步过 dispatch+trace+配额）
+- [ ] B7-4 超工具集显式告知 + ReAct 轮数 8→12 护栏生效
+- [ ] B7-5 评估适配（L2 cassette 加 RequestContext 维度）
+- [ ] B7-6 B7 收口 + 重构总验收
+
+### 重构后再议（本期不做，见 PRD 附录 A2）
+
+- [ ] 开源发布（README/CONTRIBUTING/CHANGELOG，**发布前必须小北确认**）
+- [ ] E9-1 复拍机会被动提醒 / E9-2 就近快速推荐（被动 MVP；E9-3 定时推送已砍）
+- [ ] E10 体验项（sessions 端点优先；token 流式延后）
+- [ ] D2.2 多机位赶场调度 MVP（直线距离 + 手工估算；真实通勤延后）
+- [ ] 火烧云判据工具化（低优先级待议，研究结论见 v4 §5.1）
+
+## E1–E8 已完成（历史记录）
 
 ### 已基线（工具层 15 工具已注册，176 测试全绿）
 
@@ -53,7 +129,7 @@
 - [x] E7-4 trace 事件桥接 SSE（TraceBridge，「trace 即 UI」实时轨迹面板）
 - [x] E7-5 前端 SPA 工程化（Vite + React + TS，三核心页：对话/会话列表/DecisionCard，npm run build + dev 代理实测）
 
-### 阶段五·补：前端旅程页对齐（E7-6 ~ E7-10）★ 下一步
+### 阶段五·补：前端旅程页对齐（E7-6 ~ E7-10）✅ 已完成
 
 > 小北确认设计稿（`docs/design/delivery/lighttrail-prototype.html`）为唯一视觉真源，实际前端需对齐补齐。
 > 唯一 spec：`docs/design/FRONTEND-SPEC.md`；原设计文档 v1.1 归档于 `docs/design/archive/`。
@@ -64,23 +140,13 @@
 - [x] E7-9 D3 决策页对齐（三态卡 / 置信度三层 / 倒计时 / 现场模式 / 曝光三角联动 / 四步推理——可解释性铁律①②硬门禁）
 - [x] E7-10 D4 复盘页 + 解释中心 + 收口（批量上传 / 4 维分析 / 处方；铁律③；双视口自检 + 全站示例数据标注）
 
-### 阶段六：评估体系（E8）
+### 阶段六：评估体系（E8）✅ 已完成
 
 > 黄金用例改为各阶段增量交付（每阶段收口 +5~10 条）；E8 本体做框架与 LLM-as-judge。
 
 - [x] E8-0 真实评估基线验证（对标 E6-0/E7-0 联调开场原则，用最小样本验证 eval runner 链路）
 - [x] E8-1 黄金用例集 + 管线回归（L2，cassette 回放，~30 条集中补齐；E6-5 已含 ≥8 条）
 - [x] E8-2 LLM-as-judge（L3，rubric 打分 + 「工具即裁判」交叉校验）
-
-### 阶段七：开源发布
-
-- [ ] README 重写（Web 形态 + 双入口）、CONTRIBUTING、.env.example 校验（补 LLM_SERIAL_LLM / LLM_REASON_THINKING / LIGHTTRAIL_QUOTA_WARN_THRESHOLD）、CHANGELOG.md（从 20 commits 梳理 E1–E5）
-
-### 阶段八：主动提醒服务（E9，被动 MVP，开源后迭代）
-
-- [ ] E9-1 复拍机会被动提醒（D2.3-07：事件坐标 + 天气快照匹配 → 查询时注入提醒卡片）
-- [ ] E9-2 就近快速推荐（D3.1-04：haversine 5km 过滤 favorite_spots）
-- [ ] E9-3（可选）定时推送骨架（APScheduler，视社区反馈）
 
 ## 工程遗留（接手 agent 留意）
 

@@ -19,7 +19,7 @@
 ## 技术约定
 - 语言：Python（小北近期主用）
 - LLM：华东师大开发者平台，OpenAI 兼容，Base URL `https://chat.ecnu.edu.cn/open/api/v1`，主模型 `ecnu-max` / `ecnu-plus`
-- 注意：默认建议串行调用 API（ECNU 平台建议避免并行请求）；并发策略由 `LLM_SERIAL_LLM` 配置（默认 true），换用支持并发的 API 时可关闭，业务代码零改动
+- 注意（2026-09-12 起）：「ECNU 串行约束」前提已作废，并发为**纯配置** `LLM_CONCURRENCY`（默认 4，B1 落地）；`LLM_SERIAL_LLM` 只作只读兼容别名过渡一版（=1 时等价串行），B3 批次删除。重构完成前代码仍是旧形态（`llm/client.py` 串行闸门），改动遵循 REFACTOR-ROADMAP 批次节奏
 - 项目目录：`D:\Project\LightTrail`（小北所有项目统一放 D:\Project）
 
 ## 协作约定
@@ -64,8 +64,8 @@ src/lighttrail/
 tests/                  # 21 个测试文件，176 用例（离线 Fake 数据源，不触网）
 ```
 
-## ECNU API 调用模式（见 `llm/client.py`，新增工具遵守）
-- 串行策略可配置：`LLM_SERIAL_LLM`（默认 true 适配 ECNU），锁只包单次 API 往返，重试在锁外（ADR-002 平台中立）
+## ECNU API 调用模式（见 `llm/client.py`，新增工具遵守；B3 起由 `adapters/llm` 接替）
+- 并发可配置：现状 `LLM_SERIAL_LLM`（默认 true），B1 起 `LLM_CONCURRENCY`（默认 4）单 Semaphore 只包单次 API 往返、重试在外（ADR-002 平台中立；ADR-004 并发为纯配置，B5-5 落盘）
 - 指数退避重试：最多 3 次，基础 1s + 随机抖动
 - 可重试状态码：429、500、502、503、504
 - 超时：连接 30s、读取 120s（容忍 thinking 模式长响应）
