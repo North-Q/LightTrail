@@ -6,7 +6,8 @@
 - LRU 内存淘汰（淘汰只移出内存、磁盘保留，restore 仍可恢复）；
 - save 覆盖更新（重复保存取最终态）；
 - 管线上下文快照往返（Intent/DecisionCard → JSON → 还原）；
-- 序列化 JSON 安全兜底、非法 session_id / 损坏落盘 / 参数边界。
+- 序列化 JSON 安全兜底、非法 session_id / 损坏落盘 / 参数边界；
+- 并发与隔离（B0-1）：淘汰路径不自锁、淘汰补落盘、同 id 并发保存不损坏文件、get/create 返回深拷贝。
 
 使用 tempfile.mkdtemp 自建数据目录（与 test_memory 相同模式，不依赖 pytest tmp_path）。
 """
@@ -16,6 +17,7 @@ from __future__ import annotations
 import json
 import shutil
 import tempfile
+import threading
 from pathlib import Path
 
 import pytest
@@ -217,3 +219,87 @@ def test_corrupt_json_returns_none(session_dir: Path) -> None:
     fresh = _manager(session_dir)  # 模拟重启：无内存缓存，恢复只认磁盘
     assert fresh.restore(session.session_id) is None
     assert fresh.get(session.session_id) is None
+
+# ------ B0-1：并发与隔离（淘汰不死锁 / 原子写 / 快照隔离）------
+def test_eviction_path_of_unsaved_session_does_not_deadlock(session_dir: Path) -> None:
+    """淘汰未落盘会话时不自锁（旧实现持锁调 save 会永久死锁）。
+
+    用工作线程 + join 超时兜底：真死锁时用例失败，而不是挂住整个测试进程。
+    """
+    manager = _manager(session_dir, max_sessions=2)
+    created: list = []
+
+    def _create_batch() -> None:
+        for _ in range(5):
+            created.append(manager.create())
+
+    worker = threading.Thread(target=_create_batch, daemon=True)
+    worker.start()
+    worker.join(timeout=10)
+    assert not worker.is_alive(), "create 淘汰路径疑似死锁（10s 未返回）"
+    assert len(created) == 5
+    # 被淘汰的会话在淘汰前已补落盘：新进程（无内存缓存）也能恢复
+    assert _manager(session_dir).restore(created[0].session_id) is not None
+
+
+def test_evicted_session_written_to_disk(session_dir: Path) -> None:
+    """淘汰只移出内存：未保存过的会话也会在淘汰前补落盘（不丢数据）。"""
+    manager = _manager(session_dir, max_sessions=1)
+    first = manager.create()
+    manager.create()  # 触发淘汰 first
+    path = session_dir / "sessions" / f"{first.session_id}.json"
+    assert path.exists()
+    assert json.loads(path.read_text(encoding="utf-8"))["session_id"] == first.session_id
+    assert manager.get(first.session_id) is not None  # 内存淘汰后仍可恢复
+
+
+def test_concurrent_same_id_saves_keep_file_parseable(session_dir: Path) -> None:
+    """同 id 并发保存：原子替换保证落盘始终是完整 JSON，且不留临时文件。"""
+    manager = _manager(session_dir)
+    base = manager.create()
+    base.history.append({"role": "user", "content": "起始"})
+    manager.save(base)
+    path = session_dir / "sessions" / f"{base.session_id}.json"
+    errors: list = []
+
+    def _writer(index: int) -> None:
+        try:
+            local = manager.get(base.session_id)
+            assert local is not None
+            local.history.append({"role": "user", "content": f"写入-{index}"})
+            manager.save(local)
+        except BaseException as exc:  # noqa: BLE001 - 线程内异常回传主线程断言
+            errors.append(exc)
+
+    threads = [threading.Thread(target=_writer, args=(index,)) for index in range(6)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=15)
+    assert not errors, errors
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["session_id"] == base.session_id
+    assert data["history"][0] == {"role": "user", "content": "起始"}
+    assert list((session_dir / "sessions").glob("*.tmp")) == []
+
+
+def test_get_returns_isolated_snapshot(session_dir: Path) -> None:
+    """get/create 返回深拷贝：外部改动不污染缓存，未 save 的改动不落盘。"""
+    manager = _manager(session_dir)
+    created = manager.create()
+    created.history.append({"role": "user", "content": "原始"})
+    manager.save(created)
+
+    first = manager.get(created.session_id)
+    second = manager.get(created.session_id)
+    assert first is not None and second is not None
+    assert first is not second  # 每次取都是独立副本
+    first.history.append({"role": "user", "content": "偷偷改的"})
+    third = manager.get(created.session_id)
+    assert third is not None and len(third.history) == 1
+
+    another = manager.create()
+    another.workspace["draft"] = True
+    cached = manager.get(another.session_id)
+    assert cached is not None and cached.workspace == {}
+    assert not (session_dir / "sessions" / f"{another.session_id}.json").exists()
