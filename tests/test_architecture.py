@@ -3,8 +3,9 @@
 职责（与 import-linter 分工，见 v4 §2.2）：
 - import-linter 抓模块级分层与禁止依赖，抓不到**函数内 import**；本模块用 AST 遍历源码
   兜底，并承载 import-linter 表达不了的自定义规则（品牌字面量红线，ADR-002）；
-- 本批强制两条：① 契约层零依赖（仅标准库 + pydantic）；② 新层（contracts/adapters）
-  代码字符串常量不含供应商品牌；
+- 本批强制三条：① 契约层零依赖（仅标准库 + pydantic）；② 新层（contracts/adapters）
+  代码字符串常量不含供应商品牌；③ 领域/运行时/契约不得依赖适配层与交互层（禁止边，
+  含函数内 import——import-linter 抓不到的部分）；
 - 目标分层（interface/application/runtime/domain）就位后，由 B3-5 把范围扩展到旧包
   （agent/orchestrator/tools/memory/infra/llm/api），届时同步开启 import-linter 三段契约。
 """
@@ -26,6 +27,17 @@ _BRAND_LITERALS = ("ecnu", "openai.com", "deepseek")
 def _python_files(directory: Path) -> list[Path]:
     """列出目录下全部 .py 文件（递归，稳定排序）。"""
     return sorted(directory.rglob("*.py"))
+
+
+def _import_names(path: Path) -> set[str]:
+    """收集模块的完整 import 名（含函数内 import / from-import）。"""
+    names: set[str] = set()
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.Import):
+            names.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            names.add(node.module)
+    return names
 
 
 def _import_roots(path: Path) -> set[str]:
@@ -57,6 +69,22 @@ def _docstring_ids(tree: ast.AST) -> set[int]:
         if is_docstring:
             ids.add(id(first.value))
     return ids
+
+
+# 禁止边：领域 / 运行时 / 契约不得依赖适配层与交互层（v4 §2.2，import-linter 的 AST 兜底）
+_FORBIDDEN_SOURCES = ("contracts", "runtime", "tools", "memory")
+_FORBIDDEN_TARGETS = ("lighttrail.adapters", "lighttrail.api", "lighttrail.cli", "lighttrail.orchestrator")
+
+
+def test_forbidden_layer_edges_absent() -> None:
+    """禁止边（AST，含函数内 import）：领域/运行时/契约不得依赖适配层与交互层。"""
+    offenders: list[str] = []
+    for source in _FORBIDDEN_SOURCES:
+        for path in _python_files(SRC / source):
+            for name in _import_names(path):
+                if any(name == target or name.startswith(f'{target}.') for target in _FORBIDDEN_TARGETS):
+                    offenders.append(f'{path.name}: {name}')
+    assert offenders == []
 
 
 def test_contracts_have_no_layer_dependencies() -> None:
