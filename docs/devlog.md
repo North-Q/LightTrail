@@ -114,6 +114,30 @@
   需经 runtime 的 chat/reason 面）；② TestModel 替换 8 处 FakeChatClient；③ shim 清理
   （agent/tools.py、agent/context.py re-export 与旧 Agent 门面）→ 然后 B2 收口（闸门 2 汇报）。
 
+### B2 批次总结（闸门 2，2026-09-14）
+
+- **出口检查（路线图 §1.4 + B2-7 验收标准）**：pytest **296 全绿**；`ruff check src tests` 0 告警；
+  `lint-imports` **2 kept / 0 broken**（契约层零依赖 + 适配器不被反向依赖）；离线冒烟 21 项；
+  `npm run build` 通过；**15 个工具名与行为不变**；`tests/test_hotplug.py` 通过；
+  CLI（自由对话 + `--pipeline`）与 Web（`/api/chat` + `/api/decide`）**真实查询全部通过**。
+- **交付**：B2-1 ~ B2-6 完成；B2-7 完成主体——**生产路径全部切到 AgentRuntime**
+  （CLI / Web / 四管线编排器），会话历史经桥 `to_openai_history` / `from_openai_history` 双向转换；
+  测试换装 5/9 文件（orchestrator / pipeline_e2e / reverse_plan / reason / agent）。
+- **未完成（如实记录为 B2 尾巴）**：
+  ① `test_trace` / `test_context` / `test_memory` 三个用例文件 + `evals/runner.py` 两处尚未换装；
+  ② orchestrator 的旧 `Agent` 分支与 `agent/` 下 shim（`agent/tools.py`、`agent/context.py`、旧 `Agent`
+  门面）尚未删除。两者互为前提：先无引用，才能删。
+- **架构收益**：注册表方向反转（声明式 ToolSpec + 装配根唯一 new 点）；元数据单一真源
+  （schema / 主字段 / 置信度 / 能力全来自 ToolSpec）；PydanticAI runtime 接管 ReAct 循环与用量护栏
+  （平台差异留在 Model 桥，ADR-002/003 语义不丢）；**R1/R2 两个根因消除**（全局单例退场、
+  `tools → orchestrator` 反向依赖消失）。
+- **平台中立性审计**：新增代码零品牌字面量（`contracts/`、`adapters/` 由 AST 测试把关；品牌默认值只
+  出现在 `config.py` 默认值与适配层）；LLM 调用一律经 `LLMProvider` / Model 桥；模型名由装配根绑定，
+  运行时无品牌判断。结论：**通过**。
+- **遗留风险**：runtime 与 legacy `Agent` 暂时并存（镜像双路径），必须在 B2 尾巴删除 legacy 分支，
+  否则违反「不做永久白名单/双实现」纪律；`runtime/registry.py` 仍 import `infra.trace` / `infra.confidence`
+  （B3-5 随观测端口收敛消除）。
+
 ### B2 中间态验证（B2-1 ~ B2-7 第一批后）
 
 - pytest **295 全绿**；ruff 0；`lint-imports` 2 kept / 0 broken；离线冒烟 21 项；`npm run build` 通过；

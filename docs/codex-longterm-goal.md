@@ -8,7 +8,7 @@
 ## 📍 当前位置（开工第一眼先看这里）
 
 ```
-📍 当前位置：B2 批次进行中（B2-1 ~ B2-6 已完成；B2-7 部分：热插拔 + 架构禁止边已过）
+📍 当前位置：闸门 2 已到达（B2 主体完成：生产路径全切 runtime；B2-7 尾巴：3 个用例文件 + evals 换装、legacy 分支与 shim 删除）
   代码基线：main 分支 HEAD 5acb182 ｜ pytest 295 全绿 ｜ ruff 0 ｜ lint-imports 2 kept / 0 broken
   实跑基线：CLI + Web 真实查询通过 ｜ 冒烟 21 项 ｜ 15 工具全部声明式 ｜ PydanticAI Model 桥 + AgentRuntime 已落地（尚未接管生产路径）
 🎯 当前目标：B2-7 剩余——① 编排器/四管线切 AgentRuntime（意图解析 + reason 通道）② TestModel 替换 8 处 FakeChatClient ③ shim 清理 → 然后 B2 收口（闸门 2 汇报）
@@ -23,7 +23,7 @@
 
 ```mermaid
 graph TD
-    S([📍当前位置<br/>B2 进行中 / B2-7 剩编排器与 shim<br/>295 测试全绿 / CLI+Web 已切 runtime]) --> B0
+    S([📍当前位置<br/>闸门 2 / B2 主体完成<br/>296 测试全绿 / B2-7 尾巴待清]) --> B0
 
     B0[B0 止血护栏<br/>B0-1~B0-4 修3 bug+tokens+假注释] --> G0{{闸门0 B0 出口<br/>pytest绿+淘汰/并发写用例过<br/>CLI/Web可跑 → 汇报}}
     G0 --> B1[B1 契约层+配置<br/>B1-1~B1-5 contracts/+pydantic-settings]
@@ -85,7 +85,7 @@ graph TD
 | B2-4 | ✅ 6000683 | runtime/registry.py + composition.py + agent/tools 转 shim + 适配器契约开启 |
 | B2-5 | ✅ 230dbbc | PydanticAI 自定义 Model 桥（adapters/llm/pydantic_bridge.py + pin pydantic-ai-slim） |
 | B2-6 | ✅ f0c5060 | AgentRuntime（runtime/agent.py）+ ContextBuilder 迁 runtime（能力叙述自动生成） |
-| B2-7 | 🔄 5756583 / 3e952c1 / dc164fb | ✅ 热插拔 + 架构禁止边 + CLI/Web 自由对话切 runtime；⏳ 编排器切 runtime + TestModel 替换 + shim 清理 + 收口 |
+| B2-7 | 🔄 5756583 / dc164fb / d704a55 / 4ead105 / 68daf82 | ✅ 热插拔 + 架构禁止边 + CLI/Web/编排器切 runtime + 5/9 测试文件换装；⏳ 3 个用例文件 + evals 换装 → legacy 分支与 shim 删除 |
 
 ### B3 ~ B7
 
