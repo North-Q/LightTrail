@@ -30,7 +30,6 @@ from lighttrail.adapters.llm.pydantic_bridge import (
     from_openai_history,
     to_openai_history,
 )
-from lighttrail.agent import Agent
 from lighttrail.api.events import (
     EVENT_DONE,
     EVENT_QUEUED,
@@ -152,21 +151,13 @@ def _run_setup(deps: Any, recorder: TraceRecorder) -> tuple[AgentRuntime, Orches
         recorder=recorder,
         reason_thinking=deps.reason_thinking,
     )
-    agent = Agent(
-        deps.client,
-        deps.registry,
-        model=deps.model,
-        memory=deps.memory,
-        reason_thinking=deps.reason_thinking,
-        recorder=recorder,
-    )
     dispatch = deps.dispatch
     if dispatch is not None:
         dispatch = _traced_dispatch(dispatch, recorder)
     orchestrator = Orchestrator(
         deps.client,
         deps.registry,
-        agent,
+        runtime,
         memory=deps.memory,
         recorder=recorder,
         dispatch=dispatch,

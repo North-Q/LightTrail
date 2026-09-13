@@ -15,7 +15,6 @@ import logging
 import sys
 
 from lighttrail.composition import (
-    build_agent,
     build_client,
     build_memory,
     build_orchestrator,
@@ -85,7 +84,6 @@ def main(argv: list[str] | None = None) -> int:
     client = build_client(settings)
     registry = build_registry(recorder=recorder)
     memory = build_memory(settings)
-    agent = build_agent(client, registry, settings=settings, memory=memory, recorder=recorder)
     # B2-7：自由对话走 PydanticAI runtime（--pipeline 的编排器仍用旧 Agent，切换见 B2-7 剩余项）
     runtime = build_runtime(
         build_provider(settings), registry, settings, recorder=recorder, memory=memory
@@ -93,7 +91,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.pipeline:
         request = " ".join(args.pipeline)
-        orchestrator = build_orchestrator(client, registry, agent, memory=memory, recorder=recorder)
+        orchestrator = build_orchestrator(client, registry, runtime, memory=memory, recorder=recorder)
         print(orchestrator.plan(request))
         return 0
 
@@ -111,7 +109,6 @@ def main(argv: list[str] | None = None) -> int:
             print("再见！")
             return 0
         if user_input == "/reset":
-            agent.reset()
             runtime.reset()
             print("（已清空对话历史）")
             continue

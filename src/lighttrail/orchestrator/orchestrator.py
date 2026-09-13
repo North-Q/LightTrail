@@ -31,6 +31,9 @@ from lighttrail.tools.astronomy import _parse_date  # noqa: F401  日期校验�
 
 logger = logging.getLogger("lighttrail.orchestrator")
 
+# 意图解析器系统指令（迁移期从 parse_intent 内联抽出，两条路径共用）
+_INTENT_SYSTEM = "你是 LightTrail 摄影决策引擎的意图解析器。"
+
 # 反推采集默认坐标（上海）：档案 favorite_spots 精确坐标接线见 B5-3（当前仍为兜底常量）
 _DEFAULT_LAT = 31.23
 _DEFAULT_LON = 121.47
@@ -159,7 +162,8 @@ class Orchestrator:
         Args:
             client: LLM 客户端（意图理解走默认模型）。
             registry: 工具注册表（数据采集直调）。
-            agent: Agent 门面（降级 ReAct 通道 + 历史上下文）。
+            agent: LLM 交互面——B2-7 起传 `AgentRuntime`（PydanticAI）；
+                迁移期亦接受旧 `Agent` 门面（TODO(B2-7): 测试全部换装后删旧分支）。
             memory: 记忆管理器（档案/事件/语义注入）。
             recorder: 可观测性记录器。
             router: 模型路由（缺省取 agent 内部路由）。
@@ -170,13 +174,15 @@ class Orchestrator:
         """
         self._client = client
         self._registry = registry
+        # LLM 交互面：AgentRuntime（B2-7 起）或迁移期旧 Agent
+        self._runtime = agent if hasattr(agent, "complete") else None
         self._agent = agent
         self._recorder: Recorder = recorder or null_trace
-        self._router = router or agent.router  # 复用 Agent 的路由配置
+        self._router = router or getattr(agent, "router", None)
         self._env = PipelineEnv(
             dispatch=dispatch
             or (lambda name, args: self._registry.dispatch(name, args, recorder=self._recorder)),
-            reason=lambda prompt, system: self._agent.reason(prompt, system=system),
+            reason=self._reason_text,
             memory=memory,
             recorder=self._recorder,
             router=self._router,
@@ -368,9 +374,11 @@ class Orchestrator:
         self._recorder.record_step("意图理解", input_summary=user_request[:80], output_summary="")
 
         def _chat(prompt_text: str) -> str:
+            if self._runtime is not None:
+                return self._runtime.complete(prompt_text, system=_INTENT_SYSTEM)
             model = RouteIntent.DEFAULT.resolve(self._router)
             resp = self._client.chat(
-                [{"role": "system", "content": "你是 LightTrail 摄影决策引擎的意图解析器。"}, {"role": "user", "content": prompt_text}],
+                [{"role": "system", "content": _INTENT_SYSTEM}, {"role": "user", "content": prompt_text}],
                 model=model,
                 tools=None,
             )
@@ -379,13 +387,25 @@ class Orchestrator:
         return parse_with_retry(Intent, _chat, prompt)
 
     # ------ 内部实现 ------
+    def _reason_text(self, prompt: str, system: str) -> str:
+        """深推理综合：runtime.reason（B2-7 起）或旧 Agent.reason。"""
+        if self._runtime is not None:
+            return self._runtime.reason(prompt, system=system)
+        return self._agent.reason(prompt, system=system)
+
+    def _run_freeform(self, user_request: str) -> str:
+        """降级自由对话（ReAct）：runtime.run（B2-7 起）或旧 Agent.run。"""
+        if self._runtime is not None:
+            return self._runtime.run(user_request)
+        return self._agent.run(user_request)
+
     def _fallback(self, user_request: str) -> str:
         """管线降级：携带卡片上下文转入自由对话（ReAct）。"""
         context_note = ""
         if self.last_card is not None:
             context_note = f"（背景：管线已产出部分方案「{self.last_card.conclusion}」，可在此基础上追问调整）"
         self._recorder.record_step("管线降级", input_summary=user_request[:80], output_summary=context_note[:80])
-        return self._agent.run(user_request + context_note)
+        return self._run_freeform(user_request + context_note)
 
 
 __all__ = ["Orchestrator", "_render_card"]
