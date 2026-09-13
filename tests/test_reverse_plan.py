@@ -16,9 +16,11 @@ from pathlib import Path
 import pytest
 
 import lighttrail.tools.photo_analysis as photo
-from lighttrail.agent import Agent
+from lighttrail.adapters.llm.provider import ChatClientProvider
+from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.agent.tools import registry
 from lighttrail.orchestrator import Orchestrator
+from lighttrail.runtime.agent import AgentRuntime
 from lighttrail.tools import (  # noqa: F401
     astronomy,
     basic,
@@ -47,6 +49,10 @@ class FakeChatClient:
     def chat(self, messages, **kwargs) -> dict:
         self.calls.append({"messages": messages, "kwargs": kwargs})
         return self._responses.pop(0)
+
+    async def acall(self, messages, **kwargs) -> dict:
+        """async 通道：B2-7 起编排器经 AgentRuntime → Model 桥走 acall。"""
+        return self.chat(messages, **kwargs)
 
 
 _REVERSE_JSON = json.dumps(
@@ -101,6 +107,21 @@ def _fake_dispatch(name: str, args: str) -> str:
 
 
 # ------ reverse_engineer_photo（工具层）------
+def _runtime(
+    fake,
+    *,
+    model: str = "ecnu-plus",
+    reason_model: str = "ecnu-max",
+):
+    """把伪客户端经自定义 Model 桥接成 AgentRuntime（B2-7：替代旧 Agent 门面）。"""
+    provider = ChatClientProvider(fake)
+    return AgentRuntime(
+        LightTrailModel(provider, model_name=model),
+        registry,
+        reason_model=LightTrailModel(provider, model_name=reason_model),
+    )
+
+
 def test_reverse_tool_sends_image_and_returns_plan(workdir: Path, monkeypatch) -> None:
     """多模态消息含 image_url + note；VISION 路由默认 plus；返回复刻计划。"""
     image = workdir / "ref.png"
@@ -149,13 +170,13 @@ def test_orchestrator_reverse_plan_full_flow(workdir: Path, monkeypatch) -> None
     photo_fake = FakeChatClient([{"role": "assistant", "content": _REVERSE_JSON}])
     monkeypatch.setattr(photo, "load_settings", lambda: type("S", (), {"data_dir": str(workdir)})())
     agent_fake = FakeChatClient([{"role": "assistant", "content": _CARD_JSON}])
-    agent = Agent(agent_fake, registry, model="ecnu-plus")
+    runtime = _runtime(agent_fake)
 
     def _fake_reverse(image_path: str, note: str, equipment: str) -> dict:
         return photo.reverse_engineer_photo(image_path, note=note, equipment=equipment, client=photo_fake)
 
     orc = Orchestrator(
-        agent_fake, registry, agent, dispatch=_fake_dispatch, photo_reverse=_fake_reverse
+        agent_fake, registry, runtime, dispatch=_fake_dispatch, photo_reverse=_fake_reverse
     )
     text = orc.reverse_plan(str(image), note="只能周末去")
 
@@ -182,16 +203,16 @@ def test_orchestrator_reverse_plan_fallback_on_failure(workdir: Path, monkeypatc
     monkeypatch.setattr(photo, "load_settings", lambda: type("S", (), {"data_dir": str(workdir)})())
     agent_fake = FakeChatClient([{"role": "assistant", "content": "复刻不了的话我可以帮你找类似的机位。"}])
     # photo_fake 恒坏 → reverse_engineer_photo 抛 PhotoError → 降级 agent.run
-    agent = Agent(agent_fake, registry, model="ecnu-plus")
+    runtime = _runtime(agent_fake)
 
     def _fake_reverse(image_path: str, note: str, equipment: str) -> dict:
         return photo.reverse_engineer_photo(image_path, note=note, equipment=equipment, client=photo_fake)
 
     orc = Orchestrator(
-        agent_fake, registry, agent, dispatch=_fake_dispatch, photo_reverse=_fake_reverse
+        agent_fake, registry, runtime, dispatch=_fake_dispatch, photo_reverse=_fake_reverse
     )
     text = orc.reverse_plan(str(image))
     assert isinstance(text, str)
     assert len(text) > 0
-    # 降级路径确实走了一次 agent.run（历史有消息）
-    assert agent.history  # user 消息已入历史
+    # 降级路径确实走了一次 runtime.run（历史有消息）
+    assert runtime.messages  # user 消息已入历史

@@ -11,9 +11,11 @@ from __future__ import annotations
 
 import json
 
-from lighttrail.agent import Agent
+from lighttrail.adapters.llm.provider import ChatClientProvider
+from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.agent.tools import registry
 from lighttrail.orchestrator import Orchestrator
+from lighttrail.runtime.agent import AgentRuntime
 from lighttrail.tools import (  # noqa: F401  触发注册
     astronomy,
     basic,
@@ -41,6 +43,10 @@ class FakeChatClient:
     def chat(self, messages, **kwargs) -> dict:
         self.calls.append({"messages": messages, **kwargs})
         return self._responses.pop(0)
+
+    async def acall(self, messages, **kwargs) -> dict:
+        """async 通道：B2-7 起编排器经 AgentRuntime → Model 桥走 acall。"""
+        return self.chat(messages, **kwargs)
 
 
 def _intent_json(subject: str, mode: str = "inspiration") -> str:
@@ -75,6 +81,21 @@ def _fake_dispatch(name: str, args: str) -> str:
     return json.dumps(data.get(name, {"error": f"未知工具 {name}"}), ensure_ascii=False)
 
 
+def _runtime(
+    fake,
+    *,
+    model: str = "ecnu-plus",
+    reason_model: str = "ecnu-max",
+):
+    """把伪客户端经自定义 Model 桥接成 AgentRuntime（B2-7：替代旧 Agent 门面）。"""
+    provider = ChatClientProvider(fake)
+    return AgentRuntime(
+        LightTrailModel(provider, model_name=model),
+        registry,
+        reason_model=LightTrailModel(provider, model_name=reason_model),
+    )
+
+
 def test_e2e_galaxy_plan_and_followup_react() -> None:
     """黄金场景：一句话 → 卡片；追问 → ReAct 且携带卡片上下文。"""
     fake = FakeChatClient(
@@ -84,8 +105,8 @@ def test_e2e_galaxy_plan_and_followup_react() -> None:
             {"role": "assistant", "content": "好，快门改 25s、ISO 提到 4000。"},
         ]
     )
-    agent = Agent(fake, registry, model="ecnu-plus")
-    orc = Orchestrator(fake, registry, agent, dispatch=_fake_dispatch)
+    runtime = _runtime(fake)
+    orc = Orchestrator(fake, registry, runtime, dispatch=_fake_dispatch)
 
     text = orc.plan("这周末想去拍银河")
     assert "## 拍摄方案" in text
@@ -111,8 +132,8 @@ def test_e2e_fire_cloud_live_decision() -> None:
             {"role": "assistant", "content": card},
         ]
     )
-    agent = Agent(fake, registry, model="ecnu-plus")
-    orc = Orchestrator(fake, registry, agent, dispatch=_fake_dispatch)
+    runtime = _runtime(fake)
+    orc = Orchestrator(fake, registry, runtime, dispatch=_fake_dispatch)
     text = orc.plan("明天傍晚去拍火烧云值得吗")
     assert "建议 18:10" in text
     assert "置信度：medium" in text
@@ -121,8 +142,8 @@ def test_e2e_fire_cloud_live_decision() -> None:
 def test_golden_cases_are_parsable() -> None:
     """黄金用例集雏形：全部请求可被意图解析（供 E8 展开）。"""
     fake = FakeChatClient([{"role": "assistant", "content": _intent_json(c["subject"])} for c in GOLDEN_CASES])
-    agent = Agent(fake, registry, model="ecnu-plus")
-    orc = Orchestrator(fake, registry, agent, dispatch=_fake_dispatch)
+    runtime = _runtime(fake)
+    orc = Orchestrator(fake, registry, runtime, dispatch=_fake_dispatch)
     for case in GOLDEN_CASES:
         intent = orc.parse_intent(case["request"])
         assert intent.subject_type == case["subject"], case
@@ -206,11 +227,11 @@ def test_review_pipeline_closed_loop(monkeypatch) -> None:
     """复盘闭环：照片分析 → 对账 → reason 复盘卡（端到端，Fake 不触网）。"""
 
     fake = _review_fake_agent_client()
-    agent = Agent(fake, registry, model="ecnu-plus")
+    runtime = _runtime(fake)
     orc = Orchestrator(
         fake,
         registry,
-        agent,
+        runtime,
         dispatch=_fake_dispatch,
         photo_analyze=_fake_analyze,
     )
@@ -225,8 +246,8 @@ def test_review_pipeline_closed_loop(monkeypatch) -> None:
 def test_review_pipeline_reports_plan_diff() -> None:
     """与历史计划对账：计划 f/8 vs 实拍 f/5.6 → 差异进入综合 prompt。"""
     fake = _review_fake_agent_client()
-    agent = Agent(fake, registry, model="ecnu-plus")
-    orc = Orchestrator(fake, registry, agent, dispatch=_fake_dispatch, photo_analyze=_fake_analyze)
+    runtime = _runtime(fake)
+    orc = Orchestrator(fake, registry, runtime, dispatch=_fake_dispatch, photo_analyze=_fake_analyze)
     plan_json = json.dumps({"params": [{"name": "光圈", "value": "f/8", "reason": "计划建议"}]}, ensure_ascii=False)
     orc.review("D:/photos/sample.jpg", plan_reference=plan_json)
     prompt = fake.calls[0]["messages"][-1]["content"]
@@ -236,8 +257,8 @@ def test_review_pipeline_reports_plan_diff() -> None:
 def test_review_pipeline_missing_image_returns_skeleton() -> None:
     """缺 image_path → 骨架卡（review_missing_image），不触发 LLM 调用。"""
     fake = _review_fake_agent_client()
-    agent = Agent(fake, registry, model="ecnu-plus")
-    orc = Orchestrator(fake, registry, agent, dispatch=_fake_dispatch, photo_analyze=_fake_analyze)
+    runtime = _runtime(fake)
+    orc = Orchestrator(fake, registry, runtime, dispatch=_fake_dispatch, photo_analyze=_fake_analyze)
     text = orc.review("")
     assert "image_path" in text
     assert fake.calls == []
