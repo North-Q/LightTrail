@@ -31,12 +31,19 @@ from lighttrail.adapters.llm.pydantic_bridge import (
     to_openai_history,
 )
 from lighttrail.api.events import (
-    EVENT_DONE,
-    EVENT_QUEUED,
     TraceBridge,
     pump,
+    to_payload,
 )
 from lighttrail.composition import build_context
+from lighttrail.contracts.events import (
+    CardEvent,
+    DoneEvent,
+    ErrorEvent,
+    QueuedEvent,
+    SSEEventPayload,
+    TokenEvent,
+)
 from lighttrail.contracts.models import DecisionCard
 from lighttrail.infra.trace import Recorder, TraceRecorder
 from lighttrail.orchestrator import Orchestrator
@@ -73,6 +80,23 @@ class ProfilePayload(BaseModel):
 
 # ------ SSE 常量（事件类型定义见 api/events.py）------
 _SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+
+
+class SSEResponse(StreamingResponse):
+    """SSE 流式响应类：只为 OpenAPI 标注 text/event-stream（运行期仍由本模块自建响应）。"""
+
+    media_type = "text/event-stream"
+
+
+# SSE 端点 200 响应契约：事件负载模型进 components，前端类型经 gen:api 生成（B4-1）
+_SSE_RESPONSES: dict[int | str, dict[str, Any]] = {
+    200: {
+        "model": SSEEventPayload,
+        "description": "SSE 事件流（event: <type> + data: JSON）",
+    },
+}
+
+# 照片上传护栏（D4 复盘端点）
 _MAX_PHOTO_BYTES = 10 * 1024 * 1024
 _ALLOWED_PHOTO_TYPES = {"image/jpeg", "image/png"}
 
@@ -166,7 +190,12 @@ def _run_setup(deps: Any, recorder: TraceRecorder) -> tuple[AgentRuntime, Orches
     return runtime, orchestrator
 
 
-@router.post("/api/chat", summary="自由对话（ReAct），SSE 流式事件")
+@router.post(
+    "/api/chat",
+    summary="自由对话（ReAct），SSE 流式事件",
+    responses=_SSE_RESPONSES,
+    response_class=SSEResponse,
+)
 async def chat(payload: ChatRequest, request: Request) -> StreamingResponse:
     """接收消息 → queued → ReAct 过程事件（工具）→ token → done。"""
     deps = request.app.state.deps
@@ -188,18 +217,18 @@ async def chat(payload: ChatRequest, request: Request) -> StreamingResponse:
             history, text, report = await asyncio.to_thread(run)
         except Exception as exc:
             logger.exception("会话 %s 对话失败", session.session_id)
-            queue.put_nowait({"type": "error", "message": str(exc), "session_id": session.session_id})
-            queue.put_nowait({"type": EVENT_DONE, "session_id": session.session_id, "text": ""})
+            queue.put_nowait(to_payload(ErrorEvent(message=str(exc), session_id=session.session_id)))
+            queue.put_nowait(to_payload(DoneEvent(session_id=session.session_id)))
             return
         session.history = history
         session.workspace["last_trace"] = _report_to_dict(report)
         deps.sessions.save(session)
-        queue.put_nowait({"type": "token", "content": text, "session_id": session.session_id})
-        queue.put_nowait({"type": EVENT_DONE, "session_id": session.session_id, "text": text})
+        queue.put_nowait(to_payload(TokenEvent(content=text, session_id=session.session_id)))
+        queue.put_nowait(to_payload(DoneEvent(text=text, session_id=session.session_id)))
 
     async def stream() -> AsyncIterator[str]:
         queue.put_nowait(
-            {"type": EVENT_QUEUED, "position": _queue_position(deps.client), "session_id": session.session_id}
+            to_payload(QueuedEvent(position=_queue_position(deps.client), session_id=session.session_id))
         )
         worker_task = asyncio.create_task(worker())
         try:
@@ -211,7 +240,12 @@ async def chat(payload: ChatRequest, request: Request) -> StreamingResponse:
     return _stream_response(stream())
 
 
-@router.post("/api/decide", summary="决策管线（D1–D3），SSE 事件直至决策卡片")
+@router.post(
+    "/api/decide",
+    summary="决策管线（D1–D3），SSE 事件直至决策卡片",
+    responses=_SSE_RESPONSES,
+    response_class=SSEResponse,
+)
 async def decide(payload: DecideRequest, request: Request) -> StreamingResponse:
     """一句话 → 管线步骤/工具事件逐条推 → 末端 card + done。"""
     deps = request.app.state.deps
@@ -232,22 +266,20 @@ async def decide(payload: DecideRequest, request: Request) -> StreamingResponse:
             card, text, report = await asyncio.to_thread(run)
         except Exception as exc:
             logger.exception("会话 %s 决策失败", session.session_id)
-            queue.put_nowait({"type": "error", "message": str(exc), "session_id": session.session_id})
-            queue.put_nowait({"type": EVENT_DONE, "session_id": session.session_id, "text": ""})
+            queue.put_nowait(to_payload(ErrorEvent(message=str(exc), session_id=session.session_id)))
+            queue.put_nowait(to_payload(DoneEvent(session_id=session.session_id)))
             return
         session.history.append({"role": "user", "content": payload.request})
         session.history.append({"role": "assistant", "content": text})
         session.workspace["last_card"] = card.model_dump(mode="json")
         session.workspace["last_trace"] = _report_to_dict(report)
         deps.sessions.save(session)
-        queue.put_nowait(
-            {"type": "card", "card": card.model_dump(mode="json"), "text": text, "session_id": session.session_id}
-        )
-        queue.put_nowait({"type": EVENT_DONE, "session_id": session.session_id, "text": text})
+        queue.put_nowait(to_payload(CardEvent(card=card, text=text, session_id=session.session_id)))
+        queue.put_nowait(to_payload(DoneEvent(text=text, session_id=session.session_id)))
 
     async def stream() -> AsyncIterator[str]:
         queue.put_nowait(
-            {"type": EVENT_QUEUED, "position": _queue_position(deps.client), "session_id": session.session_id}
+            to_payload(QueuedEvent(position=_queue_position(deps.client), session_id=session.session_id))
         )
         worker_task = asyncio.create_task(worker())
         try:
@@ -259,7 +291,12 @@ async def decide(payload: DecideRequest, request: Request) -> StreamingResponse:
     return _stream_response(stream())
 
 
-@router.post("/api/photos/review", summary="照片复盘（D4），上传图片 → SSE 事件至复盘卡片")
+@router.post(
+    "/api/photos/review",
+    summary="照片复盘（D4），上传图片 → SSE 事件至复盘卡片",
+    responses=_SSE_RESPONSES,
+    response_class=SSEResponse,
+)
 async def photos_review(
     request: Request,
     file: UploadFile = File(..., description="照片（jpg/png，≤10MB）"),  # noqa: B008 - FastAPI 依赖注入惯例
@@ -311,22 +348,20 @@ async def _review_stream(
             card, text, report = await asyncio.to_thread(run)
         except Exception as exc:
             logger.exception("会话 %s 复盘失败", session.session_id)
-            queue.put_nowait({"type": "error", "message": str(exc), "session_id": session.session_id})
-            queue.put_nowait({"type": EVENT_DONE, "session_id": session.session_id, "text": ""})
+            queue.put_nowait(to_payload(ErrorEvent(message=str(exc), session_id=session.session_id)))
+            queue.put_nowait(to_payload(DoneEvent(session_id=session.session_id)))
             return
         session.history.append({"role": "user", "content": f"复盘照片：{image_path}（{focus}）"})
         session.history.append({"role": "assistant", "content": text})
         session.workspace["last_card"] = card.model_dump(mode="json")
         session.workspace["last_trace"] = _report_to_dict(report)
         deps.sessions.save(session)
-        queue.put_nowait(
-            {"type": "card", "card": card.model_dump(mode="json"), "text": text, "session_id": session.session_id}
-        )
-        queue.put_nowait({"type": EVENT_DONE, "session_id": session.session_id, "text": text})
+        queue.put_nowait(to_payload(CardEvent(card=card, text=text, session_id=session.session_id)))
+        queue.put_nowait(to_payload(DoneEvent(text=text, session_id=session.session_id)))
 
     async def stream() -> AsyncIterator[str]:
         queue.put_nowait(
-            {"type": EVENT_QUEUED, "position": _queue_position(deps.client), "session_id": session.session_id}
+            to_payload(QueuedEvent(position=_queue_position(deps.client), session_id=session.session_id))
         )
         worker_task = asyncio.create_task(worker())
         try:
@@ -338,13 +373,13 @@ async def _review_stream(
     return _stream_response(stream())
 
 
-@router.get("/api/profile", summary="读取用户档案（M1.1-01）")
+@router.get("/api/profile", summary="读取用户档案（M1.1-01）", response_model=ProfilePayload)
 async def get_profile(request: Request) -> dict[str, Any]:
     """返回当前档案（camera_body/lenses/preferences/…）。"""
     return asdict(request.app.state.deps.memory.profile)
 
 
-@router.put("/api/profile", summary="更新用户档案（M1.1-01，显式写入）")
+@router.put("/api/profile", summary="更新用户档案（M1.1-01，显式写入）", response_model=ProfilePayload)
 async def put_profile(payload: ProfilePayload, request: Request) -> dict[str, Any]:
     """部分更新档案：只更新出现字段，未知字段忽略。"""
     deps = request.app.state.deps

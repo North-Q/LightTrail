@@ -19,7 +19,14 @@ from __future__ import annotations
 
 from lighttrail.contracts.context import RequestContext
 from lighttrail.contracts.datasource import DataSource
-from lighttrail.contracts.events import KIND_LLM, KIND_STEP, KIND_TOOL, SSEEvent, TraceEvent
+from lighttrail.contracts.events import (
+    KIND_LLM,
+    KIND_STEP,
+    KIND_TOOL,
+    SSEEvent,
+    SSEEventPayload,
+    TraceEvent,
+)
 from lighttrail.contracts.knowledge import KnowledgeChunk, KnowledgeProvider
 from lighttrail.contracts.llm import (
     DEFAULT_CONCURRENCY,
@@ -30,6 +37,7 @@ from lighttrail.contracts.llm import (
 )
 from lighttrail.contracts.memory import EventRecord, MemoryBlock, MemoryStore, TokenBudget
 from lighttrail.contracts.models import (
+    ConfidenceDetail,
     DecisionCard,
     Intent,
     LocationSuggestion,
@@ -49,6 +57,7 @@ __all__ = [
     "KIND_STEP",
     "KIND_TOOL",
     "Confidence",
+    "ConfidenceDetail",
     "DataSource",
     "DecisionCard",
     "EventRecord",
@@ -68,6 +77,7 @@ __all__ = [
     "PlanStep",
     "RequestContext",
     "SSEEvent",
+    "SSEEventPayload",
     "Source",
     "TokenBudget",
     "Tool",

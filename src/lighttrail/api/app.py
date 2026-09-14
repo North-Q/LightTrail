@@ -18,6 +18,7 @@ from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 
 from lighttrail.adapters.llm.client import ChatClient
 from lighttrail.api.routes import router
@@ -106,7 +107,59 @@ def create_app(deps: ApiDeps | None = None) -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(router)
+    _install_contract_openapi(app)
     return app
+
+
+# ------ 契约化 OpenAPI（B4-1：gen:api 流水线的输入真源）------
+def _install_contract_openapi(app: FastAPI) -> None:
+    """安装契约化 OpenAPI 生成（就地替换 app.openapi）。
+
+    背景：FastAPI 对非 JSONResponse 的 response_class 会先写 `{"type": "string"}` 兜底，
+    再把 `responses={200: {"model": SSEEventPayload}}` 的模型 schema 深合并进去，结果是
+    `oneOf`/`$ref` 与 `type` 并存（自相矛盾且污染生成物）。SSE 端点的真实契约是事件
+    判别联合，故统一移除该兜底键。
+
+    Args:
+        app: FastAPI 实例。
+    """
+
+    def _openapi() -> dict[str, Any]:
+        """生成（并缓存）OpenAPI 文档。"""
+        if app.openapi_schema:
+            return app.openapi_schema
+        schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+        )
+        _strip_stream_fallback(schema)
+        app.openapi_schema = schema
+        return schema
+
+    app.openapi = _openapi  # type: ignore[method-assign]
+
+
+def _strip_stream_fallback(schema: dict[str, Any]) -> None:
+    """删除 SSE 响应里的通用 `{"type": "string"}` 兜底 schema（原地修改）。"""
+    for path_item in schema.get("paths", {}).values():
+        for operation in path_item.values():
+            if not isinstance(operation, dict):
+                continue
+            responses = operation.get("responses")
+            if not isinstance(responses, dict):
+                continue
+            for response in responses.values():
+                content = response.get("content") if isinstance(response, dict) else None
+                if not isinstance(content, dict):
+                    continue
+                for media_type, body in content.items():
+                    if not media_type.startswith("text/event-stream") or not isinstance(body, dict):
+                        continue
+                    media = body.get("schema")
+                    if isinstance(media, dict) and ("oneOf" in media or "$ref" in media):
+                        media.pop("type", None)
 
 
 # uvicorn lighttrail.api.app:app

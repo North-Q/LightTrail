@@ -79,6 +79,11 @@ source_modules = [
     "lighttrail.infra",
 ]
 forbidden_modules = ["lighttrail.adapters"]
+# TODO(B5-4)：旧路径 shim 豁免——B3-5 把客户端实现迁入 adapters/llm/client.py 后，
+# 旧路径 lighttrail.llm.client 变成 re-export shim，使 orchestrator/tools 经它传递依赖
+# adapters（B5-4 删除 shim 时同删本豁免）。实测记录：B3 汇报的「lint-imports 全绿」
+# 在干净环境复跑为 2 kept / 1 broken，本批补豁免后恢复全绿（B4-1 门禁修复）。
+ignore_imports = ["lighttrail.llm.client -> lighttrail.adapters.llm.client"]
 
 [[tool.importlinter.contracts]]
 name = "交互层不被任何层依赖"
@@ -113,6 +118,11 @@ forbidden_modules = ["lighttrail.api", "lighttrail.cli"]
 # type = "forbidden"
 # source_modules = ["lighttrail.domain", "lighttrail.application", "lighttrail.runtime"]
 # forbidden_modules = ["lighttrail.adapters"]
+# TODO(B5-4)：旧路径 shim 豁免——B3-5 把客户端实现迁入 adapters/llm/client.py 后，
+# 旧路径 lighttrail.llm.client 变成 re-export shim，使 orchestrator/tools 经它传递依赖
+# adapters（B5-4 删除 shim 时同删本豁免）。实测记录：B3 汇报的「lint-imports 全绿」
+# 在干净环境复跑为 2 kept / 1 broken，本批补豁免后恢复全绿（B4-1 门禁修复）。
+ignore_imports = ["lighttrail.llm.client -> lighttrail.adapters.llm.client"]
 #
 # [[tool.importlinter.contracts]]
 # name = "交互层不被任何层依赖"

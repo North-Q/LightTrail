@@ -1,15 +1,17 @@
 """trace → SSE 事件桥（E7-4，「trace 即 UI」核心落地）。
 
-设计要点（架构 v2.0 §2.8）：
+设计要点（架构 v2.0 §2.8；B4-1 起负载走契约模型）：
 - TraceBridge 挂 TraceRecorder.subscribe：把 TraceEvent 映射为 SSE 协议事件
   （step / tool_call / tool_result），经 call_soon_threadsafe 线程安全放入
   asyncio.Queue——同步 ReAct/管线在 worker 线程运行，事件实时回流事件循环；
 - 协议映射收敛在本模块（单一事实源）：llm 事件不入 SSE 协议（token 由端点
   按文本补发），tool 事件拆成「调用」与「结果」两条；
+- 事件负载由 `contracts.events` 的 pydantic 模型构造（B4-1）：字段改名同时改
+  OpenAPI 生成物与前端类型，`gen:api && git diff --exit-code` 门禁拦漂移；
+- tool_result 除摘要文本外带 **结构化结果 data**（B4-4）：前端按真实字段渲染，
+  不再对摘要做正则解析；
 - 会话无关：桥只做转发，session_id 由宿主注入（本地单用户场景一个请求
-  一条流，事件不跨会话）；
-- 前端类型定义（web/src/api/events.ts）与本站点映射保持一致（E7-5 落地
-  前端时同步）。
+  一条流，事件不跨会话）。
 """
 
 from __future__ import annotations
@@ -21,7 +23,15 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
 from typing import Any
 
-from lighttrail.contracts.events import SSEEvent, TraceEvent
+from pydantic import BaseModel
+
+from lighttrail.contracts.events import (
+    SSEEvent,
+    StepEvent,
+    ToolCallEvent,
+    ToolResultEvent,
+    TraceEvent,
+)
 from lighttrail.contracts.observability import TraceSink
 
 logger = logging.getLogger("lighttrail.api.events")
@@ -38,6 +48,18 @@ EVENT_ERROR = SSEEvent.ERROR.value
 EVENT_DONE = SSEEvent.DONE.value
 
 
+def to_payload(event: BaseModel) -> dict[str, Any]:
+    """把 SSE 事件模型转成帧负载字典（None 字段不出现在帧里）。
+
+    Args:
+        event: 契约层事件模型实例（contracts.events 的 *Event）。
+
+    Returns:
+        JSON 安全的事件字典（exclude_none：可选字段缺失即不出现，前端按 undefined 处理）。
+    """
+    return event.model_dump(mode="json", exclude_none=True)
+
+
 def map_trace_event(event: TraceEvent, *, session_id: str = "") -> list[dict[str, Any]] | None:
     """把 TraceEvent 映射为 SSE 协议事件列表（llm 事件返回 None）。
 
@@ -51,36 +73,41 @@ def map_trace_event(event: TraceEvent, *, session_id: str = "") -> list[dict[str
     """
     if event.kind == "step":
         return [
-            {
-                "type": EVENT_STEP,
-                "name": event.name,
-                "input_summary": event.payload.get("输入摘要", ""),
-                "output_summary": event.payload.get("输出摘要", ""),
-                "session_id": session_id,
-                "ts": event.ts,
-            }
+            to_payload(
+                StepEvent(
+                    name=event.name,
+                    input_summary=event.payload.get("输入摘要", ""),
+                    output_summary=event.payload.get("输出摘要", ""),
+                    session_id=session_id,
+                    ts=event.ts,
+                )
+            )
         ]
     if event.kind == "tool":
         payload = event.payload
+        data = payload.get("结果数据")
         return [
-            {
-                "type": EVENT_TOOL_CALL,
-                "name": event.name,
-                "arguments": payload.get("参数摘要", ""),
-                "session_id": session_id,
-                "ts": event.ts,
-            },
-            {
-                "type": EVENT_TOOL_RESULT,
-                "name": event.name,
-                "result": payload.get("结果摘要", ""),
-                "data_source": payload.get("数据来源", ""),
-                "confidence": payload.get("置信度", "low"),
-                "field": payload.get("来源字段", ""),
-                "elapsed_ms": payload.get("耗时_ms", 0.0),
-                "session_id": session_id,
-                "ts": event.ts,
-            },
+            to_payload(
+                ToolCallEvent(
+                    name=event.name,
+                    arguments=payload.get("参数摘要", ""),
+                    session_id=session_id,
+                    ts=event.ts,
+                )
+            ),
+            to_payload(
+                ToolResultEvent(
+                    name=event.name,
+                    result=payload.get("结果摘要", ""),
+                    data=data if isinstance(data, dict) else None,
+                    data_source=payload.get("数据来源", ""),
+                    confidence=payload.get("置信度", "low"),
+                    field=payload.get("来源字段", ""),
+                    elapsed_ms=payload.get("耗时_ms", 0.0),
+                    session_id=session_id,
+                    ts=event.ts,
+                )
+            ),
         ]
     return None
 
@@ -169,4 +196,5 @@ __all__ = [
     "map_trace_event",
     "pump",
     "sse_text",
+    "to_payload",
 ]

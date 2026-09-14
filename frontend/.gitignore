@@ -3,3 +3,5 @@ dist/
 *.local
 .npm-cache/
 *.tsbuildinfo
+# OpenAPI 中间产物（契约生成流水线，产物 generated.ts 才是入库物）
+.openapi.json

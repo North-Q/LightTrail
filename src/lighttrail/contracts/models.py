@@ -9,6 +9,11 @@
 - DecisionCard 的 evidence / confidence 为**必填**——结构性保证 M2（依据/来源/
   置信度）不落空；sources 由 TraceRecorder 的规则化置信度对齐（tool/field/confidence）；
 - 字段用英文名做数据契约（LLM 输出稳定），渲染层（cli）再转中文展示。
+
+B4 增量（前端去伪造数据的契约支撑）：
+- `verdict`：三态结论（go / wait / risk）由模型按提示词给出，前端不再用中文正则猜；
+- `ConfidenceDetail`：置信度主值 + 区间 + 依据构成由**代码规则**推导（infra/confidence.py），
+  前端只渲染，不再维护硬编码常量表（v4 §1.2「前端伪造数据」根治）。
 """
 
 from __future__ import annotations
@@ -57,6 +62,33 @@ class LocationSuggestion(BaseModel):
     reason: str = ""
 
 
+class ConfidenceDetail(BaseModel):
+    """置信度明细：主值 + 区间 + 依据构成（**规则推导，非概率估计**）。
+
+    由 infra/confidence.confidence_detail() 依据 evidence 的来源级别加权推导；
+    契约层只承载字段，不含推导规则。前端铁律①（主值 + 区间条 + 依据）直接渲染本对象。
+
+    Attributes:
+        level: 卡片整体等级（high / medium / low），沿用模型给出的等级标注。
+        score: 置信度主值（0–100，依据级别加权平均）。
+        low: 区间下限（0–100）。
+        high: 区间上限（0–100）。
+        basis: 推导依据说明（人话，供「依据」小字展示）。
+        high_count: 依据中 high 级来源条数。
+        medium_count: 依据中 medium 级来源条数。
+        low_count: 依据中 low 级来源条数。
+    """
+
+    level: str = "low"
+    score: int = 0
+    low: int = 0
+    high: int = 0
+    basis: str = ""
+    high_count: int = 0
+    medium_count: int = 0
+    low_count: int = 0
+
+
 class PhotoAnalysisReport(BaseModel):
     """照片分析输出契约（E6-1，PRD D4-01~04）。
 
@@ -99,6 +131,9 @@ class DecisionCard(BaseModel):
         conclusion: 结论（一句话「该不该出门 / 几点去 / 去哪 / 带什么」）。
         evidence: 依据列表（必填；即使为空也要输出显式 []，防 M2 落空）。
         confidence: 整体置信度（high / medium / low；必填）。
+        verdict: 三态结论（go 值得去 / wait 再观察 / risk 不建议专程；未知为空串）。
+            由模型按提示词给出，前端直接读字段，不做中文正则猜测（B4-3）。
+        confidence_detail: 置信度明细（代码规则推导，B4-3 起随卡片下发；缺省为 None）。
         time_window: 建议时间窗口文案（如「05:10-05:40，黄金 05:20-06:10」）。
         locations: 推荐机位列表。
         params: 参数建议列表。
@@ -109,6 +144,8 @@ class DecisionCard(BaseModel):
     conclusion: str
     evidence: list[Source]
     confidence: str
+    verdict: str = ""
+    confidence_detail: ConfidenceDetail | None = None
     time_window: str = ""
     locations: list[LocationSuggestion] = Field(default_factory=list)
     params: list[ParamSuggestion] = Field(default_factory=list)
@@ -117,6 +154,7 @@ class DecisionCard(BaseModel):
 
 
 __all__ = [
+    "ConfidenceDetail",
     "DecisionCard",
     "Intent",
     "LocationSuggestion",
