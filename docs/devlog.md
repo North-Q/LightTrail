@@ -176,6 +176,17 @@
   - **F5**：`match_sites`（机位×天象确定性评分）**未接入任何管线**（全仓仅自身定义 + trace 字段映射 + 置信度
     规则引用），规划管线只把「候选机位」（占位坐标）塞进 prompt —— 与 v4「评分代码化」原则相悖。
   - 两项方案待选，已记 TODO.md F5/F6；四管线真实覆盖现状：灵感（强制 mode 复跑 ✓）/规划 ✓/临场 ✓/复盘 ✓。
+- **续挖两处（F7/F8，均为「文档叙事 vs 代码接线」类）**：
+  - **F7 配额降级链未接线**：`QuotaLedger` 记账**已接通**（`build_client` 注入账本 → `ChatClient` 成功后
+    `record()`），但 `estimate()` / `check()` / `degrade()` 在 `src/` 与 `evals/` 里**零调用点**
+    （仅 `photo_analysis` 建账本做视觉预估）→ 「水位 >90% 自动降级并标注」在真实路径上不会发生，
+    `DecisionCard.degraded` 目前只有「复盘缺图」一种来源。
+  - **F8 照片反推（D1.2）没有入口**：`api/*.py` 零处引用 reverse、CLI 也无反推命令、
+    `Orchestrator.reverse_plan` 除 tests/evals 外无调用方；D1 页「参考图反推」上传打的是
+    **复盘端点 `/api/photos/review`** → 给回的是复盘卡而非复刻计划（FRONTEND-SPEC §5 当时即如此映射，属占位）。
+  两项方案待选，已记 TODO.md F7/F8。**审计到此形成清单 F1–F8**：其中 D4 竞态 / D4 兜底显示 / CLI 编码 / L2 脆弱断言
+  已当场修复，其余六项属产品与接线决策，等主理人拍板（B5 批次一并定夺最省事）。
+
 
 - **测试规模**：332 → **336**（+4：D4 竞态回归、D4 兜底门禁、CLI 编码容错 2 例）；ruff 0；`npm run build` 通过。
 ### B4 批次总结（闸门 4）

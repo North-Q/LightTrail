@@ -80,6 +80,18 @@
       强制 `mode=inspiration` 复跑 → 采到 galaxy_visibility，卡片给出 19:21–22:21 银心窗口 + 3 个具体机位。
       属 D2（规划）核心数据缺口，方案待选：规划管线按题材合并 `_collection_steps` 的题材分支（含银河/星空补
       galaxy_visibility + moon_events），或在意图路由层把银河/星空调到灵感管线（B7 路由改造一并定）。
+- [ ] F7 配额账本只做了一半：**记账已接通**（`composition.build_client` 注入账本 → `ChatClient` 成功后
+      `QuotaLedger.record()`），但**水位降级链未接线**——`estimate()` / `check()` / `degrade()` 在
+      `src/` 与 `evals/` 里**零调用点**（全仓只有定义与 tests；仅 `tools/photo_analysis.py` 建账本做视觉预估）。
+      因此 v4 §4.4/§8 面试叙事里的「配额水位 >90% 自动降级并标注」在真实路径上不会发生，
+      `DecisionCard.degraded` 目前只有「复盘缺图」一种来源。方案待选：① 在管线入口接
+      `check()`/`degrade()`（降级原因写进 `card.degraded` + trace）；② 文档口径下调为「记账 + 视觉预估」。
+- [ ] F8 **照片反推（D1.2）没有入口**：`api/*.py` 零处引用 reverse，CLI 也没有反推命令，
+      `Orchestrator.reverse_plan` / `run_reverse` 除 tests/evals 外无调用方；D1 页「参考图反推」上传
+      实际打的是 **`/api/photos/review`（复盘端点）** → 返回的是复盘卡（点评 + 处方），不是复刻计划
+      （FRONTEND-SPEC §5 当时就把该行映射到 `photos/review`，属 E7 期占位）。方案待选：
+      ① 新增 `/api/photos/reverse` 端点（复用 `Orchestrator.run_reverse`）+ D1 页按入口分流；
+      ② 明确 D1 该入口就是「参考图复盘」，反推留 ReAct（模型可自行调 `reverse_engineer_photo`）。
 
 ### B5 记忆命名空间 + 清理 + 文档
 
