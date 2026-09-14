@@ -21,7 +21,7 @@ from lighttrail.contracts.models import DecisionCard, Intent
 from lighttrail.infra.trace import Recorder, null_trace
 from lighttrail.infra.validation import parse_with_retry
 from lighttrail.llm.client import ChatClient
-from lighttrail.llm.router import ModelRouter, RouteIntent
+from lighttrail.llm.router import ModelRouter
 from lighttrail.memory import MemoryManager
 from lighttrail.orchestrator.context import PipelineContext
 from lighttrail.orchestrator.pipelines import PIPELINES, PipelineEnv, default_mode
@@ -174,9 +174,7 @@ class Orchestrator:
         """
         self._client = client
         self._registry = registry
-        # LLM 交互面：AgentRuntime（B2-7 起）或迁移期旧 Agent
-        self._runtime = agent if hasattr(agent, "complete") else None
-        self._agent = agent
+        self._runtime = agent
         self._recorder: Recorder = recorder or null_trace
         self._router = router or getattr(agent, "router", None)
         self._env = PipelineEnv(
@@ -324,7 +322,7 @@ class Orchestrator:
         )
         prompt = _build_reverse_plan_prompt(reverse, date_iso, data)
         self._recorder.record_step("反推_综合", input_summary=prompt[:80], output_summary="")
-        return parse_with_retry(DecisionCard, lambda p: self._agent.reason(p, system=""), prompt)
+        return parse_with_retry(DecisionCard, lambda p: self._reason_text(p, ""), prompt)
 
     def _collect_candidate_day(self) -> tuple[str, dict[str, Any]]:
         """为复刻选候选日：未来 3 天取平均云量最低（通透优先）作为基准日并采集数据。"""
@@ -374,30 +372,18 @@ class Orchestrator:
         self._recorder.record_step("意图理解", input_summary=user_request[:80], output_summary="")
 
         def _chat(prompt_text: str) -> str:
-            if self._runtime is not None:
-                return self._runtime.complete(prompt_text, system=_INTENT_SYSTEM)
-            model = RouteIntent.DEFAULT.resolve(self._router)
-            resp = self._client.chat(
-                [{"role": "system", "content": _INTENT_SYSTEM}, {"role": "user", "content": prompt_text}],
-                model=model,
-                tools=None,
-            )
-            return resp.get("content", "")
+            return self._runtime.complete(prompt_text, system=_INTENT_SYSTEM)
 
         return parse_with_retry(Intent, _chat, prompt)
 
     # ------ 内部实现 ------
     def _reason_text(self, prompt: str, system: str) -> str:
-        """深推理综合：runtime.reason（B2-7 起）或旧 Agent.reason。"""
-        if self._runtime is not None:
-            return self._runtime.reason(prompt, system=system)
-        return self._agent.reason(prompt, system=system)
+        """深推理综合：走 runtime.reason（PydanticAI 深推理通道）。"""
+        return self._runtime.reason(prompt, system=system)
 
     def _run_freeform(self, user_request: str) -> str:
-        """降级自由对话（ReAct）：runtime.run（B2-7 起）或旧 Agent.run。"""
-        if self._runtime is not None:
-            return self._runtime.run(user_request)
-        return self._agent.run(user_request)
+        """降级自由对话（ReAct）：走 runtime.run。"""
+        return self._runtime.run(user_request)
 
     def _fallback(self, user_request: str) -> str:
         """管线降级：携带卡片上下文转入自由对话（ReAct）。"""

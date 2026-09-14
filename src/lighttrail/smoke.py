@@ -8,7 +8,10 @@ from __future__ import annotations
 
 import sys
 
-from lighttrail.agent import Agent, registry
+from lighttrail.adapters.llm.provider import ChatClientProvider
+from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel, to_openai_history
+from lighttrail.composition import build_registry
+from lighttrail.runtime.agent import AgentRuntime
 from lighttrail.tools import (  # noqa: F401  触发全部工具注册
     astronomy,
     basic,
@@ -16,6 +19,8 @@ from lighttrail.tools import (  # noqa: F401  触发全部工具注册
     site_match,
     weather,
 )
+
+registry = build_registry()
 
 PASSED = 0
 
@@ -36,6 +41,11 @@ class FakeChatClient:
     def __init__(self, responses: list[dict]) -> None:
         self._responses = list(responses)
         self.calls = []
+
+    async def acall(self, messages, **kwargs) -> dict:
+        """async 通道：B2-7 起 runtime 经 Model 桥走 acall。"""
+        allowed = {k: v for k, v in kwargs.items() if k in {"model", "tools", "temperature"}}
+        return self.chat(messages, **allowed)
 
     def chat(self, messages, *, model=None, tools=None, temperature=0.2, usage_callback=None) -> dict:
         self.calls.append({"messages": messages, "tools": tools})
@@ -91,8 +101,9 @@ def test_agent_loop() -> None:
     }
     final_msg = {"role": "assistant", "content": "现在是北京时间 2026-08-12 23:40。"}
     fake = FakeChatClient([tool_call_msg, final_msg])
-    agent = Agent(fake, registry, model="ecnu-plus")
-    reply = agent.run("现在几点？")
+    provider = ChatClientProvider(fake)
+    runtime = AgentRuntime(LightTrailModel(provider, model_name="ecnu-plus"), registry)
+    reply = runtime.run("现在几点？")
 
     check("最终回复来自模型", reply.startswith("现在是"))
     check("伪客户端被调用 2 次", len(fake.calls) == 2)
@@ -102,10 +113,11 @@ def test_agent_loop() -> None:
     roles = [m["role"] for m in fake.calls[1]["messages"]]
     check("工具结果已回传模型", "tool" in roles)
     # 历史保留用户消息
-    check("历史保留用户消息", any(m.get("content") == "现在几点？" for m in agent.history))
+    history = to_openai_history(runtime.messages)
+    check("历史保留用户消息", any(m.get("content") == "现在几点？" for m in history))
 
-    agent.reset()
-    check("reset 后历史为空", agent.history == [])
+    runtime.reset()
+    check("reset 后历史为空", runtime.messages == [])
 
 
 def main() -> int:

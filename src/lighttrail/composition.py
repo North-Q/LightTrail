@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
-from lighttrail.agent import Agent
 from lighttrail.config import Settings, load_settings
 from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.trace import Recorder, TraceRecorder
@@ -27,7 +26,6 @@ from lighttrail.runtime.registry import ToolRegistry
 from lighttrail.tools import TOOLS
 
 __all__ = [
-    "build_agent",
     "build_client",
     "build_context",
     "build_ledger",
@@ -127,32 +125,13 @@ def build_recorder() -> TraceRecorder:
     return TraceRecorder()
 
 
-def build_agent(
-    client: ChatClient,
-    registry: ToolRegistry,
-    *,
-    settings: Settings,
-    memory: MemoryManager | None = None,
-    recorder: Recorder | None = None,
-) -> Agent:
-    """构造 Agent 门面（迁移期实现；B2-6 切 runtime.AgentRuntime）。"""
-    return Agent(
-        client,
-        registry,
-        model=settings.model,
-        memory=memory,
-        reason_thinking=settings.reason_thinking,
-        recorder=recorder,
-    )
-
-
 def build_orchestrator(
     client: ChatClient,
     registry: ToolRegistry,
-    agent: Agent,
+    runtime: AgentRuntime,
     *,
     memory: MemoryManager | None = None,
     recorder: Recorder | None = None,
 ) -> Orchestrator:
     """构造编排器（四管线 + 降级 ReAct 通道）。"""
-    return Orchestrator(client, registry, agent, memory=memory, recorder=recorder)
+    return Orchestrator(client, registry, runtime, memory=memory, recorder=recorder)
