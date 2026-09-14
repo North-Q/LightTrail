@@ -67,6 +67,19 @@
       写进 REFACTOR-ROADMAP §1.4 统一验收基线——B4 期三个真 bug 全是真实联调才暴露的。
 - [ ] F4 D3 倒计时仍从 `card.time_window` 文本取首个时刻（展示层解析真实字段，非伪造）；
       结构化时间窗（window_start/end）待后续契约增补时定。
+- [ ] F5 `match_sites`（机位×天象确定性评分）**未接入任何管线**：全仓仅有自身定义 + trace 字段映射 +
+      置信度规则引用，规划管线只把「候选机位」塞进 prompt（且坐标是占位值）。真实联调里模型自己写了
+      「未做 match_sites 方位一致性评分」。与 v4「评分代码化」原则相悖；
+      方案待选：规划管线对候选机位批量调 `match_sites` 并进 `ctx.scores`（确定性、可解释），或明确保留为
+      ReAct 可用工具。（坐标占位部分由 B5-3「坐标改用 favorite_spots」覆盖。）
+- [ ] F6 规划/临场管线**采集步骤写死、不题材感知**：`_collection_steps()`（星空/银河 → moon_phase +
+      galaxy_visibility + weather；日出/日落 → sun_times + sunset_glow_score + weather）**只有灵感管线用**，
+      规划管线固定 weather(7d)+moon_phase+sun_times、临场管线固定 sun_times+sunset_glow+weather。
+      真实联调证据（同一句「这周末想去拍银河…」）：意图判为 planning → 卡片「降级标注」自陈
+      「缺失：galaxy_visibility（银心升落窗口）、moon_events、match_sites…建议补齐后再定案」；
+      强制 `mode=inspiration` 复跑 → 采到 galaxy_visibility，卡片给出 19:21–22:21 银心窗口 + 3 个具体机位。
+      属 D2（规划）核心数据缺口，方案待选：规划管线按题材合并 `_collection_steps` 的题材分支（含银河/星空补
+      galaxy_visibility + moon_events），或在意图路由层把银河/星空调到灵感管线（B7 路由改造一并定）。
 
 ### B5 记忆命名空间 + 清理 + 文档
 
