@@ -17,7 +17,6 @@ from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from lighttrail.agent.tools import ToolRegistry
 from lighttrail.contracts.models import DecisionCard, Intent
 from lighttrail.infra.trace import Recorder, null_trace
 from lighttrail.infra.validation import parse_with_retry
@@ -27,6 +26,7 @@ from lighttrail.memory import MemoryManager
 from lighttrail.orchestrator.context import PipelineContext
 from lighttrail.orchestrator.pipelines import PIPELINES, PipelineEnv, default_mode
 from lighttrail.runtime.agent import AgentRuntime
+from lighttrail.runtime.registry import ToolRegistry
 from lighttrail.tools.astronomy import _parse_date  # noqa: F401  日期校验辅助（供 reverse 采集）
 
 logger = logging.getLogger("lighttrail.orchestrator")

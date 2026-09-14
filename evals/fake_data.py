@@ -104,6 +104,11 @@ class CassetteChatClient:
         group_for: 用例 → 分组映射函数（或 dict），用于选中 cassette。
     """
 
+    async def acall(self, messages, **kwargs) -> dict[str, Any]:
+        """async 通道：B2-7 起编排器经 AgentRuntime → Model 桥走 acall。"""
+        allowed = {k: v for k, v in kwargs.items() if k in {"model", "tools", "temperature"}}
+        return self.chat(messages, **allowed)
+
     def __init__(
         self,
         cassettes: dict[str, dict[str, dict[str, str]]],
@@ -146,6 +151,11 @@ class RecordingChatClient:
     Args:
         inner: 真实 ChatClient。
     """
+
+    async def acall(self, messages, **kwargs) -> dict[str, Any]:
+        """async 通道：B2-7 起编排器经 AgentRuntime → Model 桥走 acall。"""
+        allowed = {k: v for k, v in kwargs.items() if k in {"model", "tools", "temperature"}}
+        return self.chat(messages, **allowed)
 
     def __init__(self, inner: Any) -> None:
         self._inner = inner

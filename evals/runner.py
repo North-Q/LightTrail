@@ -25,7 +25,8 @@ from evals.fake_data import (
     dispatch_with_trace,
 )
 from evals.judge import LLMJudge, LocalRubric, ToolCrossCheck
-from lighttrail.agent import Agent
+from lighttrail.adapters.llm.provider import ChatClientProvider
+from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.composition import build_registry
 from lighttrail.config import load_settings
 from lighttrail.infra.quota import QuotaLedger
@@ -35,6 +36,7 @@ from lighttrail.llm.router import ModelRouter, RouteIntent
 from lighttrail.memory import MemoryManager
 from lighttrail.orchestrator import Orchestrator
 from lighttrail.orchestrator.schemas import DecisionCard
+from lighttrail.runtime.agent import AgentRuntime
 from lighttrail.tools import (  # noqa: F401  触发注册
     astronomy,
     basic,
@@ -194,16 +196,16 @@ def _record_group(group: str, request: str, router: ModelRouter, settings: Any) 
         memory = MemoryManager(memory_dir)
         fake = FakeDispatcher()
         dispatch = dispatch_with_trace(fake, recorder)
-        agent = Agent(
-            recording,
+        provider = ChatClientProvider(recording)
+        runtime = AgentRuntime(
+            LightTrailModel(provider, model_name=settings.model, recorder=recorder),
             registry,
-            model=settings.model,
-            memory=memory,
+            reason_model=LightTrailModel(provider, model_name=settings.model_reason, recorder=recorder),
             recorder=recorder,
             reason_thinking=settings.reason_thinking,
         )
         orchestrator = Orchestrator(
-            recording, registry, agent, memory=memory, recorder=recorder, dispatch=dispatch
+            recording, registry, runtime, memory=memory, recorder=recorder, dispatch=dispatch
         )
         _ = orchestrator.run_pipeline(request)
     finally:
@@ -230,16 +232,15 @@ def _run_pipeline_case(case: dict[str, Any], cassettes: dict[str, Any]) -> tuple
         client.set_group(group)
         fake = FakeDispatcher(scenario=case.get("scenario", "normal"))
         dispatch = dispatch_with_trace(fake, recorder)
-        agent = Agent(
-            client,
+        provider = ChatClientProvider(client)
+        runtime = AgentRuntime(
+            LightTrailModel(provider, model_name="ecnu-plus", recorder=recorder),
             registry,
-            model="ecnu-plus",
-            memory=memory,
+            reason_model=LightTrailModel(provider, model_name="ecnu-max", recorder=recorder),
             recorder=recorder,
-            reason_thinking=False,
         )
         orchestrator = Orchestrator(
-            client, registry, agent, memory=memory, recorder=recorder, dispatch=dispatch
+            client, registry, runtime, memory=memory, recorder=recorder, dispatch=dispatch
         )
         card = orchestrator.run_pipeline(case["request"], mode=case.get("mode", ""))
         trace = [f"{ref.name}" for ref in recorder.to_report().tool_calls]
