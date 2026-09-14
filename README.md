@@ -42,9 +42,9 @@ LightTrail/
 │   ├── infra/           # TraceRecorder / 置信度规则 / QuotaLedger 配额账本
 │   ├── api/             # Web 服务层：FastAPI 五端点 + SSE + SessionManager
 │   └── tools/           # 15 个已注册工具（曝光/天文/天气/机位匹配/记忆/照片分析/反推）
-├── frontend/            # SPA 前端（Vite + React + TS，6 页决策旅程）
+├── frontend/            # SPA 前端（Vite + React + TS，6 页决策旅程；契约类型由 npm run gen:api 生成）
 ├── evals/               # 三层评估：黄金用例 cassette + LLM-as-judge
-├── tests/               # 223 项 pytest 用例（离线 Fake 数据源，不触网）
+├── tests/               # 323 项 pytest 用例（离线 Fake 数据源，不触网）
 ├── data/                # 本地记忆数据（profile/events.db/semantic，不入库）
 └── README.md
 ```

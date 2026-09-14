@@ -8,10 +8,10 @@
 ## 📍 当前位置（开工第一眼先看这里）
 
 ```
-📍 当前位置：闸门 3 已到达（**B3 适配层 + 并发完成**：async-first 单一并发机制、tenacity/httpx 收敛重试、管线并行取数 -71%、TraceSink + 出口白名单、QuotaLedger 加锁；下一步 B4 契约单一真源 + 前端重接）
-  代码基线：main 分支 HEAD 5acb182 ｜ pytest 295 全绿 ｜ ruff 0 ｜ lint-imports 2 kept / 0 broken
-  实跑基线：CLI + Web 真实查询通过 ｜ 冒烟 21 项 ｜ 15 工具全部声明式 ｜ PydanticAI Model 桥 + AgentRuntime 已落地（尚未接管生产路径）
-🎯 当前目标：B2-7 剩余——① 编排器/四管线切 AgentRuntime（意图解析 + reason 通道）② TestModel 替换 8 处 FakeChatClient ③ shim 清理 → 然后 B2 收口（闸门 2 汇报）
+📍 当前位置：闸门 4 已到达（**B4 契约单一真源 + 前端重接完成**：OpenAPI→TS 生成流水线 + gen:api 漂移门禁、SSE 事件判别联合进契约、DecisionCard 增 verdict/confidence_detail、D3Page/HomePage 去常量表与正则猜结论、D2Page 改吃 tool_result.data 结构化字段；下一步 B5 记忆命名空间 + 清理 + ADR-004）
+  代码基线：main 分支 HEAD cc58c93 ｜ pytest 323 全绿 ｜ ruff 0 ｜ lint-imports 3 kept / 0 broken ｜ smoke 21 项 ｜ npm run build 通过 ｜ gen:api 幂等（diff=0）
+  实跑基线：CLI + Web 真实查询通过（B3）｜ Web 契约端点 HTTP 实跑 200（uvicorn + /openapi.json）｜ 15 工具声明式 ｜ AgentRuntime 已接管生产路径
+🎯 当前目标：B5 记忆命名空间 + 清理 + 文档（user_id 分层、shim 到期删除含 B4-1 加的 lint 豁免、ADR-004 落盘、architecture v3.0）→ 然后 B5 收口（闸门 5 汇报）
 🏁 本期终点：B0–B7 全部批次通过出口检查，目标架构（契约层+声明式注册+async-first+知识库+意图路由）落地，随时可演示
 ```
 
@@ -23,7 +23,7 @@
 
 ```mermaid
 graph TD
-    S([📍当前位置<br/>闸门 3 / B3 已完成<br/>306 测试全绿 / 三层契约 kept]) --> B0
+    S([📍当前位置<br/>闸门 4 / B4 已完成<br/>323 测试全绿 / gen:api 无漂移]) --> B0
 
     B0[B0 止血护栏<br/>B0-1~B0-4 修3 bug+tokens+假注释] --> G0{{闸门0 B0 出口<br/>pytest绿+淘汰/并发写用例过<br/>CLI/Web可跑 → 汇报}}
     G0 --> B1[B1 契约层+配置<br/>B1-1~B1-5 contracts/+pydantic-settings]
@@ -87,7 +87,17 @@ graph TD
 | B2-6 | ✅ f0c5060 | AgentRuntime（runtime/agent.py）+ ContextBuilder 迁 runtime（能力叙述自动生成） |
 | B2-7 | ✅ 5756583 / dc164fb / d704a55 / 529af8e / 53a093e / 5784120 | 热插拔 + 架构禁止边 + 生产路径全切 runtime + 9/9 用例换装 + 删旧 agent/ 包与 shim + 桥重复 system 修复 |
 
-### B3 ~ B7
+### B4 契约单一真源 + 前端重接 ✅ 已完成（2026-09-14，停闸门 4）
+
+| 任务 | 状态 | 一句话目标 |
+|---|---|---|
+| B4-1 | ✅ b8ccdca | OpenAPI→TS 生成流水线（gen:api）+ SSE 事件负载模型进契约 + lint 门禁修复（补 shim 豁免） |
+| B4-2 | ✅ e1a035d | 前端删手抄类型，全面接 generated.ts（events.ts 收敛为契约门面） |
+| B4-3 | ✅ 4c69860 | D3Page/HomePage 去伪造数据（置信度常量表 + 中文正则猜结论 → 卡片真实字段 + 规则推导明细） |
+| B4-4 | ✅ cc58c93 | tool_result 带结构化 data，D2Page 去正则解析工具 JSON |
+| B4-5 | ✅ 本批收口 | CI 漂移门禁写入本清单（gen:api && git diff --exit-code）+ 出口检查 |
+
+### B5 ~ B7
 
 任务细节（目标/前置/输入上下文/交付物/验收标准/涉及文件）**全部见 `docs/REFACTOR-ROADMAP.md` 对应章节**，此处不重复。每批出口检查单见路线图 §1.3/§1.4 与各批次末任务。
 

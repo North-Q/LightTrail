@@ -1,5 +1,86 @@
 # LightTrail 开发日志
 
+## 2026-09-14（B4 契约单一真源 + 前端重接：B4-1 ~ B4-5 全部交付，停闸门 4）
+
+> 批次目标（v4 §6 B4 / §3 D8）：pydantic 单一真源 → OpenAPI → openapi-typescript 生成；
+> 删前端手抄类型与全部伪造数据（置信度常量表 / 中文正则猜结论 / 工具 JSON 正则解析）。
+
+### B4-1 OpenAPI→TS 生成流水线 — 已提交（b8ccdca）
+
+- 新增契约导出入口 `api/openapi_export.py`（`python -m lighttrail.api.openapi_export [out]`，sort_keys 稳定输出）；
+- `frontend/scripts/dump-openapi.mjs` + `npm run gen:api`（导出 → openapi-typescript → `src/api/generated.ts`）；
+  中间产物 `frontend/.openapi.json` 入库忽略，入库物只有 generated.ts（808 行，含 SSE 8 事件 + DecisionCard/ProfilePayload）；
+- SSE 事件负载显式建模（`contracts/events.py`：8 个 *Event + `SSEEventPayload` 判别联合），三个流式端点用
+  `responses={200: {"model": SSEEventPayload}}` + `SSEResponse`（OpenAPI 标 `text/event-stream`）；
+- **OpenAPI 兜底 schema 清理**：FastAPI 对非 JSONResponse 的 response_class 先写 `{"type": "string"}`，
+  再与 `responses` 里的模型 schema 深合并 → `oneOf` 与 `type` 并存（自相矛盾且污染生成物）；
+  `api/app.py` 出口清理该键，生成物是干净的判别联合（`tests/test_api_contract.py` 有断言）；
+- 档案端点（GET/PUT `/api/profile`）加 `response_model=ProfilePayload`，前端不再手抄档案类型；
+- **门禁修复（如实记录偏差）**：B3 汇报的「lint-imports 全绿」在干净环境（`git archive HEAD` + `--no-cache`）
+  复跑为 **2 kept / 1 broken**——B3-5 把客户端实现迁入 `adapters/llm/client.py` 后，旧路径
+  `lighttrail.llm.client` 成了 re-export shim，使 orchestrator/tools 传递依赖 adapters。按「shim 豁免带
+  TODO + 删除批次」规则补 `ignore_imports`（TODO(B5-4)），复跑 **3 kept / 0 broken**；
+- 新用例 `tests/test_api_contract.py`（6 例）：帧字段一致 / 判别联合 / OpenAPI 覆盖契约模型 /
+  SSE schema 无兜底 type / 档案端点用契约模型。
+
+### B4-2 前端删手抄类型，全面接生成物 — 已提交（e1a035d）
+
+- `frontend/src/api/events.ts` 收敛为契约门面：类型一律 `components["schemas"][…]`；`SSEEvent` 直接取
+  `/api/chat` 200 响应的 `text/event-stream` schema（事件增删自动跟随，不靠人工同步）；
+- `client.ts` 删本地 `SessionPayload`，改用 `SessionDetail`；M1Page 的本地 `Profile` 接口改为
+  `ProfilePayload` 的映射类型派生（只做「可空 → 非空」归一，不重复字段）；
+- 验收：`npx tsc -b --force` 0 错、`npm run build` 通过。
+
+### B4-3 D3Page 去伪造数据（置信度常量表 + verdictFrom 正则） — 已提交（4c69860）
+
+- **契约增量**：`DecisionCard.verdict`（三态结论，模型结构化输出）+ `confidence_detail`
+  （`ConfidenceDetail`：level/score/low/high/basis/三档计数）；
+- **规则推导进代码**：`infra/confidence.confidence_detail()`——主值 = 依据级别加权平均
+  （high 0.85 / medium 0.6 / low 0.35），区间半宽随依据条数收窄（26−2×条数，夹 6–26），
+  无依据时退回等级兜底带并在 basis 如实说明；`orchestrator/pipelines.py` 用模板方法
+  （`Pipeline.run` → `finalize_card`）统一收口，反推路径（`run_reverse`）同样补全；
+- **前端**：删 `confidenceMath`（78/58/34 常量表）与 `verdictFrom`（中文正则猜 go/wait/risk），
+  改读卡片字段；「可能性评估」概率条改为**依据构成**（high/medium/low 真实条数 + 占比），
+  小字改为「由后端按来源级别规则推导（非模型自评，也不是概率估计）」；HomePage 环图同样改读
+  `confidence_detail.score`（顺带消灭第二份常量表）；
+- **遗留（记档）**：`D3Page.firstTime` 仍从 `time_window` 文本取首个时刻做倒计时（展示层解析真实字段，
+  非伪造数据；结构化时间窗待后续契约增补）。
+
+### B4-4 tool_result 带结构化数据，D2Page 去正则解析 — 已提交（cc58c93）
+
+- 后端：`infra/trace.record_tool` 增 `结果数据`（结构化 dict，非 JSON 结果不落键），出口掩码改
+  **递归**（容器内文本同样 redact）；`api/events.map_trace_event` 把它映射为 `tool_result.data`
+  （无结构化结果则帧里不出现该键）；
+- 前端 D2Page：删 `parseTime` 与四处 `String.match` 正则解析，改读 `event.data` 真实字段
+  （日出 / 日落 / 月相名称 / 月光影响建议 / 可见窗口首段）；
+- 用例：`tests/test_api_events.py`（data 透传 + 端到端 decide 帧带 data）、
+  `tests/test_trace_security.py`（结构化结果入库 + 嵌套掩码 + 非 JSON 结果不落键）。
+
+### B4-5 B4 收口（CI 漂移门禁 + 出口检查） — 已提交（docs 收口，见本提交）
+
+- 门禁写入长期目标清单：**B4 起 `npm run gen:api && git diff --exit-code`**（契约漂移即红）；
+- **漂移门禁实测**：`gen:api` 幂等（重跑 diff=0）；手工往 generated.ts 塞一行再 `git diff --exit-code`
+  → 退出码 1（会被拦下）；重跑 `gen:api` 复原 → 退出码 0；
+- 出口检查单：
+  - [x] `npm run gen:api` 一键跑通；重跑 `git diff --exit-code` = 0
+  - [x] `generated.ts` 覆盖 SSE 8 事件 + DecisionCard/ConfidenceDetail/ProfilePayload
+  - [x] 前端无硬编码置信度表、无中文正则猜结论、无工具摘要正则解析（grep 复查）
+  - [x] `npm run build` 通过；pytest **323** 全绿；ruff 0；`lint-imports` 3 kept / 0 broken；smoke 21 项
+  - [x] Web 实跑：uvicorn 启动 + `GET /openapi.json` 200（含 CardEvent 等契约模型）
+- **偏差/风险**：npm 全局缓存目录在沙箱外（EPERM），本机安装需 `npm install --cache .npm-cache`
+  （前端已有 `.npm-cache/` 且已 gitignore）；新依赖 `openapi-typescript@7.13.0` 仅进 devDependencies；
+  生成物中文字段/描述直接来自 pydantic docstring（改契约即同时改生成物，属预期）。
+- **README 仅同步本批相关两行**（前端契约生成说明 + 测试数 323）；`agent/` 目录、E 时代表述等完整基线同步留 B5-5（文档基线=实际 HEAD）。
+
+### B4 批次总结（闸门 4）
+
+- **测试规模**：306 → **323**（+17：契约 6 / 置信度明细 4 / trace 结构化 2 / SSE 结构化 3 / 编排卡片 3 / 反推断言 1）。
+- **门禁全绿**：pytest 323 ｜ ruff 0 ｜ lint-imports 3 kept / 0 broken ｜ smoke 21 ｜ `npm run build` 通过 ｜
+  `gen:api` 幂等（diff=0）。
+- **下一步（等确认）**：**B5 记忆命名空间 + 清理 + 文档**——① MemoryStore `data/users/{user_id}/memory/`
+  迁移（本期恒 `_local`）② shim 到期删除（含 B4-1 加的 `lighttrail.llm.client` 豁免）③ ADR-004 落盘
+  ④ architecture.md 重写为目标架构 ⑤ requirements.txt 对齐 pyproject。批次细节见 REFACTOR-ROADMAP §7。
+
 ## 2026-09-14（B3 适配层 + 并发：B3-1 ~ B3-5 全部交付，停闸门 3）
 
 > 批次目标（v4 §6 B3）：async-first 一套实现（消灭同步/异步复制与三套并发机制）；并发 = 纯配置
