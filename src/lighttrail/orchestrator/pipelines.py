@@ -10,7 +10,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -22,6 +24,8 @@ from lighttrail.infra.validation import parse_with_retry
 from lighttrail.llm.router import ModelRouter
 from lighttrail.memory import MemoryManager
 from lighttrail.orchestrator.context import PipelineContext
+
+logger = logging.getLogger("lighttrail.orchestrator.pipelines")
 
 # 默认坐标：上海（档案常去机位精确坐标接线见 B5-3）
 _DEFAULT_LAT = 31.23
@@ -101,18 +105,60 @@ def _collection_steps(subject_type: str, lat: float, lon: float, date_iso: str) 
     ]
 
 
-def _collect(env: PipelineEnv, ctx: PipelineContext, steps: list[tuple[str, str]]) -> dict[str, Any]:
-    """直调工具采集数据（非 ReAct 轮次），每步落 TraceRecorder。"""
+async def _collect_async(
+    env: PipelineEnv, ctx: PipelineContext, steps: list[tuple[str, str]]
+) -> dict[str, Any]:
+    """并发采集：每源一个 task（`asyncio.TaskGroup`），单源失败降级为 {"error": ...}。
+
+    设计要点（B3-3，v4 §3 D5 配套①）：
+    - 四管线采集源（天气 / 天文 / 机位 / 光污染）彼此无依赖，顺序 for 循环纯在浪费延迟；
+      改为并发后采集阶段延迟由「各源之和」降为「最慢一源」；
+    - 取数并发与 LLM 并发是两条独立边界：`env.dispatch` 走 `asyncio.to_thread`（工具内部是
+      阻塞 HTTP / 计算），**不占用** LLM 信号量；
+    - 单源失败不改整体结果形态：该源写 `{"error": ...}`（与旧实现的 `{"error": raw[:120]}`
+      语义一致），其余源照常进卡片，管线不被拖垮。
+
+    Args:
+        env: 管线运行环境（dispatch 为同步直调）。
+        ctx: 管线上下文（未使用，保留签名一致性）。
+        steps: (工具名, 参数 JSON) 列表。
+
+    Returns:
+        {工具名: 解析后的结果 dict}；单个源失败时其值为 {"error": ...}。
+    """
     data: dict[str, Any] = {}
-    for tool, args in steps:
+
+    async def _run_one(tool: str, args: str) -> None:
         env.recorder.record_step(f"采集_{tool}", input_summary=args[:80], output_summary="")
-        raw = env.dispatch(tool, args)
         try:
-            parsed: Any = json.loads(raw)
+            raw = await asyncio.to_thread(env.dispatch, tool, args)
+        except Exception as exc:  # noqa: BLE001 - 单源失败降级，不拖垮管线
+            logger.warning("采集源 %s 失败，降级为 error：%s", tool, exc)
+            data[tool] = {"error": f"{type(exc).__name__}: {exc}"}
+            return
+        try:
+            data[tool] = json.loads(raw)
         except ValueError:
-            parsed = {"error": raw[:120]}
-        data[tool] = parsed
+            data[tool] = {"error": str(raw)[:120]}
+
+    async with asyncio.TaskGroup() as group:
+        for tool, args in steps:
+            group.create_task(_run_one(tool, args))
     return data
+
+
+def _collect(env: PipelineEnv, ctx: PipelineContext, steps: list[tuple[str, str]]) -> dict[str, Any]:
+    """同步门面：在独立事件循环里跑并发采集（管线在 worker 线程中同步调用）。
+
+    Args:
+        env: 管线运行环境。
+        ctx: 管线上下文。
+        steps: (工具名, 参数 JSON) 列表。
+
+    Returns:
+        与 `_collect_async` 相同的采集结果。
+    """
+    return asyncio.run(_collect_async(env, ctx, steps))
 
 
 def _score(data: dict[str, Any]) -> dict[str, Any]:
