@@ -113,6 +113,11 @@
   `--llm-judge --limit 1` → 判官打分 5.0 / 5.0 / 5.0 / 4.0（真实 LLM 1 次，配额克制），
   说明 L3 的两条路径（本地 rubric、LLM 判官 + `ChatClient` 直构）在 B1–B4 重构后均可用。
   结果留档 `evals/results/20260914-144758-L3.json`、`…-144810-L3.json`。
+- **L2 黄金断言收紧（B4-3 契约不变量入评估层）**：`evals/runner.assert_card` 新增三项校验——
+  `confidence_detail` 必填、区间有序（0 ≤ low ≤ score ≤ high ≤ 100）、三档计数 == evidence 条数、
+  `verdict` 在允许集合（可用 `expect.verdict_allowed` 收紧单例）。**实测会咬**：构造无明细的卡 →
+  报「缺 confidence_detail」；verdict 越界 → 报错。收紧后 L2 复跑 **12/12 + 10/10 仍全绿**（1.02s，零成本），
+  说明 cassette 回放的 12 张卡片全部满足 B4 契约不变量；结果留档 `evals/results/20260914-145523-L2.json`。
 
 ### B4 批次总结（闸门 4）
 

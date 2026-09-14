@@ -73,7 +73,8 @@ def assert_card(card: DecisionCard, expect: dict[str, Any]) -> list[str]:
     Args:
         card: 管线产出的决策卡。
         expect: 期望（conclusion_contains / min_evidence / max_locations /
-            confidence_allowed / allow_degraded / time_window_note）。
+            confidence_allowed / allow_degraded / time_window_note / verdict_allowed；
+            B4-3 起还校验 confidence_detail 契约不变量）。
 
     Returns:
         违规清单（空 = 通过）。
@@ -97,6 +98,19 @@ def assert_card(card: DecisionCard, expect: dict[str, Any]) -> list[str]:
             problems.append(f"结论缺少关键词「{keyword}」")
     if expect.get("time_window_note") and not card.time_window:
         problems.append("缺时间窗口（time_window）")
+    # B4-3 契约不变量：置信度明细必填、区间有序、三档计数与依据条数一致、verdict 在允许集合
+    detail = card.confidence_detail
+    if detail is None:
+        problems.append("缺 confidence_detail（B4-3 起必填：前端置信度三层的唯一来源）")
+    else:
+        if not 0 <= detail.low <= detail.score <= detail.high <= 100:
+            problems.append(f"confidence_detail 区间非法：{detail.low}/{detail.score}/{detail.high}")
+        counted = detail.high_count + detail.medium_count + detail.low_count
+        if counted != len(card.evidence):
+            problems.append(f"confidence_detail 计数 {counted} 与 evidence {len(card.evidence)} 条不一致")
+    allowed_verdicts = expect.get("verdict_allowed") or ["go", "wait", "risk", ""]
+    if card.verdict not in allowed_verdicts:
+        problems.append(f"verdict {card.verdict!r} 不在允许集合 {allowed_verdicts}")
     return problems
 
 
