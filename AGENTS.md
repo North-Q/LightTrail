@@ -25,7 +25,7 @@
 ## 协作约定
 - 沟通口语化、简洁直接；正式产出（文档/README/代码注释/邮件）用书面化
 - 涉及外部动作（发邮件、发布、对外提交）必须先经小北确认
-- 当前阶段：**架构重建期**——依据 docs/architecture-v4-proposal.md（D1–D14 定稿）与 docs/REFACTOR-ROADMAP.md（唯一任务清单）推进 B0–B7；E1–E8 已交付并作为重构资产保留（旧路线图归档 docs/archive/DEVELOPMENT-ROADMAP-v2.5.md）。**B0 止血护栏（停闸门 0）与 B1 契约层 + 配置（停闸门 1）均已完成（2026-09-13）**：SessionManager 三 bug / tokens 记账 / 假注释清理；零依赖 contracts/（ToolSpec/ToolContext/RequestContext/Plan/TraceEvent/端口）+ 契约模型下沉与旧路径 shim + LLM 配置密钥端口与部署级实现 + 统一护栏配置项 + import-linter「契约零依赖」门禁。既有交付：地基拆分 / TraceRecorder / 四层记忆 / ModelRouter+QuotaLedger / 四管线编排与一句话出方案闭环 / 照片分析智能工具（depth=1 红线）+ 照片反推 + 复盘管线闭环 + 语义记忆提炼 / **Web 服务层**（async ChatClient 串行闸门 + SessionManager 会话持久化 + FastAPI 五端点 SSE + trace→SSE 桥接 + SPA 三核心页）；pytest **298 全绿**、ruff 0 告警、smoke 21 项通过、**15 个已注册工具**；ADR-002 平台中立性 + ADR-003 扩展参数适配已落地；E6-0 四管线真实联调 + E7-0 SSE 真实联调均通过、远程基线已建立。**B2 已完成**（2026-09-14）：声明式 ToolSpec + 装配根 + PydanticAI Model 桥 + AgentRuntime，生产路径（CLI/Web/四管线）全切 runtime，旧 `agent/` 包与迁移期 shim 已删除。**下一步 B3 适配层 + 并发**（async-first LLMProvider 单 Semaphore(4) + 并行取数 + tenacity/httpx + import-linter 全开，任务清单见 REFACTOR-ROADMAP §5）。项目已具备可演示的 Web 形态（`uvicorn lighttrail.api.app:app` + `npm run dev`）。项目对话记忆详见 `.workbuddy/memory/`。
+- 当前阶段：**架构重建期**——依据 docs/architecture-v4-proposal.md（D1–D14 定稿）与 docs/REFACTOR-ROADMAP.md（唯一任务清单）推进 B0–B7；E1–E8 已交付并作为重构资产保留（旧路线图归档 docs/archive/DEVELOPMENT-ROADMAP-v2.5.md）。**B0 止血护栏（停闸门 0）与 B1 契约层 + 配置（停闸门 1）均已完成（2026-09-13）**：SessionManager 三 bug / tokens 记账 / 假注释清理；零依赖 contracts/（ToolSpec/ToolContext/RequestContext/Plan/TraceEvent/端口）+ 契约模型下沉与旧路径 shim + LLM 配置密钥端口与部署级实现 + 统一护栏配置项 + import-linter「契约零依赖」门禁。既有交付：地基拆分 / TraceRecorder / 四层记忆 / ModelRouter+QuotaLedger / 四管线编排与一句话出方案闭环 / 照片分析智能工具（depth=1 红线）+ 照片反推 + 复盘管线闭环 + 语义记忆提炼 / **Web 服务层**（async ChatClient 串行闸门 + SessionManager 会话持久化 + FastAPI 五端点 SSE + trace→SSE 桥接 + SPA 三核心页）；pytest **306 全绿**、ruff 0 告警、smoke 21 项通过、**15 个已注册工具**；ADR-002 平台中立性 + ADR-003 扩展参数适配已落地；E6-0 四管线真实联调 + E7-0 SSE 真实联调均通过、远程基线已建立。**B2 已完成**（2026-09-14）：声明式 ToolSpec + 装配根 + PydanticAI Model 桥 + AgentRuntime，生产路径（CLI/Web/四管线）全切 runtime，旧 `agent/` 包与迁移期 shim 已删除。**B3 已完成**（2026-09-14）：async-first 单一并发机制、tenacity/httpx 收敛重试、管线并行取数（-71% 延迟）、TraceSink + 出口白名单、QuotaLedger 加锁；`lint-imports` 3 kept / 0 broken。**下一步 B4 契约单一真源 + 前端重接**（OpenAPI→TS 生成 + 去前端假数据，任务清单见 REFACTOR-ROADMAP §6）。项目已具备可演示的 Web 形态（`uvicorn lighttrail.api.app:app` + `npm run dev`）。项目对话记忆详见 `.workbuddy/memory/`。
 
 ## 代码风格（基于现有代码反推，新增代码遵守）
 
@@ -62,7 +62,7 @@ src/lighttrail/
 ├── infra/              # TraceRecorder / confidence（置信度规则）/ quota（配额账本）/ validation
 ├── tools/              # 具体工具实现（…/memory_tool/photo_analysis，共 15 工具）
 └── smoke.py            # 离线冒烟测试（21 项检查，发布前冒烟入口）
-tests/                  # 34 个测试文件，298 用例（含 architecture AST 禁止边门禁；离线 Fake，不触网）
+tests/                  # 37 个测试文件，306 用例（含 architecture AST 禁止边门禁；离线 Fake，不触网）
 ```
 
 ## ECNU API 调用模式（见 `llm/client.py`，新增工具遵守；B3 起由 `adapters/llm` 接替）

@@ -33,15 +33,15 @@
       + 9/9 用例文件换装 + 删除旧 agent/ 包与全部 shim + 桥重复 system 修复（真实联调抓到）
       → **B2 引擎重写整批完成（停闸门 2）**
 
-### B3 适配层 + 并发 ★ 下一步
+### B3 适配层 + 并发 ✅ 已完成（B3-1 ~ B3-5，2026-09-14，停闸门 3）
 
-- [ ] B3-1 async-first LLMProvider（单 Semaphore，LLM_CONCURRENCY 默认 4，删三套并发机制）
-- [ ] B3-2 tenacity 统一重试 + httpx 数据源
-- [ ] B3-3 管线并行取数（asyncio.TaskGroup，采集延迟降 ≥40%）
-- [ ] B3-4 TraceSink Protocol + OTel GenAI 命名 + 事件载荷白名单
-- [ ] B3-5 B3 收口（import-linter 全开 + QuotaLedger 加锁 + 死锁回归）
+- [x] B3-1 async-first LLMProvider（单一限流器，concurrency 默认 4，删三套并发机制）
+- [x] B3-2 tenacity 统一重试 + httpx 数据源
+- [x] B3-3 管线并行取数（asyncio.TaskGroup，实测降幅 71%）
+- [x] B3-4 TraceSink Protocol + OTel GenAI 命名 + 事件载荷白名单/掩码
+- [x] B3-5 B3 收口（三层契约 kept + QuotaLedger 加锁 + 异步形态死锁回归；layers 分层版随目标目录迁移开启）
 
-### B4 契约单一真源 + 前端重接（可与 B2/B3 并行）
+### B4 契约单一真源 + 前端重接 ★ 下一步
 
 - [ ] B4-1 OpenAPI→openapi-typescript 生成流水线（gen:api）
 - [ ] B4-2 前端删手抄类型，接 generated.ts

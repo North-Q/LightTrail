@@ -8,7 +8,7 @@
 ## 📍 当前位置（开工第一眼先看这里）
 
 ```
-📍 当前位置：闸门 2 已到达（**B2 引擎重写完成**：生产路径全切 runtime、9/9 用例换装、旧 agent/ 包与全部 shim 已删；下一步 B3 适配层 + 并发）
+📍 当前位置：闸门 3 已到达（**B3 适配层 + 并发完成**：async-first 单一并发机制、tenacity/httpx 收敛重试、管线并行取数 -71%、TraceSink + 出口白名单、QuotaLedger 加锁；下一步 B4 契约单一真源 + 前端重接）
   代码基线：main 分支 HEAD 5acb182 ｜ pytest 295 全绿 ｜ ruff 0 ｜ lint-imports 2 kept / 0 broken
   实跑基线：CLI + Web 真实查询通过 ｜ 冒烟 21 项 ｜ 15 工具全部声明式 ｜ PydanticAI Model 桥 + AgentRuntime 已落地（尚未接管生产路径）
 🎯 当前目标：B2-7 剩余——① 编排器/四管线切 AgentRuntime（意图解析 + reason 通道）② TestModel 替换 8 处 FakeChatClient ③ shim 清理 → 然后 B2 收口（闸门 2 汇报）
@@ -23,7 +23,7 @@
 
 ```mermaid
 graph TD
-    S([📍当前位置<br/>闸门 2 / B2 已完成<br/>298 测试全绿 / 旧 agent 包已删]) --> B0
+    S([📍当前位置<br/>闸门 3 / B3 已完成<br/>306 测试全绿 / 三层契约 kept]) --> B0
 
     B0[B0 止血护栏<br/>B0-1~B0-4 修3 bug+tokens+假注释] --> G0{{闸门0 B0 出口<br/>pytest绿+淘汰/并发写用例过<br/>CLI/Web可跑 → 汇报}}
     G0 --> B1[B1 契约层+配置<br/>B1-1~B1-5 contracts/+pydantic-settings]

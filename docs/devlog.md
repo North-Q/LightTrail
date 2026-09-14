@@ -1,5 +1,66 @@
 # LightTrail 开发日志
 
+## 2026-09-14（B3 适配层 + 并发：B3-1 ~ B3-5 全部交付，停闸门 3）
+
+> 批次目标（v4 §6 B3）：async-first 一套实现（消灭同步/异步复制与三套并发机制）；并发 = 纯配置
+> `LLM_CONCURRENCY` 默认 4；管线并行取数；tenacity 统一重试；httpx 数据源。
+
+### B3-1 ChatClient async-first 重写 — 已提交（0cb0aad）
+
+- 新增 `_ConcurrencyLimiter`（`threading.BoundedSemaphore` + 异步侧 `asyncio.to_thread`）——
+  跨事件循环可用（同步门面走后台共享 loop、Web 走 uvicorn loop），只包单次 API 往返、重试在限流之外；
+- 删除三套旧机制（`threading.Lock` + 自研 `_AsyncGate` FIFO 闸门 + `call_soon_threadsafe` 桥）；
+- 单一实现：真逻辑只在 `acall`，同步 `chat` 退化为后台共享事件循环上的门面（并显式拒绝在
+  事件循环内调用，避免静默死锁）；`concurrency` 成为唯一配置入口（`serial_llm=True` 兼容别名）；
+- 测试合并重写为 `tests/test_client_concurrency.py`（11 用例），删旧两份客户端测试。
+
+### B3-2 三套重试收敛（tenacity）+ httpx 数据源 — 已提交（136d60a）
+
+- LLM 调用：手写指数退避 → `tenacity.AsyncRetrying`（次数/退避/可重试语义不变）；
+- 数据源：新增 `infra/http.py`（httpx 取代 weather 的 urllib 手写重试；429/5xx/网络错误退避、
+  4xx 立即失败带原因），`adapters/datasources/` 作适配层门面；
+- 结构化输出校验：`photo_analysis` 自写循环 → 复用 `infra/validation.parse_with_retry`；
+- **门禁实战**：weather 直连 adapters 被 AST「禁止边」检查当场拦下（domain → adapters），
+  改为 infra 实现 + 适配层 re-export（TODO(B3-5/B5-4) 收敛）。
+
+### B3-3 管线并行取数 — 已提交（4031732）
+
+- `_collect_async`：每源一个 task（`asyncio.TaskGroup`），dispatch 经 `asyncio.to_thread`
+  （不占 LLM 信号量）；单源失败降级 `{"error": ...}` 不拖垮管线；trace 口径不变；
+- **实测延迟：顺序 0.603s → 并发 0.172s，降幅 71%**（验收线 ≥40%），并固化为回归用例。
+
+### B3-4 TraceSink + 载荷白名单/掩码 + OTel 命名 — 已提交（6dd99fc）
+
+- `api/events.py` 的桥改订阅 `contracts.observability.TraceSink`（类型层解耦）；
+- 载荷白名单（llm/tool/step 各一组）+ 统一 `redact()` 出口（`infra/redact.py`：sk-/Bearer/api_key=）；
+- `adapters/trace/otel.py`：内部中文键 → `gen_ai.*` 语义键（模型/token/工具名）+ `lighttrail.*` 自定义域。
+
+### B3-5 收口 — 已提交（5ba3508 部分、605cbbd）
+
+- import-linter 补齐第三段契约「交互层不被任何层依赖」（**3 kept / 0 broken**）；
+- `QuotaLedger` 并发记账加锁（D5 配套）+ 并发记账用例；
+- LLM 客户端实现迁入 `adapters/llm/client.py`，旧路径转 re-export shim（TODO(B5-4)）；
+  monkeypatch 目标改真源模块（shim 顶部已注明）；
+- 异步形态死锁回归（B0-1 复验）：并发 /api/chat（含共享 session_id + LRU 淘汰）不挂死、
+  会话文件始终是完整 JSON。
+
+### B3 批次总结（闸门 3）
+
+- **出口检查**：pytest **306 全绿**；`ruff check src tests evals` 0；`lint-imports` **3 kept / 0 broken**；
+  离线冒烟 21 项；**CLI 自由对话 + CLI `--pipeline` + Web `/api/chat` + Web `/api/decide`
+  四条真实链路全部通过**；
+- **交付**：单一并发机制 + 单一实现（async-first）、三套重试收敛、管线并行取数（-71% 延迟）、
+  TraceSink 端口化 + 出口白名单/掩码、QuotaLedger 并发安全、客户端迁入适配层；
+- **未完成 / 偏差（如实记录）**：
+  ① import-linter 的 `layers` 分层版契约仍待开启——需要 interface/application/runtime/domain
+  目标目录迁移，属 B5-4/B3-5 后半（当前用按包列出的三段 forbidden 契约等效覆盖）；
+  ② `adapters/trace` 与 `adapters/datasources` 目前是「infra 实现 + 适配层门面」，
+  因 runtime/域工具不得 import adapters，最终迁移随目标分层一并做；
+  ③ `lighttrail/llm/client.py` 与 `lighttrail/orchestrator/schemas.py` 等 shim 到期删除点在 B5-4；
+- **下一步**：闸门 3 等确认后进 **B4（契约单一真源 + 前端重接）**——OpenAPI→TS 生成流水线 +
+  删前端手抄类型/置信度常量表/正则解析。
+
+
 ## 2026-09-13（B2 引擎重写 · 进行中：B2-1 ~ B2-4 已完成）
 
 > 批次定位：`docs/REFACTOR-ROADMAP.md` §4。目标 = 注册表方向反转（声明式 ToolSpec + 装配根）+
