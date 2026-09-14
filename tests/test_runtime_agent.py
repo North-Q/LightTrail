@@ -193,7 +193,26 @@ def test_acomplete_uses_chat_model_without_tools() -> None:
     assert call["model"] == "ecnu-plus"
     assert call["tools"] is None
     assert call["temperature"] == 0.2
-    assert call["messages"][0]["content"] == "只输出 JSON"
+    assert "只输出 JSON" in call["messages"][0]["content"]
+
+
+def test_trace_layer_visible_to_next_run() -> None:
+    """⑤层会话轨迹：本轮工具调用进轨迹，下一次组装 system 时可见（M2 可解释性）。
+
+    实测差异（2026-09-14，记录在案）：pydantic-ai 在单轮 ReAct 内不会重新求值 system，
+    因此轨迹层在**同轮内的第二轮请求**不可见（旧 Agent 每轮重算 system）。工具结果本身仍
+    通过 role=tool 消息进入上下文，⑤层是跨轮补充；如需轮内刷新，B3/B7 再评估事件钩子。
+    """
+    provider = _FakeProvider([_tool_call("doubler", {"x": 1}), {"role": "assistant", "content": "好了"}])
+    registry = _registry(PureTool(spec=_spec("doubler", "把整数翻倍"), func=_doubler))
+    recorder = TraceRecorder()
+    runtime = AgentRuntime(_model(provider, "ecnu-plus", recorder), registry, recorder=recorder)
+
+    runtime.run("把 1 翻倍")
+
+    assert [ref.name for ref in recorder.to_report().tool_calls] == ["doubler"]
+    assert "doubler" in runtime.system_prompt()  # ⑤层轨迹摘要含本轮工具调用
+    assert "## 会话轨迹摘要" in runtime.system_prompt()
 
 
 def test_tool_round_limit_enforced_by_usage_limits() -> None:

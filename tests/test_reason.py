@@ -121,7 +121,7 @@ def test_reason_custom_model_and_system() -> None:
     runtime.reason("判断", system="按 JSON 输出")
     call = fake.calls[0]
     assert call["model"] == "custom-reason"
-    assert call["messages"][0]["content"] == "按 JSON 输出"
+    assert "按 JSON 输出" in call["messages"][0]["content"]
 
 
 def test_reason_thinking_recorded_in_trace() -> None:

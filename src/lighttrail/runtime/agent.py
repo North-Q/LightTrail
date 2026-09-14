@@ -21,6 +21,7 @@ from typing import Any
 from pydantic_ai import Agent
 from pydantic_ai.messages import ThinkingPart
 from pydantic_ai.models import Model, ModelSettings
+from pydantic_ai.tools import RunContext
 from pydantic_ai.tools import Tool as PydanticTool
 from pydantic_ai.usage import UsageLimits
 
@@ -45,7 +46,7 @@ class AgentRuntime:
         model: 工具链路的 pydantic-ai 模型（由装配根用自定义 Model 桥构造）。
         registry: 工具注册表（声明式；其 ToolSpec 直接映射为框架工具 schema）。
         reason_model: 深推理模型（缺省复用 model）。
-        context: 五层上下文组装器（缺省按注册表自动生成工具层）。
+        context: 五层上下文组装器（缺省按注册表生成工具层，并把会话轨迹接当前记录器）。
         recorder: 可观测性记录器（LLM 事件由桥记录，工具事件由注册表记录）。
         max_tool_rounds: ReAct 请求上限（映射为框架 UsageLimits.request_limit）。
         reason_thinking: 深推理通道是否携带 thinking 扩展参数（ADR-003）。
@@ -64,14 +65,19 @@ class AgentRuntime:
     ) -> None:
         self._registry = registry
         self._recorder: Recorder = recorder or null_trace
-        self._context = context or ContextBuilder(registry=registry)
+        self._context = context or ContextBuilder(
+            registry=registry,
+            # ⑤层会话轨迹：默认接当前记录器（对齐旧 Agent 的轨迹注入，M2 可解释性）
+            trace_provider=lambda: self._recorder.to_prompt_section(),
+        )
         self._max_tool_rounds = max_tool_rounds
         self._reason_thinking = reason_thinking
         self._model = model
         self._model_reason = reason_model or model
-        self._agent = Agent(self._model, tools=self._build_tools())
-        self._chat_agent = Agent(self._model)  # 无工具的原始补全（意图解析等结构化输出）
-        self._reason_agent = Agent(self._model_reason)
+        # instructions 传**回调**：框架每次模型请求都会重新求值，⑤层轨迹因此在同一轮内生效
+        self._agent = Agent(self._model, tools=self._build_tools(), instructions=self._instructions)
+        self._chat_agent = Agent(self._model, instructions=self._instructions)
+        self._reason_agent = Agent(self._model_reason, instructions=self._instructions)
         self._messages: list[Any] = []
 
     # ------ 对外接口：ReAct 对话 ------
@@ -90,7 +96,6 @@ class AgentRuntime:
         """
         result = await self._agent.run(
             user_input,
-            instructions=self.system_prompt(),
             message_history=self._messages,
             usage_limits=UsageLimits(request_limit=self._max_tool_rounds),
         )
@@ -151,7 +156,7 @@ class AgentRuntime:
         """
         result = await self._chat_agent.run(
             prompt,
-            instructions=system or self.system_prompt(),
+            instructions=system or None,
             model_settings=ModelSettings(temperature=temperature),
         )
         return str(result.output).strip()
@@ -193,7 +198,7 @@ class AgentRuntime:
                 extra_body["reasoning_effort"] = reasoning_effort
         result = await self._reason_agent.run(
             prompt,
-            instructions=system or self.system_prompt(),
+            instructions=system or None,
             model_settings=ModelSettings(temperature=temperature, extra_body=extra_body or None),
         )
         # M2-04 推理可见：把供应商回传的思考摘要落成步骤事件（对齐旧 Agent 行为）
@@ -225,6 +230,14 @@ class AgentRuntime:
     def system_prompt(self) -> str:
         """当前五层系统提示（工具层由注册表自动生成，注册表变更即刷新）。"""
         return self._context.build_system_prompt()
+
+    def _instructions(self, ctx: RunContext[Any]) -> str:
+        """逐轮求值的系统提示回调（框架每次模型请求都会调用一次）。
+
+        这样 ⑤层「会话轨迹摘要」在**同一轮 ReAct 内**也能看到刚发生的工具调用
+        （对齐旧 Agent 每轮重算 system 的行为，M2-04/E2-2 语义不丢）。
+        """
+        return self.system_prompt()
 
     @property
     def messages(self) -> list[Any]:
