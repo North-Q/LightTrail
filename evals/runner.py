@@ -315,7 +315,9 @@ def run_l2(*, record: bool = False, groups: set[str] | None = None) -> dict[str,
                 "confidence": card.confidence,
                 "evidence": len(card.evidence),
                 "locations": len(card.locations),
-                "tools": trace,
+                # B3 起管线并行取数（asyncio.TaskGroup）：完成顺序不定但与语义无关，
+                # 报告按工具名排序以保证「同样输入 → 同样报告」（L2 可重复性断言依赖它）。
+                "tools": sorted(trace),
             }
         )
 

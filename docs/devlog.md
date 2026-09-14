@@ -118,6 +118,12 @@
   `verdict` 在允许集合（可用 `expect.verdict_allowed` 收紧单例）。**实测会咬**：构造无明细的卡 →
   报「缺 confidence_detail」；verdict 越界 → 报错。收紧后 L2 复跑 **12/12 + 10/10 仍全绿**（1.02s，零成本），
   说明 cassette 回放的 12 张卡片全部满足 B4 契约不变量；结果留档 `evals/results/20260914-145523-L2.json`。
+- **顺手抓到并修掉一个 B3 遗留的脆弱断言**：`tests/test_evals.py::test_runner_l2_offline_zero_llm`
+  断言「两次 L2 报告字节级一致」，但 B3-3 起管线**并行取数**（`asyncio.TaskGroup`）导致工具完成顺序不定，
+  该断言在 12 条里**偶发失败**（本次 pytest 实测抓到：L2-005 两次 `tools` 顺序不同）。修法：L2 报告 `tools`
+  改按工具名排序——取数顺序与语义无关，而报告的意义就是「同样输入 → 同样报告」。
+- **tests/test_evals.py 同步 B4 断言**：`_card()` 默认补规则推导明细 + 新增 3 例（缺明细 / 计数不一致 / 区间非法 /
+  verdict 允许集合收紧）。pytest **329 → 332** 全绿。
 
 ### B4 批次总结（闸门 4）
 

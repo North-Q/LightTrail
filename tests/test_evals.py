@@ -1,7 +1,8 @@
 """评估体系（E8）的 pytest 用例（全部离线，不触网、不依赖 API Key）。
 
 覆盖：
-- assert_card 结构化断言（M2：evidence 非空 / 机位数 / 置信度枚举 / 降级标注）；
+- assert_card 结构化断言（M2：evidence 非空 / 机位数 / 置信度枚举 / 降级标注；
+  B4-3 起含 confidence_detail 契约不变量与 verdict 允许集合）；
 - LocalRubric 4 维打分、ToolCrossCheck 抓「违反 500 法则」假阳性；
 - CassetteChatClient 回放确定性与 LLM 判官降级；
 - runner L2 全量回放（零 LLM 成本、字节级可重复）与 L3 报告结构。
@@ -19,6 +20,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from evals.fake_data import CassetteChatClient, card, intents
 from evals.judge import LLMJudge, LocalRubric, ToolCrossCheck
 from evals.runner import assert_card, run_l2, run_l3
+from lighttrail.contracts.models import ConfidenceDetail
+from lighttrail.infra.confidence import confidence_detail
 from lighttrail.orchestrator.schemas import DecisionCard, ParamSuggestion, Source
 from lighttrail.tools import exposure  # noqa: F401  触发注册
 
@@ -31,7 +34,10 @@ def _card(**overrides) -> DecisionCard:
         "confidence": "medium",
     }
     base.update(overrides)
-    return DecisionCard(**base)
+    card = DecisionCard(**base)
+    if card.confidence_detail is None and "confidence_detail" not in overrides:
+        card.confidence_detail = confidence_detail(card.confidence, card.evidence)
+    return card
 
 
 # ------ assert_card ------
@@ -148,3 +154,28 @@ def test_runner_l3_report_structure() -> None:
     assert "diff_vs_last" in report
     assert isinstance(report["cross_check_findings"], list)
     assert report["samples"] >= 10
+
+
+def test_assert_card_requires_confidence_detail() -> None:
+    """B4-3 契约不变量：缺 confidence_detail 判违规（前端置信度三层的唯一来源）。"""
+    problems = assert_card(_card(confidence_detail=None), {})
+    assert any("confidence_detail" in problem for problem in problems)
+
+
+def test_assert_card_checks_detail_consistency() -> None:
+    """明细区间非法 / 三档计数与依据条数不一致 → 违规。"""
+    card = _card()
+    card.confidence_detail = ConfidenceDetail(level="high", score=90, low=10, high=95, high_count=2)
+    problems = assert_card(card, {"min_evidence": 1})
+    assert any("计数" in problem for problem in problems)
+
+    card.confidence_detail = ConfidenceDetail(level="high", score=10, low=90, high=95, high_count=1)
+    assert any("区间非法" in problem for problem in assert_card(card, {"min_evidence": 1}))
+
+
+def test_assert_card_verdict_allowed_set() -> None:
+    """verdict 可在期望里收紧（verdict_allowed）；缺省允许 go/wait/risk/空串。"""
+    assert assert_card(_card(verdict="wait"), {"verdict_allowed": ["wait", "risk"]}) == []
+    problems = assert_card(_card(verdict="go"), {"verdict_allowed": ["wait", "risk"]})
+    assert any("verdict" in problem for problem in problems)
+    assert assert_card(_card(verdict=""), {}) == []
