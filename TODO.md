@@ -1,6 +1,6 @@
 # TODO · LightTrail（光迹）
 
-> 项目待办 + 灵感收集。更新日期：2026-09-13
+> 项目待办 + 灵感收集。更新日期：2026-09-14
 > **当前阶段：架构重建期**——任务编号见 `docs/REFACTOR-ROADMAP.md`（B0-1 … B7-6）；方案权威 `docs/architecture-v4-proposal.md`；codex 入口 `docs/codex-longterm-goal.md` v7。
 > E1–E8 已完成（旧 E 系列路线图归档至 `docs/archive/DEVELOPMENT-ROADMAP-v2.5.md`）；E9/E10 等未做功能项的处置见 PRD 附录 A2（v0.4 范围修订）。
 
@@ -41,13 +41,32 @@
 - [x] B3-4 TraceSink Protocol + OTel GenAI 命名 + 事件载荷白名单/掩码
 - [x] B3-5 B3 收口（三层契约 kept + QuotaLedger 加锁 + 异步形态死锁回归；layers 分层版随目标目录迁移开启）
 
-### B4 契约单一真源 + 前端重接 ★ 下一步
+### B4 契约单一真源 + 前端重接 ✅ 已完成（B4-1 ~ B4-5，2026-09-14，停闸门 4）
 
-- [ ] B4-1 OpenAPI→openapi-typescript 生成流水线（gen:api）
-- [ ] B4-2 前端删手抄类型，接 generated.ts
-- [ ] B4-3 D3Page 去伪造数据（置信度常量表 / verdictFrom 正则）
-- [ ] B4-4 D2Page 去正则解析工具 JSON
-- [ ] B4-5 B4 收口（gen:api && git diff --exit-code 门禁）
+- [x] B4-1 OpenAPI→openapi-typescript 生成流水线（gen:api + generated.ts 首提交 + SSE 事件判别联合进契约
+      + lint-imports 门禁修复：补 shim 豁免 TODO(B5-4)，2 kept/1 broken → 3 kept/0 broken）
+- [x] B4-2 前端删手抄类型，接 generated.ts（events.ts 收敛为契约门面；含 tests/test_frontend_contract.py 7 例静态门禁）
+- [x] B4-3 D3Page/HomePage 去伪造数据（删 78/58/34 常量表与 verdictFrom 中文正则；改读 card.verdict /
+      confidence_detail——规则推导在主值/区间/依据构成，后端 infra/confidence + pipelines.finalize_card 收口）
+- [x] B4-4 D2Page 去正则解析工具 JSON（tool_result.data 结构化字段；trace 侧新增 结果数据 + 递归出口掩码）
+- [x] B4-5 B4 收口（gen:api && git diff --exit-code 实测有效：docstring 变更未重生成即红）
+- 附：真实联调修三处真 bug（D4 照片复盘临时文件竞态·阻断级 / D4 未命中维度误导显示 / CLI GBK 崩溃），
+      新增 scripts/live_check.py 与六页真实渲染自检；pytest 306 → 336
+
+### 遗留与发现（B4 期记录，待主理人定；均为「非本批引入」，不阻塞 B5 开工）
+
+- [ ] F1 事件记忆无写入路径（P1，与 B5 记忆改造一并定夺）：`EventStore.add_event` / `MemoryManager.add_event`
+      在生产代码里**没有任何调用方**（全仓仅 tests 调用），`data/events.db` events 表实测 **0 行**；
+      `search_memory` 只有读路径 → E6-3 语义提炼（按题材聚合成功率，需 ≥3 样本）在真实使用中永远没有数据。
+      方案待选：① 新增 `record_event` 声明式工具（模型主动记录，需确认写入的隐私边界）；
+      ② 复盘管线成功后自动落事件（D4 → 事件记忆闭环）；③ CLI 显式命令；④ 明确降级为「未实现」并在 PRD 标注。
+- [ ] F2 D2 页「银河窗口」行无数据来源：规划管线采集步骤为 weather_forecast + moon_phase + sun_times，
+      **不含 galaxy_visibility**，该行恒为「运行规划后更新」。方案待选：管线按题材补采集（该工具是纯计算、
+      无网络成本）或页面按意图隐藏该行。
+- [ ] F3 验收基线建议：把「L2 回放（零 LLM 成本）」与「`scripts/live_check.py`（真实 Key，批次收口各跑一次）」
+      写进 REFACTOR-ROADMAP §1.4 统一验收基线——B4 期三个真 bug 全是真实联调才暴露的。
+- [ ] F4 D3 倒计时仍从 `card.time_window` 文本取首个时刻（展示层解析真实字段，非伪造）；
+      结构化时间窗（window_start/end）待后续契约增补时定。
 
 ### B5 记忆命名空间 + 清理 + 文档
 

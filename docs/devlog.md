@@ -160,6 +160,13 @@
   **60% 中等置信**（取 `confidence_detail.score`，验证 B4-3 的 HomePage 改动）+ 结论 + 下一窗口 + 记忆摘要。
   **M1 记忆页**：真实填写机身 →「保存档案」→「已保存 ✓」→ API 回读 `camera_body=松下 S5M2（联调）` 一致
   → **脚本自动还原 `data/profile.json`**（原本不存在 → 已删除，工作区无残留）。未再发现新缺陷。
+- **发现 F1（非本批引入，P1，待定方案）：事件记忆只有读路径**——`EventStore.add_event` /
+  `MemoryManager.add_event` 在生产代码里**没有任何调用方**（全仓仅 tests 调用），实测 `data/events.db`
+  的 events 表 **0 行**；`search_memory` 是唯一入口（只读）→ E6-3 的语义提炼（按题材聚合成功率、
+  需 ≥3 样本）在真实使用中拿不到数据。**历史文档自纠**：E6-0 前的就绪核查里写过「联调会写入事件记忆」，
+  实测不成立，已就地加更正标注。方案待选（`record_event` 工具 / 复盘成功后自动落事件 / CLI 显式命令 /
+  明确标为未实现）记在 TODO.md F1；同时把 F2（D2 银河窗口死 UI）、F3（L2 + live_check 入验收基线）、
+  F4（D3 倒计时结构化时间窗）一并记进 TODO.md「遗留与发现」。
 - **测试规模**：332 → **336**（+4：D4 竞态回归、D4 兜底门禁、CLI 编码容错 2 例）；ruff 0；`npm run build` 通过。
 ### B4 批次总结（闸门 4）
 
@@ -1143,7 +1150,7 @@
 > - git remote 已配置：`origin = https://github.com/North-Q/LightTrail.git`，upstream=origin/main；
 > - f344eb7 之后 **26 个 commit 未推送**（E5/E6 全量 + 文档）；
 > - .env 已含 API Key（LLM_ 或 ECNU_ 别名），真实联调开箱即可用；
-> - data/events.db 已存在（联调会写入事件记忆，无害）。
+> - data/events.db 已存在（~~联调会写入事件记忆~~，无害）。**→ 2026-09-14 更正：实测 events 表 0 行，`add_event` 全仓无生产调用方——联调并不会写入事件（见 B4 期发现 F1 / TODO.md）。**
 >
 > **授权后执行清单（E6-0）**：
 > 1. 灵感/规划/临场/复盘四管线各 ≥1 条真实 query（CLI `--pipeline` 与 `Orchestrator.review`，
