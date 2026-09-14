@@ -24,7 +24,7 @@ from lighttrail.llm.client import ChatClient
 from lighttrail.llm.router import ModelRouter
 from lighttrail.memory import MemoryManager
 from lighttrail.orchestrator.context import PipelineContext
-from lighttrail.orchestrator.pipelines import PIPELINES, PipelineEnv, default_mode
+from lighttrail.orchestrator.pipelines import PIPELINES, PipelineEnv, default_mode, finalize_card
 from lighttrail.runtime.agent import AgentRuntime
 from lighttrail.runtime.registry import ToolRegistry
 from lighttrail.tools.astronomy import _parse_date  # noqa: F401  日期校验辅助（供 reverse 采集）
@@ -103,6 +103,7 @@ _REVERSE_CARD_INSTRUCTION = """请只输出如下 JSON 对象（不要任何其�
   "conclusion": "复刻计划一句话（去哪 + 什么时候去 + 怎么拍）",
   "evidence": [{"tool": "reverse_engineer_photo", "field": "复刻计划", "confidence": "medium", "note": "参考图反推"}],
   "confidence": "high|medium|low",
+  "verdict": "go|wait|risk（go=值得去；wait=先观察；risk=不建议专程）",
   "time_window": "建议到场时间窗口",
   "locations": [{"name": "机位", "reason": "为何符合参考图特征"}],
   "params": [{"name": "参数", "value": "值", "reason": "理由"}],
@@ -322,7 +323,7 @@ class Orchestrator:
         )
         prompt = _build_reverse_plan_prompt(reverse, date_iso, data)
         self._recorder.record_step("反推_综合", input_summary=prompt[:80], output_summary="")
-        return parse_with_retry(DecisionCard, lambda p: self._reason_text(p, ""), prompt)
+        return finalize_card(parse_with_retry(DecisionCard, lambda p: self._reason_text(p, ""), prompt))
 
     def _collect_candidate_day(self) -> tuple[str, dict[str, Any]]:
         """为复刻选候选日：未来 3 天取平均云量最低（通透优先）作为基准日并采集数据。"""

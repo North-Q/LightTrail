@@ -242,3 +242,42 @@ def test_render_card_includes_evidence_and_confidence() -> None:
     assert "置信度：medium" in text
     assert "依据" in text
     assert "备选" in text
+
+
+# ------ 卡片规则字段（B4-3：置信度明细 / 三态结论）------
+def test_card_carries_rule_based_confidence_detail() -> None:
+    """卡片自动补规则推导的置信度明细（主值来自依据级别，不让模型自评）。"""
+    env = _make_env()
+    ctx = PipelineContext(
+        user_request="这周末想去拍银河",
+        intent=Intent(subject_type="银河", time_hint="这周末"),
+    )
+    card = PIPELINES["inspiration"].run(ctx, env)
+    assert card.confidence_detail is not None
+    assert card.confidence_detail.level == "medium"
+    assert card.confidence_detail.high_count == 1  # evidence 里 galaxy_visibility 为 high
+    assert card.confidence_detail.score == 85
+
+
+def test_card_verdict_comes_from_structured_output() -> None:
+    """三态结论透传模型结构化字段（前端不再用中文正则猜结论）。"""
+    payload = json.loads(_CARD_JSON)
+    payload["verdict"] = "go"
+    env = PipelineEnv(
+        dispatch=_fake_dispatch,
+        reason=lambda prompt, system: json.dumps(payload, ensure_ascii=False),
+        recorder=TraceRecorder(),
+    )
+    ctx = PipelineContext(
+        user_request="这周末想去拍银河",
+        intent=Intent(subject_type="银河", time_hint="这周末"),
+    )
+    card = PIPELINES["inspiration"].run(ctx, env)
+    assert card.verdict == "go"
+
+
+def test_review_skeleton_card_also_gets_confidence_detail() -> None:
+    """复盘缺图骨架卡同样带明细（模板方法收口，不走 LLM）。"""
+    card = ReviewPipeline().run(PipelineContext(user_request="帮我复盘这张照片"), _make_env())
+    assert card.confidence_detail is not None
+    assert card.confidence_detail.score == 30  # low 等级兜底带

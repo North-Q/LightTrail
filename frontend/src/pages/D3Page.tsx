@@ -30,22 +30,9 @@ const STATE_DESC: Record<Verdict, string> = {
   risk: "不建议专程，有更好窗口",
 };
 
-function confidenceMath(level: string): { value: number; lo: number; hi: number } {
-  switch (level) {
-    case "high":
-      return { value: 78, lo: 68, hi: 88 };
-    case "low":
-      return { value: 34, lo: 22, hi: 48 };
-    default:
-      return { value: 58, lo: 46, hi: 72 };
-  }
-}
-
-function verdictFrom(conclusion: string): Verdict {
-  if (/等等|再等|观察|谨慎|不建议|放弃/.test(conclusion)) {
-    return /不建议|放弃/.test(conclusion) ? "risk" : "wait";
-  }
-  return "go";
+/** 三态结论直接读卡片字段（不再用中文正则猜结论，B4-3）。 */
+function asVerdict(raw: string | undefined): Verdict | null {
+  return raw === "go" || raw === "wait" || raw === "risk" ? raw : null;
 }
 
 function firstTime(text: string): string {
@@ -112,11 +99,9 @@ export function D3Page() {
     return () => window.clearInterval(timer);
   }, [targetTime]);
 
-  const confidence = useMemo(() => (card ? confidenceMath(card.confidence) : null), [card]);
-  const verdict: Verdict | null = useMemo(
-    () => (card ? verdictFrom(card.conclusion) : activeVerdict),
-    [card, activeVerdict],
-  );
+  // 置信度明细与三态结论都来自卡片的真实字段（后端规则推导 + 模型结论，前端不自算）
+  const detail = card?.confidence_detail ?? null;
+  const verdict: Verdict | null = useMemo(() => asVerdict(card?.verdict) ?? activeVerdict, [card, activeVerdict]);
 
   // 曝光三角联动（EV 守恒，纯前端）
   const ev = evOf(exposure.aperture, exposure.shutter, exposure.iso);
@@ -161,7 +146,7 @@ export function D3Page() {
         if (event.type === "card") {
           setCard(event.card);
           localStorage.setItem("lt.last_card", JSON.stringify({ card: event.card, ts: Date.now() }));
-          setActiveVerdict(verdictFrom(event.card.conclusion));
+          setActiveVerdict(asVerdict(event.card.verdict));
           const windowText = event.card.time_window ?? "";
           const parsed = firstTime(windowText);
           if (parsed) {
@@ -185,9 +170,6 @@ export function D3Page() {
     }
   }
 
-  const goProb = confidence ? confidence.value : 0;
-  const waitProb = confidence ? Math.round((100 - confidence.value) * 0.65) : 0;
-  const riskProb = confidence ? 100 - goProb - waitProb : 0;
 
   const reasonList = reasons.length > 0 ? reasons : card?.evidence.map((source) => ({ title: source.tool, detail: source.note ?? "", src: source.tool })) ?? [];
 
@@ -233,17 +215,18 @@ export function D3Page() {
           </span>
         </div>
 
-        {confidence ? (
+        {detail ? (
           <div className="card-block">
             <h4>置信度（主值 + 区间 + 依据）</h4>
             <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-              <span className="confidence-display">{confidence.value}<small style={{ fontSize: 20 }}>%</small></span>
-              <span className="confidence-sub">区间 {confidence.lo}–{confidence.hi}</span>
+              <span className="confidence-display">{detail.score}<small style={{ fontSize: 20 }}>%</small></span>
+              <span className="confidence-sub">区间 {detail.low}–{detail.high} · {detail.level}</span>
             </div>
             <div className="interval-scale">
-              <span className="interval-range" style={{ left: `${confidence.lo}%`, width: `${confidence.hi - confidence.lo}%` }} />
-              <span className="interval-marker" style={{ left: `${confidence.value}%` }} />
+              <span className="interval-range" style={{ left: `${detail.low}%`, width: `${detail.high - detail.low}%` }} />
+              <span className="interval-marker" style={{ left: `${detail.score}%` }} />
             </div>
+            <p className="page-sub" style={{ margin: "8px 0 0" }}>{detail.basis}</p>
             {(card?.evidence ?? []).length > 0 ? (
               <ul className="evidence-list">
                 {card?.evidence.map((source, index) => (
@@ -261,30 +244,36 @@ export function D3Page() {
           </div>
         ) : null}
 
-        {confidence ? (
+        {detail ? (
           <div className="prob-bars">
-            <h4 className="card-kicker" style={{ margin: 0 }}>可能性评估</h4>
+            <h4 className="card-kicker" style={{ margin: 0 }}>依据构成（按来源级别）</h4>
             {(
               [
-                { label: "去", value: goProb, className: "go" },
-                { label: "再等等", value: waitProb, className: "amber" },
-                { label: "放弃/风险", value: riskProb, className: "blue" },
+                { label: "确定性来源（high）", value: detail.high_count, className: "go" },
+                { label: "外部数据 / 启发式（medium）", value: detail.medium_count, className: "amber" },
+                { label: "存量不足（low）", value: detail.low_count, className: "blue" },
               ] as const
-            ).map((row) => (
-              <div className="prob-row" key={row.label}>
-                <div className="prob-head">
-                  <span>{row.label}</span>
-                  <span className="num">{row.value}%</span>
+            ).map((row) => {
+              const total = detail.high_count + detail.medium_count + detail.low_count;
+              const share = total > 0 ? Math.round((row.value / total) * 100) : 0;
+              return (
+                <div className="prob-row" key={row.label}>
+                  <div className="prob-head">
+                    <span>{row.label}</span>
+                    <span className="num">{row.value} 条</span>
+                  </div>
+                  <div className="prob-track">
+                    <span className={`prob-fill ${row.className}`} style={{ width: `${share}%` }} />
+                  </div>
                 </div>
-                <div className="prob-track">
-                  <span className={`prob-fill ${row.className}`} style={{ width: `${row.value}%` }} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : null}
-        {confidence ? (
-          <p className="page-sub" style={{ margin: "8px 0 0" }}>数值由置信度区间换算，供直观参考。</p>
+        {detail ? (
+          <p className="page-sub" style={{ margin: "8px 0 0" }}>
+            置信度主值、区间与依据构成由后端按来源级别规则推导（非模型自评，也不是概率估计）。
+          </p>
         ) : null}
 
         <div className="param-cards">

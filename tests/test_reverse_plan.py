@@ -185,6 +185,7 @@ def test_orchestrator_reverse_plan_full_flow(workdir: Path, monkeypatch) -> None
     assert "## 拍摄方案" in text
     assert "临港海边" in text
     assert orc.last_card is not None
+    assert orc.last_card.confidence_detail is not None  # B4-3：反推卡同样补明细
     assert len(photo_fake.calls) == 1  # 多模态一次
     assert len(agent_fake.calls) == 1  # reason 综合一次
     # reason 调用走深推理模型、不带工具

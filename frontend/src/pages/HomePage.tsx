@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getSession } from "../api/client";
-import type { DecisionCard, SessionMeta } from "../api/events";
+import type { DecisionCard, ProfilePayload, SessionMeta } from "../api/events";
 import { DecisionCardView } from "../components/DecisionCard";
 import { Ring } from "../components/Ring";
 import { go } from "../components/AppShell";
@@ -18,15 +18,15 @@ function loadMetas(): SessionMeta[] {
   }
 }
 
-function confidenceValue(level: string): number {
-  switch (level) {
-    case "high":
-      return 78;
-    case "low":
-      return 34;
-    default:
-      return 58;
+/** 置信度等级 → 文案（数值一律取卡片 confidence_detail，前端不再自算，B4-3）。 */
+function confidenceLabel(level: string | undefined): string {
+  if (level === "high") {
+    return "高置信";
   }
+  if (level === "low") {
+    return "低置信";
+  }
+  return "中等置信";
 }
 
 const STAGES = [
@@ -42,13 +42,8 @@ interface SelectedSession {
   card: DecisionCard | null;
 }
 
-interface Profile {
-  camera_body: string;
-  lenses: string[];
-  preferences: string[];
-  common_locations: string[];
-  skill_level: string;
-}
+/** 档案视图模型：把契约（generated.ts）里的可空字段归一为非空（仅页面内展示用）。 */
+type Profile = { [K in keyof ProfilePayload]-?: NonNullable<ProfilePayload[K]> };
 
 export function HomePage() {
   const metas = loadMetas();
@@ -95,7 +90,7 @@ export function HomePage() {
     }
   }
 
-  const ringValue = lastCard ? confidenceValue(lastCard.confidence) : null;
+  const ringValue = lastCard?.confidence_detail?.score ?? null;
   const sourceTool = lastCard?.evidence?.[0]?.tool;
 
   return (
@@ -115,7 +110,7 @@ export function HomePage() {
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
                 <Ring
                   value={ringValue}
-                  label={lastCard.confidence === "high" ? "高置信" : lastCard.confidence === "low" ? "低置信" : "中等置信"}
+                  label={confidenceLabel(lastCard.confidence_detail?.level ?? lastCard.confidence)}
                 />
                 <span className="src-time">依据：{sourceTool || "决策卡"}</span>
               </div>

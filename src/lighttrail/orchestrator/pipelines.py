@@ -19,6 +19,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from lighttrail.contracts.models import DecisionCard, Intent
+from lighttrail.infra.confidence import confidence_detail
 from lighttrail.infra.trace import Recorder, null_trace
 from lighttrail.infra.validation import parse_with_retry
 from lighttrail.llm.router import ModelRouter
@@ -201,6 +202,7 @@ _DECISION_CARD_INSTRUCTION = """请基于以上数据输出一份决策卡片，
   "conclusion": "一句话结论：该不该去、几点去、去哪、带什么",
   "evidence": [{"tool": "工具名", "field": "字段", "confidence": "high|medium|low", "note": "依据说明"}],
   "confidence": "high|medium|low",
+  "verdict": "go|wait|risk（go=值得出门按窗口去；wait=先观察临近数据；risk=不建议专程）",
   "time_window": "建议时间窗口",
   "locations": [{"name": "机位", "reason": "理由"}],
   "params": [{"name": "参数", "value": "值", "reason": "理由"}],
@@ -227,14 +229,34 @@ def _build_synthesis_prompt(ctx: PipelineContext, env: PipelineEnv) -> str:
     return "\n\n".join(lines) + "\n\n" + _DECISION_CARD_INSTRUCTION
 
 
+def finalize_card(card: DecisionCard) -> DecisionCard:
+    """补全卡片的规则推导字段（M2：置信度不让模型自评）。
+
+    当前只补 `confidence_detail`（主值 + 区间 + 依据构成，规则见 infra/confidence.py）——
+    前端铁律①直接渲染该字段，不再自算区间（B4-3）。
+
+    Args:
+        card: 管线/反推产出的决策卡。
+
+    Returns:
+        同一张卡（就地补全后返回，便于链式调用）。
+    """
+    card.confidence_detail = confidence_detail(card.confidence, card.evidence)
+    return card
+
+
 class Pipeline:
-    """管线基类：name 供路由；run 执行确定步骤序列产出卡片。"""
+    """管线基类：name 供路由；run 收口公共后处理，子类实现 _run 产出卡片。"""
 
     name = ""
     description = ""
 
     def run(self, ctx: PipelineContext, env: PipelineEnv) -> DecisionCard:
-        """执行管线。"""
+        """执行管线，并统一补全规则推导字段（置信度明细）。"""
+        return finalize_card(self._run(ctx, env))
+
+    def _run(self, ctx: PipelineContext, env: PipelineEnv) -> DecisionCard:
+        """子类实现：执行确定步骤序列并产出卡片。"""
         raise NotImplementedError
 
 
@@ -244,7 +266,7 @@ class InspirationPipeline(Pipeline):
     name = "inspiration"
     description = "一句话出方案（灵感）"
 
-    def run(self, ctx: PipelineContext, env: PipelineEnv) -> DecisionCard:
+    def _run(self, ctx: PipelineContext, env: PipelineEnv) -> DecisionCard:
         intent = ctx.intent or Intent(subject_type="")
         date_iso = _target_date(intent.time_hint)
         steps = _collection_steps(intent.subject_type, _DEFAULT_LAT, _DEFAULT_LON, date_iso)
@@ -263,7 +285,7 @@ class PlanningPipeline(Pipeline):
     name = "planning"
     description = "多机位拍摄计划编排（规划）"
 
-    def run(self, ctx: PipelineContext, env: PipelineEnv) -> DecisionCard:
+    def _run(self, ctx: PipelineContext, env: PipelineEnv) -> DecisionCard:
         intent = ctx.intent or Intent(subject_type="")
         date_iso = _target_date(intent.time_hint)
         steps = [
@@ -288,7 +310,7 @@ class LiveDecisionPipeline(Pipeline):
     name = "live"
     description = "临场赌注决策（临场）"
 
-    def run(self, ctx: PipelineContext, env: PipelineEnv) -> DecisionCard:
+    def _run(self, ctx: PipelineContext, env: PipelineEnv) -> DecisionCard:
         if ctx.intent is None:
             ctx.intent = Intent(subject_type="火烧云", time_hint="今晚")
         today = datetime.now(_LOCAL_TZ).date().isoformat()
@@ -314,7 +336,7 @@ class ReviewPipeline(Pipeline):
     name = "review"
     description = "照片复盘（EXIF + 多模态 → 处方，与历史计划对账）"
 
-    def run(self, ctx: PipelineContext, env: PipelineEnv) -> DecisionCard:
+    def _run(self, ctx: PipelineContext, env: PipelineEnv) -> DecisionCard:
         image_path = str(ctx.data.get("image_path") or "")
         if not image_path:
             ctx.card = DecisionCard(

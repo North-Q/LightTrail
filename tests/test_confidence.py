@@ -11,7 +11,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from lighttrail.infra.confidence import confidence_for_tool
+from lighttrail.contracts.models import Source
+from lighttrail.infra.confidence import confidence_detail, confidence_for_tool
 
 _HIGH_TOOLS = [
     "get_current_time",
@@ -64,3 +65,40 @@ def test_unknown_tool_source_based() -> None:
     assert confidence_for_tool("custom_tool", {"数据来源": "外部"}) == "medium"
     assert confidence_for_tool("custom_tool", {"值": 1}) == "low"
     assert confidence_for_tool("custom_tool", {}) == "low"
+
+
+# ------ 卡片置信度明细（B4-3：前端不再自算区间/常量表）------
+def test_confidence_detail_weighted_by_source_levels() -> None:
+    """主值 = 依据级别加权平均（high 0.85 / medium 0.6 / low 0.35），区间随条数收窄。"""
+    evidence = [
+        Source(tool="sun_times", field="太阳时刻", confidence="high"),
+        Source(tool="weather_forecast", field="每日预报", confidence="medium"),
+        Source(tool="sunset_glow_score", field="评分", confidence="low"),
+    ]
+    detail = confidence_detail("high", evidence)
+    assert detail.score == 60  # (0.85 + 0.6 + 0.35) / 3 → 60
+    assert (detail.low, detail.high) == (40, 80)  # 半宽 26 - 2×3 = 20
+    assert (detail.high_count, detail.medium_count, detail.low_count) == (1, 1, 1)
+    assert detail.basis.startswith("按 3 条依据")
+
+
+def test_confidence_detail_narrows_with_more_evidence() -> None:
+    """依据越充分区间越窄（同级别、条数不同 → 半宽不同）。"""
+    one = confidence_detail("high", [Source(tool="a", confidence="high")])
+    three = confidence_detail("high", [Source(tool="a", confidence="high")] * 3)
+    assert one.score == three.score == 85
+    assert (one.high - one.low) > (three.high - three.low)
+
+
+def test_confidence_detail_falls_back_without_evidence() -> None:
+    """无依据时退回等级兜底带并如实说明（不假装精确）。"""
+    detail = confidence_detail("medium", [])
+    assert (detail.score, detail.low, detail.high) == (55, 49, 61)
+    assert "无可溯源依据" in detail.basis
+
+
+def test_confidence_detail_treats_unknown_level_as_low() -> None:
+    """非法等级按 low 处理；未知来源级别也计入 low。"""
+    assert confidence_detail("bogus", []).level == "low"
+    detail = confidence_detail("low", [Source(tool="x", confidence="weird")])
+    assert (detail.low_count, detail.score) == (1, 35)
