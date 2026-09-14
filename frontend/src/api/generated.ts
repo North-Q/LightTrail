@@ -55,7 +55,11 @@ export interface paths {
         put?: never;
         /**
          * 照片复盘（D4），上传图片 → SSE 事件至复盘卡片
-         * @description 上传照片 → 临时文件 → 复盘管线（多模态分析）→ 复盘卡 → done。
+         * @description 上传照片 → 复盘管线（多模态分析）→ 复盘卡 → done。
+         *
+         *     临时文件由流内 worker 线程自建自销（**不能**在端点里建删）：SSE 流是惰性的，
+         *     端点在返回响应时流还没被消费，若那时删文件，worker 读图必 FileNotFoundError
+         *     （D4 真实联调实测「图片读取失败」，见 tests/test_api.py 的竞态回归用例）。
          */
         post: operations["photos_review_api_photos_review_post"];
         delete?: never;
