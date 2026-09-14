@@ -86,7 +86,19 @@
     计数 1/3/1}`——**计数与 evidence 5 条一致**（可解释性对得上，M2）；
   - Web `/api/chat`（"现在几点？"）`queued → tool_call/tool_result → token → done` 正常。
   - 联调后测试规模 329（B4 新增 23 例）。
-### B4 批次总结（闸门 4）
+- **D3 真实渲染自检（B4-3 验收项「真实 /api/decide 跑通渲染」）**：无头 Chrome 打开 `npm run dev` 的
+  `#/d3` → 真实提问 → 新契约字段全部上屏：三态结论按钮 active =「去」（读 `card.verdict`，不再正则猜）、
+  置信度主值 `60%` + 区间 `42–78 · medium`、依据小字「按 4 条依据的来源级别加权（确定性 high 1 条 /
+  外部或启发式 3 条）」、依据构成条 1/2/1 条（取 `confidence_detail` 计数，与卡片 evidence 4 条一致）、
+  倒计时在走（仍取 `time_window` 文本，见 B4-3 遗留）。截图：桌面 1440×1000 与移动 390×844
+  （`%TEMP%\lt_d3_render_desktop.png` / `lt_d3_render_mobile.png`）。
+- **⚠ 环境坑（已排除，务必记档）**：首轮浏览器自检拿到的卡片**没有** verdict/confidence_detail——
+  排查发现 **8765 端口上有一个 2026-09-09 20:05 启动的残留后端进程**（python，workbuddy 运行时，
+  PID 13652），代码是 9 月 9 日的旧版本——它的 `/openapi.json` 里连 `CardEvent`/`ConfidenceDetail`
+  都没有；Vite 按 `vite.config.ts` 把 `/api` 静默转发给它，于是前端看起来像「B4 没生效」。
+  结束该进程后同一套自检全绿。**教训**：本地复现前先确认 8765 上后端的版本
+  （`/openapi.json` 是否含 `CardEvent`/`ConfidenceDetail`），别把残留进程的输出当本次改动的问题；
+  自检脚本已加「端口占用即中止 + 契约版本校验」两道前置。### B4 批次总结（闸门 4）
 
 - **测试规模**：306 → **323**（+17：契约 6 / 置信度明细 4 / trace 结构化 2 / SSE 结构化 3 / 编排卡片 3 / 反推断言 1）。
 - **门禁全绿**：pytest 323 ｜ ruff 0 ｜ lint-imports 3 kept / 0 broken ｜ smoke 21 ｜ `npm run build` 通过 ｜
