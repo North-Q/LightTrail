@@ -30,6 +30,7 @@ from typing import Any
 
 from lighttrail.contracts.events import KIND_LLM, KIND_STEP, KIND_TOOL, TraceEvent
 from lighttrail.infra.confidence import confidence_for_tool
+from lighttrail.infra.redact import redact
 
 logger = logging.getLogger("lighttrail.trace")
 
@@ -38,6 +39,17 @@ _MAX_ARGS_CHARS = 200
 _MAX_RESULT_CHARS = 300
 # 结果单值摘要上限（字符）
 _MAX_VALUE_CHARS = 60
+
+# 事件载荷白名单（B3-4，v4 §3 D12/D7）：只允许这些键进事件，防止整包 dumps 请求体导致 Key 泄漏
+_PAYLOAD_WHITELIST: dict[str, frozenset[str]] = {
+    KIND_LLM: frozenset(
+        {"模型", "prompt_summary", "耗时_秒", "tokens", "输入_tokens", "输出_tokens"}
+    ),
+    KIND_TOOL: frozenset(
+        {"参数摘要", "结果摘要", "结果原文", "数据来源", "置信度", "来源字段", "耗时_ms"}
+    ),
+    KIND_STEP: frozenset({"输入摘要", "输出摘要"}),
+}
 # 数据来源字段候选键（工具返回 dict 中表示来源的键名）
 _SOURCE_KEYS = ("数据来源", "来源", "data_source")
 
@@ -61,6 +73,24 @@ _MAIN_FIELD: dict[str, str] = {
 }
 # 结果 dict 中不进入主字段的元信息键
 _META_KEYS = frozenset({"数据来源", "来源", "data_source", "说明", "提示", "位置", "时区"})
+
+
+def _sanitize_payload(kind: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """按事件类型白名单过滤载荷，并对字符串值做敏感信息掩码（B3-4）。
+
+    Args:
+        kind: 事件类型（llm / tool / step）。
+        payload: 原始载荷。
+
+    Returns:
+        白名单内的键值；未知键丢弃，字符串值经 redact（防 Key 进日志/SSE）。
+    """
+    allowed = _PAYLOAD_WHITELIST.get(kind, frozenset())
+    return {
+        key: redact(value) if isinstance(value, str) else value
+        for key, value in payload.items()
+        if key in allowed
+    }
 
 
 def _truncate(text: str, limit: int) -> str:
@@ -184,8 +214,14 @@ class TraceRecorder:
         """写入一条已构造好的观测事件并同步派发订阅者（TraceSink 端口实现）。
 
         Args:
-            event: 事件快照（保留其自身时间戳）。
+            event: 事件快照（载荷按白名单过滤 + 敏感信息掩码）。
         """
+        event = TraceEvent(
+            kind=event.kind,
+            name=event.name,
+            payload=_sanitize_payload(event.kind, event.payload),
+            ts=event.ts,
+        )
         with self._lock:
             self._events.append(event)
             listeners = list(self._listeners)
@@ -393,8 +429,14 @@ class TraceRecorder:
 
     # ------ 内部实现 ------
     def _emit(self, kind: str, name: str, payload: dict[str, Any]) -> None:
-        """构造事件并转交 emit（保持既有记录 API 不变）。"""
-        self.emit(TraceEvent(kind=kind, name=name, payload=payload))
+        """构造事件并转交 emit：先过载荷白名单与敏感信息掩码（B3-4 出口过滤）。
+
+        Args:
+            kind: 事件类型。
+            name: 事件名。
+            payload: 原始载荷（未在白名单内的键被丢弃；字符串值统一 redact）。
+        """
+        self.emit(TraceEvent(kind=kind, name=name, payload=_sanitize_payload(kind, payload)))
 
 
 class NullTrace:

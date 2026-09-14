@@ -22,7 +22,7 @@ from contextlib import suppress
 from typing import Any
 
 from lighttrail.contracts.events import SSEEvent, TraceEvent
-from lighttrail.infra.trace import Recorder
+from lighttrail.contracts.observability import TraceSink
 
 logger = logging.getLogger("lighttrail.api.events")
 
@@ -101,10 +101,10 @@ class TraceBridge:
     """TraceRecorder → asyncio.Queue 的事件桥（线程安全）。
 
     Args:
-        recorder: 要订阅的记录器（每请求新建 TraceRecorder + 桥，流结束 detach）。
+        recorder: 要订阅的观测端口（TraceSink；每请求新建 TraceRecorder + 桥，流结束 detach）。
     """
 
-    def __init__(self, recorder: Recorder) -> None:
+    def __init__(self, recorder: TraceSink) -> None:
         self._recorder = recorder
         self._unsub: Callable[[], None] | None = None
 
