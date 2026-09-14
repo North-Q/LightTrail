@@ -79,6 +79,20 @@ source_modules = [
 ]
 forbidden_modules = ["lighttrail.adapters"]
 
+[[tool.importlinter.contracts]]
+name = "交互层不被任何层依赖"
+type = "forbidden"
+source_modules = [
+    "lighttrail.contracts",
+    "lighttrail.tools",
+    "lighttrail.memory",
+    "lighttrail.runtime",
+    "lighttrail.infra",
+    "lighttrail.orchestrator",
+    "lighttrail.adapters",
+]
+forbidden_modules = ["lighttrail.api", "lighttrail.cli"]
+
 # TODO(B3-5): 目标分层（interface/application/runtime/domain）就位、旧包（orchestrator/
 # tools/memory/infra/llm/api/cli）迁入后，开启下面三段契约（文本已按 v4 §2.2 备好）。
 #
