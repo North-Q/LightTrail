@@ -108,7 +108,8 @@ export function D4Page() {
         <>
           <section className="analysis-grid" style={{ marginTop: 20 }}>
             {DIMENSION_LABELS.map((label) => {
-              const source = evidence.find((item) => item.field?.includes(label)) ?? evidence[0];
+              // 未命中该维度的依据就如实留空（不再拿首条依据兜底——那会把「曝光」文案显示到「色彩/时间」下，属误导）
+              const source = evidence.find((item) => item.field?.includes(label)) ?? null;
               return (
                 <div className="analysis-card" key={label}>
                   <span className="card-kicker">{label}</span>

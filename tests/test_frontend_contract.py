@@ -10,7 +10,8 @@
 - api 层契约类型从生成物派生（components[...] / operations[...]）；
 - 已删除的伪造数据辅助不得回归（confidenceMath / verdictFrom / parseTime / SessionPayload）；
 - D3Page 用卡片真实字段（verdict / confidence_detail），旧常量表魔数不回归；
-- D2Page 读 tool_result 的结构化 data，且不再对工具摘要做正则解析。
+- D2Page 读 tool_result 的结构化 data，且不再对工具摘要做正则解析；
+- D4Page 未命中维度的依据如实留空（不得用 evidence[0] 兜底伪装成四维都有数据）。
 """
 
 from __future__ import annotations
@@ -94,3 +95,14 @@ def test_d2page_consumes_structured_tool_data() -> None:
     assert "event.data" in text and "data[" in text
     assert ".match(" not in text
     assert "new RegExp(" not in text
+
+
+def test_d4page_does_not_fake_unmatched_dimensions() -> None:
+    """D4Page：未命中该维度的依据必须留空，不得用 evidence[0] 兜底。
+
+    真实联调观察：复盘卡的 evidence 字段并非每个维度都有（如只有「曝光评价」），
+    旧实现用 evidence[0] 兜底，会把「曝光」文案显示到「色彩/时间」卡片下，属误导。
+    """
+    text = (FRONTEND_SRC / "pages" / "D4Page.tsx").read_text(encoding="utf-8")
+    assert "evidence[0]" not in text
+    assert "?? null" in text
