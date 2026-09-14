@@ -12,7 +12,7 @@
   代码基线：main 分支 HEAD c3463e6（代码 HEAD：含 D4 竞态与 CLI 编码两处真 bug 修复）｜ pytest 336 全绿 ｜ ruff 0 ｜ lint-imports 3 kept / 0 broken ｜ smoke 21 项 ｜ npm run build 通过 ｜ gen:api 幂等（diff=0）
   评估基线：L2 回放 12/12 + 工具 10/10 全绿（零成本）｜ L3 四维均值 4.17–4.83（diff +0.00）+ 1 次真实 LLM 判官通过
   真实联调：`scripts/live_check.py` 全绿（CLI --pipeline + 五端点：decide/chat/photos.review/profile 往返；含端口与契约版本守卫）
-  实跑基线：CLI + Web 真实查询通过（B4 复跑）｜ 真实浏览器渲染自检通过（D3 三态/置信度三层、D2 天象时间线、D4 复盘卡四维分析）｜ 15 工具声明式 ｜ AgentRuntime 已接管生产路径
+  实跑基线：CLI + Web 真实查询通过 ｜ 真实浏览器渲染自检覆盖六页（D1 轨迹面板/D2 天象时间线/D3 三态与置信度三层/D4 复盘卡/总览环图/M1 档案往返）｜ 15 工具声明式 ｜ AgentRuntime 已接管生产路径
 🎯 当前目标：B5 记忆命名空间 + 清理 + 文档（user_id 分层、shim 到期删除含 B4-1 加的 lint 豁免、ADR-004 落盘、architecture v3.0）→ 然后 B5 收口（闸门 5 汇报）
 🏁 本期终点：B0–B7 全部批次通过出口检查，目标架构（契约层+声明式注册+async-first+知识库+意图路由）落地，随时可演示
 ```

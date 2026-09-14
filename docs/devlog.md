@@ -152,11 +152,19 @@
   ｜ chat token+done ｜ photos/review 27.8s 出复盘卡（含 confidence_detail）｜ profile PUT 生效并还原。
   **建议（待主理人定）**：把它与「L2 回放」一起写进 §1.4 统一验收基线，批次收口各跑一次。
 - **同类第二个坑在我自己的脚本里**：live_check 首版打印 `✗` 在 GBK 控制台同样 UnicodeEncodeError
-  → 已统一改 ASCII 标记 + `_configure_stdio()`（自己踩自己修）。- **测试规模**：332 → **334**（+2：D4 竞态回归、D4 兜底门禁）；ruff 0；`npm run build` 通过。
+  → 已统一改 ASCII 标记 + `_configure_stdio()`（自己踩自己修）。
+- **真实渲染覆盖面收尾（D1 + 总览 + M1，六页全覆盖）**：同一套无头 Chrome 自检跑完剩余三页——
+  **D1 灵感页**：真实「一句话决策」出方案卡，且**轨迹面板实时显示真实管线步骤**（意图理解 → 管线_planning
+  → 采集_weather_forecast → 采集_moon_phase…）——「trace 即 UI」在真实链路上成立；localStorage 卡片带
+  `verdict=go` + `confidence_detail`（score 60 / 44–76 / 计数 1-3-1 = 5 条依据）。**总览页**：环图显示
+  **60% 中等置信**（取 `confidence_detail.score`，验证 B4-3 的 HomePage 改动）+ 结论 + 下一窗口 + 记忆摘要。
+  **M1 记忆页**：真实填写机身 →「保存档案」→「已保存 ✓」→ API 回读 `camera_body=松下 S5M2（联调）` 一致
+  → **脚本自动还原 `data/profile.json`**（原本不存在 → 已删除，工作区无残留）。未再发现新缺陷。
+- **测试规模**：332 → **336**（+4：D4 竞态回归、D4 兜底门禁、CLI 编码容错 2 例）；ruff 0；`npm run build` 通过。
 ### B4 批次总结（闸门 4）
 
-- **测试规模**：306 → **323**（+17：契约 6 / 置信度明细 4 / trace 结构化 2 / SSE 结构化 3 / 编排卡片 3 / 反推断言 1）。
-- **门禁全绿**：pytest 323 ｜ ruff 0 ｜ lint-imports 3 kept / 0 broken ｜ smoke 21 ｜ `npm run build` 通过 ｜
+- **测试规模**：306 → **336**（+30：契约 5 / 前端静态门禁 7 / 置信度明细 4 / 编排卡片 3 / 结构化数据 5 / 评估不变量 3 / D4 竞态 1 / CLI 编码 2）。
+- **门禁全绿**：pytest 336 ｜ ruff 0 ｜ lint-imports 3 kept / 0 broken ｜ smoke 21 ｜ `npm run build` 通过 ｜
   `gen:api` 幂等（diff=0）。
 - **下一步（等确认）**：**B5 记忆命名空间 + 清理 + 文档**——① MemoryStore `data/users/{user_id}/memory/`
   迁移（本期恒 `_local`）② shim 到期删除（含 B4-1 加的 `lighttrail.llm.client` 豁免）③ ADR-004 落盘
