@@ -71,7 +71,21 @@
   （前端已有 `.npm-cache/` 且已 gitignore）；新依赖 `openapi-typescript@7.13.0` 仅进 devDependencies；
   生成物中文字段/描述直接来自 pydantic docstring（改契约即同时改生成物，属预期）。
 - **README 仅同步本批相关两行**（前端契约生成说明 + 测试数 323）；`agent/` 目录、E 时代表述等完整基线同步留 B5-5（文档基线=实际 HEAD）。
-
+- **前端去伪造数据静态门禁（闸门 4 证据加固）**：新增 `tests/test_frontend_contract.py`（6 例）——
+  生成物就位、无第二份手抄契约（DecisionCard / SSE 事件 interface）、api 层类型必须从
+  `components[...]`/`operations[...]` 派生、已删的伪造辅助（confidenceMath/verdictFrom/parseTime/
+  SessionPayload）不得回归、D3Page 读卡片字段、D2Page 读结构化 `data` 且无正则解析；
+  **实测有效**：往 `frontend/src/` 放一个含 `confidenceMath` 的探针文件 → 该用例红；
+  删掉探针 → 绿（不是不会失败的摆设）。
+- **真实联调（2026-09-14，`%TEMP%\lt_live_b4.py`，临时件不入库）**：
+  - CLI `--pipeline "今晚上海火烧云值得冲吗？"` rc=0 出卡（结论 + 时间窗 + 机位 + 参数 + 依据 + 备选）；
+  - Web `/api/decide` 事件序列 `queued → step×6 → (tool_call/tool_result)×3 → step×2 → card → done`，
+    **3/3 tool_result 带结构化 data**（如 moon_phase 的 月相名称/月龄/照亮比例）；
+  - 真实卡片 `verdict="go"`（模型结构化输出）、`confidence_detail={level: medium, score: 60,
+    low: 44, high: 76, basis: 按 5 条依据的来源级别加权（确定性 high 1 条 / 外部或启发式 4 条）,
+    计数 1/3/1}`——**计数与 evidence 5 条一致**（可解释性对得上，M2）；
+  - Web `/api/chat`（"现在几点？"）`queued → tool_call/tool_result → token → done` 正常。
+  - 联调后测试规模 329（B4 新增 23 例）。
 ### B4 批次总结（闸门 4）
 
 - **测试规模**：306 → **323**（+17：契约 6 / 置信度明细 4 / trace 结构化 2 / SSE 结构化 3 / 编排卡片 3 / 反推断言 1）。

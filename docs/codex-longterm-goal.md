@@ -9,7 +9,7 @@
 
 ```
 📍 当前位置：闸门 4 已到达（**B4 契约单一真源 + 前端重接完成**：OpenAPI→TS 生成流水线 + gen:api 漂移门禁、SSE 事件判别联合进契约、DecisionCard 增 verdict/confidence_detail、D3Page/HomePage 去常量表与正则猜结论、D2Page 改吃 tool_result.data 结构化字段；下一步 B5 记忆命名空间 + 清理 + ADR-004）
-  代码基线：main 分支 HEAD cc58c93 ｜ pytest 323 全绿 ｜ ruff 0 ｜ lint-imports 3 kept / 0 broken ｜ smoke 21 项 ｜ npm run build 通过 ｜ gen:api 幂等（diff=0）
+  代码基线：main 分支 HEAD 509b032 ｜ pytest 329 全绿 ｜ ruff 0 ｜ lint-imports 3 kept / 0 broken ｜ smoke 21 项 ｜ npm run build 通过 ｜ gen:api 幂等（diff=0）
   实跑基线：CLI + Web 真实查询通过（B3）｜ Web 契约端点 HTTP 实跑 200（uvicorn + /openapi.json）｜ 15 工具声明式 ｜ AgentRuntime 已接管生产路径
 🎯 当前目标：B5 记忆命名空间 + 清理 + 文档（user_id 分层、shim 到期删除含 B4-1 加的 lint 豁免、ADR-004 落盘、architecture v3.0）→ 然后 B5 收口（闸门 5 汇报）
 🏁 本期终点：B0–B7 全部批次通过出口检查，目标架构（契约层+声明式注册+async-first+知识库+意图路由）落地，随时可演示
@@ -23,7 +23,7 @@
 
 ```mermaid
 graph TD
-    S([📍当前位置<br/>闸门 4 / B4 已完成<br/>323 测试全绿 / gen:api 无漂移]) --> B0
+    S([📍当前位置<br/>闸门 4 / B4 已完成<br/>329 测试全绿 / gen:api 无漂移]) --> B0
 
     B0[B0 止血护栏<br/>B0-1~B0-4 修3 bug+tokens+假注释] --> G0{{闸门0 B0 出口<br/>pytest绿+淘汰/并发写用例过<br/>CLI/Web可跑 → 汇报}}
     G0 --> B1[B1 契约层+配置<br/>B1-1~B1-5 contracts/+pydantic-settings]
