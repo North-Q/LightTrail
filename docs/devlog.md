@@ -139,7 +139,20 @@
   **发现（未改，留待主理人定）**：D2 页「银河窗口」行恒为「运行规划后更新」——规划管线采集步骤是
   weather_forecast + moon_phase + sun_times，**不含 galaxy_visibility**，该行属死 UI；
   修法两选（管线补工具 / 页面按意图隐藏），属产品与管线行为决策，本批不动。
-- **测试规模**：332 → **334**（+2：D4 竞态回归、D4 兜底门禁）；ruff 0；`npm run build` 通过。
+- **CLI 在 GBK 控制台下崩溃（真 bug，已修）**：`python -m lighttrail.cli --pipeline ...` 在 cp936 控制台
+  下，模型输出里的 `⚠`（卡片降级标注自带）→ `UnicodeEncodeError` → **rc=1、零输出，还白烧一次 LLM 调用**
+  （Windows 本地一句话就能踩）。修法：CLI 启动时 `_configure_stdio()`——stdout/stderr
+  `reconfigure(errors="replace")`，保持控制台编码不变，只把不可编码字符降级；实测同环境 rc=0、
+  中文完整、`⚠` 显示为 `?`。回归用例 `tests/test_cli.py`（含「cp936 写 ⚠ 必抛」的前提断言）。
+- **新增 `scripts/live_check.py`（真实联调自检，把 B4 踩的坑固化成守卫）**：一次跑
+  CLI `--pipeline` + 五个 Web 端点，内置三道守卫——① 端口被占即中止（防 9-09 残留旧后端被 Vite 代理
+  静默喂旧代码）② 起服务后校验 `/openapi.json` 含 `CardEvent`/`ConfidenceDetail` ③ 档案往返自动还原原文件；
+  断言卡片契约不变量（confidence_detail 区间/计数、verdict 集合）与 `tool_result.data`。
+  **实跑全绿（HEAD 当次）**：CLI rc=0 ｜ decide 16 帧 + verdict=go + detail 60（42–78，计数 1/2/1=4 条依据）
+  ｜ chat token+done ｜ photos/review 27.8s 出复盘卡（含 confidence_detail）｜ profile PUT 生效并还原。
+  **建议（待主理人定）**：把它与「L2 回放」一起写进 §1.4 统一验收基线，批次收口各跑一次。
+- **同类第二个坑在我自己的脚本里**：live_check 首版打印 `✗` 在 GBK 控制台同样 UnicodeEncodeError
+  → 已统一改 ASCII 标记 + `_configure_stdio()`（自己踩自己修）。- **测试规模**：332 → **334**（+2：D4 竞态回归、D4 兜底门禁）；ruff 0；`npm run build` 通过。
 ### B4 批次总结（闸门 4）
 
 - **测试规模**：306 → **323**（+17：契约 6 / 置信度明细 4 / trace 结构化 2 / SSE 结构化 3 / 编排卡片 3 / 反推断言 1）。
