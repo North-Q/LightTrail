@@ -304,7 +304,12 @@ async def photos_review(
     plan_reference: str = Form(default="", description="历史计划（DecisionCard JSON 或文本，可空）"),
     session_id: str = Form(default="", description="会话标识；缺省自动新建"),
 ) -> StreamingResponse:
-    """上传照片 → 临时文件 → 复盘管线（多模态分析）→ 复盘卡 → done。"""
+    """上传照片 → 复盘管线（多模态分析）→ 复盘卡 → done。
+
+    临时文件由流内 worker 线程自建自销（**不能**在端点里建删）：SSE 流是惰性的，
+    端点在返回响应时流还没被消费，若那时删文件，worker 读图必 FileNotFoundError
+    （D4 真实联调实测「图片读取失败」，见 tests/test_api.py 的竞态回归用例）。
+    """
     deps = request.app.state.deps
     if file.content_type not in _ALLOWED_PHOTO_TYPES:
         raise HTTPException(status_code=400, detail="仅支持 jpg/png 照片")
@@ -316,21 +321,20 @@ async def photos_review(
         raise HTTPException(status_code=400, detail="照片内容为空")
 
     suffix = Path(file.filename or "").suffix.lower() or (".png" if file.content_type == "image/png" else ".jpg")
-    tmp_path: str | None = None
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            tmp.write(content)
-            tmp_path = tmp.name
-        return await _review_stream(deps, tmp_path, focus, plan_reference, session_id)
-    finally:
-        if tmp_path is not None:
-            Path(tmp_path).unlink(missing_ok=True)
+    display_name = Path(file.filename or "").name or f"photo{suffix}"
+    return await _review_stream(deps, content, suffix, display_name, focus, plan_reference, session_id)
 
 
 async def _review_stream(
-    deps: Any, image_path: str, focus: str, plan_reference: str, session_id: str
+    deps: Any,
+    content: bytes,
+    suffix: str,
+    display_name: str,
+    focus: str,
+    plan_reference: str,
+    session_id: str,
 ) -> StreamingResponse:
-    """复盘管线 SSE 流（上传文件已落临时盘，这里只管事件流）。"""
+    """复盘管线 SSE 流：临时文件在 worker 线程内建销（与图片读取同生命周期，杜绝竞态）。"""
     session = _load_or_create(deps, session_id)
     queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
     loop = asyncio.get_running_loop()
@@ -339,9 +343,16 @@ async def _review_stream(
     bridge.attach(queue, loop, session_id=session.session_id)
 
     def run() -> tuple[DecisionCard, str, Any]:
+        """worker 线程内落临时文件 → 跑复盘管线 → 无论如何都清理（同线程，无竞态）。"""
         _, orchestrator = _run_setup(deps, recorder)
-        card = orchestrator.run_review(image_path, focus=focus, plan_reference=plan_reference)
-        return card, _render_card(card), recorder.to_report()
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(content)
+            image_path = tmp.name
+        try:
+            card = orchestrator.run_review(image_path, focus=focus, plan_reference=plan_reference)
+            return card, _render_card(card), recorder.to_report()
+        finally:
+            Path(image_path).unlink(missing_ok=True)
 
     async def worker() -> None:
         try:
@@ -351,7 +362,7 @@ async def _review_stream(
             queue.put_nowait(to_payload(ErrorEvent(message=str(exc), session_id=session.session_id)))
             queue.put_nowait(to_payload(DoneEvent(session_id=session.session_id)))
             return
-        session.history.append({"role": "user", "content": f"复盘照片：{image_path}（{focus}）"})
+        session.history.append({"role": "user", "content": f"复盘照片：{display_name}（{focus}）"})
         session.history.append({"role": "assistant", "content": text})
         session.workspace["last_card"] = card.model_dump(mode="json")
         session.workspace["last_trace"] = _report_to_dict(report)

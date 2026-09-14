@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import shutil
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -125,7 +126,10 @@ def data_dir() -> Path:
 def make_app(data_dir: Path):
     """按 Fake 依赖构造应用（closure 允许每个用例注入不同响应脚本）。"""
 
-    def _build(responses: list[dict]) -> tuple[object, FakeChatClient]:
+    def _build(
+        responses: list[dict],
+        photo_analyze: Callable[[str, str], dict] = _fake_photo_analyze,
+    ) -> tuple[object, FakeChatClient]:
         fake = FakeChatClient(responses)
         deps = ApiDeps(
             client=fake,
@@ -134,7 +138,7 @@ def make_app(data_dir: Path):
             model="ecnu-plus",
             reason_thinking=False,
             dispatch=_fake_dispatch,
-            photo_analyze=_fake_photo_analyze,
+            photo_analyze=photo_analyze,
         )
         return create_app(deps), fake
 
@@ -306,3 +310,38 @@ async def test_openapi_contains_all_endpoints(make_app) -> None:
     for path in ("/api/chat", "/api/decide", "/api/photos/review", "/api/profile", "/api/sessions/{session_id}"):
         assert path in paths
     assert docs.status_code == 200
+
+
+def _photo_analyze_requiring_file(image_path: str, focus: str) -> dict:
+    """Fake 照片分析：**要求图片文件真实存在**（否则抛错，复现 D4 竞态）。"""
+    if not Path(image_path).exists():
+        raise FileNotFoundError(f"图片读取失败：{image_path}")
+    return _fake_photo_analyze(image_path, focus)
+
+
+async def test_photos_review_keeps_image_until_pipeline_reads_it(make_app) -> None:
+    """上传的图片必须活到复盘管线读取它。
+
+    回归点：SSE 流是惰性的（端点返回响应后流才被消费），若端点在返回时就删临时文件，
+    worker 线程读图必然 FileNotFoundError——真实联调表现为 D4 页「图片读取失败」。
+    """
+    app, _ = make_app(
+        [{"role": "assistant", "content": _card_json("复盘结论：构图可再精简前景。")}],
+        photo_analyze=_photo_analyze_requiring_file,
+    )
+    transport = ASGITransport(app=app)
+    png_bytes = b"\x89PNG\r\n\x1a\n" + b"0" * 64
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        events = await _collect_sse(
+            client,
+            "POST",
+            "/api/photos/review",
+            files={"file": ("photo.png", png_bytes, "image/png")},
+            data={"focus": "", "plan_reference": ""},
+        )
+    errors = [event for event in events if event["type"] == "error"]
+    assert errors == [], errors
+    assert [event["type"] for event in events][-1] == "done"
+    card_event = next(event for event in events if event["type"] == "card")
+    assert card_event["card"]["conclusion"].startswith("复盘结论")
+    assert card_event["card"]["confidence_detail"] is not None  # B4-3 起复盘卡同样带明细
