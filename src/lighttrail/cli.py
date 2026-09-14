@@ -28,6 +28,19 @@ from lighttrail.infra.trace import TraceEvent
 
 BANNER = "LightTrail · 光迹（拍摄决策引擎）—— 输入 /help 查看命令"
 
+
+def _configure_stdio() -> None:
+    """让标准输出/错误对不可编码字符容错（Windows GBK 控制台。
+
+    模型输出与卡片渲染会带 ⚠ / → 等非 GBK 字符，默认编码器会直接抛 UnicodeEncodeError
+    把整条 CLI 崩掉（实测：cp936 控制台下 `--pipeline` rc=1、零输出，白烧一次 LLM 调用）。
+    这里只把编码错误降级为替代字符，不改编码本身——控制台是 GBK 就仍按 GBK 输出中文。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            reconfigure(errors="replace")
+
 _HELP = """内置命令：
   /exit  退出
   /reset 清空对话历史
@@ -73,6 +86,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    _configure_stdio()
     settings = load_settings()
     if not settings.has_api_key:
         print("未检测到有效 API Key。请复制 .env.example 为 .env，填入 LLM_API_KEY 后重试（ECNU_API_KEY 兼容）。")
