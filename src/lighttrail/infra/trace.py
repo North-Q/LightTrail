@@ -46,7 +46,7 @@ _PAYLOAD_WHITELIST: dict[str, frozenset[str]] = {
         {"模型", "prompt_summary", "耗时_秒", "tokens", "输入_tokens", "输出_tokens"}
     ),
     KIND_TOOL: frozenset(
-        {"参数摘要", "结果摘要", "结果原文", "数据来源", "置信度", "来源字段", "耗时_ms"}
+        {"参数摘要", "结果摘要", "结果原文", "结果数据", "数据来源", "置信度", "来源字段", "耗时_ms"}
     ),
     KIND_STEP: frozenset({"输入摘要", "输出摘要"}),
 }
@@ -86,11 +86,25 @@ def _sanitize_payload(kind: str, payload: dict[str, Any]) -> dict[str, Any]:
         白名单内的键值；未知键丢弃，字符串值经 redact（防 Key 进日志/SSE）。
     """
     allowed = _PAYLOAD_WHITELIST.get(kind, frozenset())
-    return {
-        key: redact(value) if isinstance(value, str) else value
-        for key, value in payload.items()
-        if key in allowed
-    }
+    return {key: _sanitize_value(value) for key, value in payload.items() if key in allowed}
+
+
+def _sanitize_value(value: Any) -> Any:
+    """递归出口过滤：文本掩码，容器逐项下钻（结构化结果数据同样不放过）。
+
+    Args:
+        value: 载荷值（str / dict / list / 其他）。
+
+    Returns:
+        掩码后的同构值；非文本值原样返回。
+    """
+    if isinstance(value, str):
+        return redact(value)
+    if isinstance(value, dict):
+        return {key: _sanitize_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_value(item) for item in value]
+    return value
 
 
 def _truncate(text: str, limit: int) -> str:
@@ -302,19 +316,19 @@ class TraceRecorder:
         resolved_confidence = confidence if confidence is not None else confidence_for_tool(name, result_data)
         field = main_field if main_field is not None else _main_field_for(name, result_data)
         result_summary = _summarize_json(result, _MAX_RESULT_CHARS)
-        self._emit(
-            KIND_TOOL,
-            name,
-            {
-                "参数摘要": args_text,
-                "结果摘要": result_summary,
-                "结果原文": result_text,
-                "数据来源": data_source,
-                "置信度": resolved_confidence,
-                "来源字段": field,
-                "耗时_ms": elapsed_ms,
-            },
-        )
+        payload: dict[str, Any] = {
+            "参数摘要": args_text,
+            "结果摘要": result_summary,
+            "结果原文": result_text,
+            "数据来源": data_source,
+            "置信度": resolved_confidence,
+            "来源字段": field,
+            "耗时_ms": elapsed_ms,
+        }
+        if result_data:
+            # 结构化结果（不截断）：SSE tool_result.data 的真源（B4-4），前端按字段消费
+            payload["结果数据"] = result_data
+        self._emit(KIND_TOOL, name, payload)
 
     def record_step(self, name: str, *, input_summary: str = "", output_summary: str = "") -> None:
         """记录一个管线步骤（输入/输出快照）。

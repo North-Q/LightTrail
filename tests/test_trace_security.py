@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+import json
+
 from lighttrail.adapters.trace import to_otel_attributes
 from lighttrail.contracts.events import KIND_LLM, KIND_STEP, KIND_TOOL, TraceEvent
 from lighttrail.infra.redact import contains_secret, redact
@@ -44,7 +46,7 @@ def test_recorder_drops_non_whitelisted_payload_keys() -> None:
     assert recorder.to_report().tool_calls[0].result_summary == "日出 05:12"
     # 事件载荷只留白名单键（"请求体原文"/"未知键" 被丢弃）
     assert set(captured[0].payload) <= {
-        "参数摘要", "结果摘要", "结果原文", "数据来源", "置信度", "来源字段", "耗时_ms"
+        "参数摘要", "结果摘要", "结果原文", "结果数据", "数据来源", "置信度", "来源字段", "耗时_ms"
     }
 
 
@@ -92,3 +94,28 @@ def test_otel_attributes_mapping() -> None:
 
     step = to_otel_attributes(TraceEvent(kind=KIND_STEP, name="采集_sun_times"))
     assert step["lighttrail.pipeline.step"] == "采集_sun_times"
+
+
+def test_recorder_keeps_structured_result_and_redacts_nested() -> None:
+    """结构化结果进事件（B4-4 前端消费），且容器内文本同样过出口掩码。"""
+    recorder = TraceRecorder()
+    captured: list[TraceEvent] = []
+    recorder.subscribe(captured.append)
+    recorder.record_tool(
+        "sun_times",
+        "{}",
+        json.dumps({"日出": "05:42", "备注": "Bearer abcdefghijklmnop"}, ensure_ascii=False),
+    )
+    payload = captured[0].payload
+    assert payload["结果数据"]["日出"] == "05:42"
+    assert "***" in payload["结果数据"]["备注"]
+    assert not contains_secret(str(payload["结果数据"]))
+
+
+def test_recorder_omits_structured_data_for_non_json_result() -> None:
+    """非 JSON 结果不产生 结果数据 键（SSE 相应不带 data 字段）。"""
+    recorder = TraceRecorder()
+    captured: list[TraceEvent] = []
+    recorder.subscribe(captured.append)
+    recorder.record_tool("probe", "{}", "not-json")
+    assert "结果数据" not in captured[0].payload

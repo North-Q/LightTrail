@@ -241,3 +241,57 @@ async def test_decide_sse_sequence_order(make_app) -> None:
     counts = {t: types.count(t) for t in ("step", "tool_call", "tool_result")}
     assert counts["tool_call"] >= 2  # live 管线 ≥ 2 个数据工具
     assert counts["tool_call"] == counts["tool_result"]  # call/result 成对
+
+
+def test_map_tool_event_carries_structured_result() -> None:
+    """tool_result 带结构化结果 data（B4-4：前端按字段渲染，不再解析摘要文本）。"""
+    event = TraceEvent(
+        kind="tool",
+        name="sun_times",
+        payload={"结果摘要": "日出: 05:42", "结果数据": {"日出": "05:42", "日落": "18:06"}},
+        ts="t",
+    )
+    mapped = map_trace_event(event, session_id="s3")
+    assert mapped is not None and len(mapped) == 2
+    assert mapped[1]["data"] == {"日出": "05:42", "日落": "18:06"}
+
+
+def test_map_tool_event_omits_data_without_structured_result() -> None:
+    """无结构化结果时不出现 data 键（前端按 undefined 处理）。"""
+    event = TraceEvent(kind="tool", name="probe", payload={"结果摘要": "ok"}, ts="t")
+    mapped = map_trace_event(event)
+    assert mapped is not None
+    assert "data" not in mapped[1]
+
+
+async def test_decide_sse_tool_result_carries_structured_data(make_app) -> None:
+    """/api/decide 真实链路：tool_result 事件带结构化 data（前端可直接读字段）。"""
+    app, _ = make_app(
+        [
+            {"role": "assistant", "content": _intent_json("火烧云", mode="live")},
+            {"role": "assistant", "content": _card_json()},
+        ]
+    )
+    transport = ASGITransport(app=app)
+    events: list[dict] = []
+    async with (
+        AsyncClient(transport=transport, base_url="http://test") as client,
+        client.stream("POST", "/api/decide", json={"request": "今晚火烧云值得冲吗"}) as resp,
+    ):
+        assert resp.status_code == 200
+        current_type = ""
+        data_lines: list[str] = []
+        async for line in resp.aiter_lines():
+            if line.startswith("event:"):
+                current_type = line[len("event:") :].strip()
+            elif line.startswith("data:"):
+                data_lines.append(line[len("data:") :].strip())
+            elif line == "" and current_type:
+                events.append({"type": current_type, **json.loads("\n".join(data_lines))})
+                current_type = ""
+                data_lines = []
+
+    results = [event for event in events if event["type"] == "tool_result"]
+    assert results
+    sun = [event for event in results if event["name"] == "sun_times"]
+    assert sun and sun[0]["data"]["日出"] == "05:42"

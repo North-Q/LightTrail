@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { sendDecide } from "../api/client";
-import type { DecisionCard, SSEEvent } from "../api/events";
+import type { DecisionCard, ProfilePayload, SSEEvent } from "../api/events";
 import { useSources } from "../context/SourceContext";
 
 interface SunTimes {
@@ -15,14 +15,18 @@ interface MoonInfo {
   advice: string;
 }
 
-interface Profile {
-  common_locations: string[];
-  favorite_spots: { name: string; latitude: number; longitude: number; subject?: string }[];
+/** 结构化结果的字符串字段读取（缺字段返回空串；不再对摘要文本做正则解析，B4-4）。 */
+function asText(value: unknown): string {
+  return typeof value === "string" ? value : "";
 }
 
-function parseTime(raw: string, key: string): string {
-  const match = raw.match(new RegExp(`${key}\\s*[:：]\\s*(\\d{1,2}:\\d{2})`));
-  return match ? match[1] : "";
+/** 结构化结果里的首个对象元素（如银河可见窗口的第一段）。 */
+function firstRecord(value: unknown): Record<string, unknown> | null {
+  if (!Array.isArray(value) || value.length === 0) {
+    return null;
+  }
+  const [head] = value as unknown[];
+  return typeof head === "object" && head !== null ? (head as Record<string, unknown>) : null;
 }
 
 export function D2Page() {
@@ -40,8 +44,9 @@ export function D2Page() {
       try {
         const resp = await fetch("/api/profile");
         if (resp.ok) {
-          const profile = (await resp.json()) as Profile;
-          const names = [...(profile.common_locations ?? []), ...(profile.favorite_spots ?? []).map((spot) => spot.name)];
+          const profile = (await resp.json()) as ProfilePayload;
+          const spotNames = (profile.favorite_spots ?? []).map((spot) => asText(spot["name"]));
+          const names = [...(profile.common_locations ?? []), ...spotNames];
           setSpots(Array.from(new Set(names)));
         }
       } catch {
@@ -65,26 +70,29 @@ export function D2Page() {
     try {
       await sendDecide("周末两天三机位对比，帮我把机位与天象窗口排一下", "", (event: SSEEvent) => {
         if (event.type === "tool_result") {
-          const summary = event.result ?? "";
-          if (event.name === "sun_times") {
-            const sunrise = parseTime(summary, "日出");
-            const sunset = parseTime(summary, "日落");
-            if (sunrise && sunset) {
-              parsedSun = true;
-              setSun({ sunrise, sunset });
+          const data = event.data ?? null;
+          if (data) {
+            if (event.name === "sun_times") {
+              const sunrise = asText(data["日出"]);
+              const sunset = asText(data["日落"]);
+              if (sunrise && sunset) {
+                parsedSun = true;
+                setSun({ sunrise, sunset });
+              }
             }
-          }
-          if (event.name === "moon_phase") {
-            const moonMatch = summary.match(/月相名称\s*[:：]\s*([^,，]+)/);
-            const adviceMatch = summary.match(/月光影响建议\s*[:：]\s*([^,，]+)/);
-            if (moonMatch) {
-              setMoon({ name: moonMatch[1].trim(), advice: adviceMatch ? adviceMatch[1].trim() : "" });
+            if (event.name === "moon_phase") {
+              const name = asText(data["月相名称"]);
+              if (name) {
+                setMoon({ name, advice: asText(data["月光影响建议"]) });
+              }
             }
-          }
-          if (event.name === "galaxy_visibility") {
-            const windowMatch = summary.match(/可见窗口\s*[:：]\s*(\[[^\]]*\])/);
-            if (windowMatch) {
-              setGalaxy(windowMatch[1].replace(/"/g, "").slice(0, 60));
+            if (event.name === "galaxy_visibility") {
+              const window = firstRecord(data["可见窗口"]);
+              const start = window ? asText(window["开始"]) : "";
+              const end = window ? asText(window["结束"]) : "";
+              if (start && end) {
+                setGalaxy(`${start}–${end}`);
+              }
             }
           }
           if (event.data_source) {
