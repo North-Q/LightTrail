@@ -1,6 +1,6 @@
 /** API 客户端：fetch 封装 + SSE 封装（E7-5，事件分发到页面状态）。 */
 
-import type { DecisionCard, SSEEvent } from "./events";
+import type { SessionDetail, SSEEvent } from "./events";
 
 /** 后端基址：默认走 Vite 代理（/api → 127.0.0.1:8765），可被环境变量覆盖。 */
 const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
@@ -136,19 +136,10 @@ export function sendDecide(
 }
 
 /** 拉取会话详情（历史 + 工作区，含最近决策卡）。 */
-export async function getSession(sessionId: string): Promise<{ session: SessionPayload }> {
+export async function getSession(sessionId: string): Promise<SessionDetail> {
   const resp = await fetch(BASE + `/api/sessions/${sessionId}`);
   if (!resp.ok) {
     throw new Error(`会话不存在（${resp.status}）`);
   }
-  return (await resp.json()) as { session: SessionPayload };
-}
-
-interface SessionPayload {
-  session_id: string;
-  history: { role: string; content: string }[];
-  workspace?: { last_card?: DecisionCard };
-  user_id?: string;
-  created_at?: string;
-  updated_at?: string;
+  return (await resp.json()) as SessionDetail;
 }

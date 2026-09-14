@@ -2,16 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { getSession } from "../api/client";
+import type { ProfilePayload } from "../api/events";
 import { useSources } from "../context/SourceContext";
 
-interface Profile {
-  camera_body: string;
-  lenses: string[];
-  preferences: string[];
-  common_locations: string[];
-  skill_level: string;
-  favorite_spots: { name: string; latitude: number; longitude: number; subject?: string }[];
-}
+/** 档案视图模型：把契约（generated.ts）里的可空字段归一为非空（仅页面内展示用）。 */
+type Profile = { [K in keyof ProfilePayload]-?: NonNullable<ProfilePayload[K]> };
 
 const EMPTY_PROFILE: Profile = {
   camera_body: "",

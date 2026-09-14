@@ -1,91 +1,38 @@
-/** SSE 事件类型（与后端 src/lighttrail/api/events.py 映射保持一致，E7-4 共享 schema）。 */
+/**
+ * 前端契约门面（B4-1/B4-2）：后端契约类型一律从 `generated.ts` 取，本文件不再手抄字段。
+ *
+ * 真源链路：`src/lighttrail/contracts/*`（pydantic）→ FastAPI OpenAPI → openapi-typescript
+ *          → `generated.ts`。契约变了就跑 `npm run gen:api`；
+ *          `gen:api && git diff --exit-code` 是漂移门禁（未重新生成即失败）。
+ */
 
-export type SSEEventType =
-  | "queued"
-  | "step"
-  | "tool_call"
-  | "tool_result"
-  | "token"
-  | "card"
-  | "error"
-  | "done";
+import type { components, operations } from "./generated";
 
-interface SSEEventBase {
-  type: SSEEventType;
-  session_id?: string;
-  ts?: string;
-}
+/** 决策卡片（后端 contracts.models.DecisionCard）。 */
+export type DecisionCard = components["schemas"]["DecisionCard"];
+/** 置信度明细（后端规则推导，前端只渲染）。 */
+export type ConfidenceDetail = components["schemas"]["ConfidenceDetail"];
+/** 一条决策依据。 */
+export type Source = components["schemas"]["Source"];
+/** 一条参数建议。 */
+export type ParamSuggestion = components["schemas"]["ParamSuggestion"];
+/** 一个推荐机位。 */
+export type LocationSuggestion = components["schemas"]["LocationSuggestion"];
+/** 用户档案（GET/PUT /api/profile）。 */
+export type ProfilePayload = components["schemas"]["ProfilePayload"];
 
-/** 决策卡片（后端 orchestrator/schemas.py DecisionCard 的 JSON 形态）。 */
-export interface DecisionCard {
-  conclusion: string;
-  evidence: { tool: string; field: string; confidence: string; note?: string }[];
-  confidence: string;
-  time_window?: string;
-  locations?: { name: string; reason?: string }[];
-  params?: { name: string; value: string; reason?: string }[];
-  alternatives?: string[];
-  degraded?: string;
-}
+/**
+ * SSE 事件负载判别联合（后端 contracts.events.SSEEventPayload）。
+ *
+ * 直接取 `/api/chat` 的 200 响应 schema：三个 SSE 端点共用同一份判别联合，
+ * 事件类型增删会同时体现在这里，不靠人工同步。
+ */
+export type SSEEvent = operations["chat_api_chat_post"]["responses"][200]["content"]["text/event-stream"];
 
-export interface QueuedEvent extends SSEEventBase {
-  type: "queued";
-  position: number;
-}
+/** SSE 事件类型字面量联合（queued / step / tool_call / …）。 */
+export type SSEEventType = SSEEvent["type"];
 
-export interface StepEvent extends SSEEventBase {
-  type: "step";
-  name: string;
-  input_summary?: string;
-  output_summary?: string;
-}
-
-export interface ToolCallEvent extends SSEEventBase {
-  type: "tool_call";
-  name: string;
-  arguments?: string;
-}
-
-export interface ToolResultEvent extends SSEEventBase {
-  type: "tool_result";
-  name: string;
-  result?: string;
-  data_source?: string;
-  confidence?: string;
-  field?: string;
-  elapsed_ms?: number;
-}
-
-export interface TokenEvent extends SSEEventBase {
-  type: "token";
-  content: string;
-}
-
-export interface CardEvent extends SSEEventBase {
-  type: "card";
-  card: DecisionCard;
-  text?: string;
-}
-
-export interface ErrorEvent extends SSEEventBase {
-  type: "error";
-  message: string;
-}
-
-export interface DoneEvent extends SSEEventBase {
-  type: "done";
-  text?: string;
-}
-
-export type SSEEvent =
-  | QueuedEvent
-  | StepEvent
-  | ToolCallEvent
-  | ToolResultEvent
-  | TokenEvent
-  | CardEvent
-  | ErrorEvent
-  | DoneEvent;
+// ------ 前端本地 UI 类型（非后端契约，前端自用） ------
 
 /** 轨迹面板条目（trace 即 UI：右侧实时滚动）。 */
 export interface TraceItem {
