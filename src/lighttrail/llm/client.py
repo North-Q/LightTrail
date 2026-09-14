@@ -22,7 +22,6 @@ import asyncio
 import contextlib
 import inspect
 import logging
-import random
 import threading
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -30,6 +29,14 @@ from typing import TYPE_CHECKING, Any
 
 from openai import AsyncOpenAI, OpenAI
 from openai.resources.chat.completions import Completions as _OpenAICompletions
+from tenacity import (
+    AsyncRetrying,
+    RetryError,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+    wait_random,
+)
 
 from lighttrail.config import DEFAULT_MODEL
 
@@ -302,21 +309,24 @@ class ChatClient:
             payload["tools"] = tools
         self._attach_reason_params(payload, thinking, reasoning_effort)
 
-        last_exc: Exception | None = None
-        for attempt in range(_MAX_RETRIES):
-            try:
-                async with self._limiter.acquire():
-                    resp = await self._get_async_client().chat.completions.create(**payload)
-                self._record_usage(payload, resp, usage_callback)
-                return self._to_message_dict(resp)
-            except Exception as exc:  # noqa: BLE001 - 需要统一判定可重试性
-                last_exc = exc
-                if not self._should_retry(exc) or attempt == _MAX_RETRIES - 1:
-                    break
-                backoff = _BASE_BACKOFF_SEC * (2**attempt) + random.uniform(0, 0.5)
-                logger.warning("LLM 调用失败（第 %d 次），%.1fs 后重试：%s", attempt + 1, backoff, exc)
-                await asyncio.sleep(backoff)
-        raise LLMError(f"LLM 调用失败：{last_exc}") from last_exc
+        retryer = AsyncRetrying(
+            stop=stop_after_attempt(_MAX_RETRIES),
+            wait=wait_exponential(multiplier=_BASE_BACKOFF_SEC, min=_BASE_BACKOFF_SEC, max=8)
+            + wait_random(0, 0.5),
+            retry=retry_if_exception(self._should_retry),
+            reraise=False,
+        )
+        try:
+            async for attempt in retryer:
+                with attempt:
+                    async with self._limiter.acquire():
+                        resp = await self._get_async_client().chat.completions.create(**payload)
+                    self._record_usage(payload, resp, usage_callback)
+                    return self._to_message_dict(resp)
+        except RetryError as exc:
+            last = exc.last_attempt.exception()
+            raise LLMError(f"LLM 调用失败：{last}") from last
+        raise LLMError("LLM 调用失败：未产生响应")
 
     # ------ 内部实现 ------
     def _get_async_client(self) -> AsyncOpenAI:

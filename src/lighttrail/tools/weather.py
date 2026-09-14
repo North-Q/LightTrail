@@ -13,15 +13,13 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import os
-import urllib.error
-import urllib.request
 from datetime import datetime, timedelta
 from typing import Any
 
 from lighttrail.contracts.tool import Confidence, Tool, ToolSpec
+from lighttrail.infra.http import DataSourceError, get_json_sync
 from lighttrail.tools._base import PureTool
 from lighttrail.tools.astronomy import _parse_date, _parse_tz_offset, sun_times
 
@@ -45,34 +43,19 @@ def _base_url() -> str:
 
 
 def _fetch_json(url: str) -> dict[str, Any]:
-    """GET 请求并解析 JSON；5xx/网络错误按退避重试，4xx 立即失败并带服务端原因。
+    """GET 请求并解析 JSON（B3-2：httpx + tenacity 统一重试，与 llm/client 语义对齐）。
 
     Raises:
         WeatherError: 请求失败（含 4xx 参数错误与重试耗尽的 5xx/网络错误）。
     """
-    request = urllib.request.Request(url, headers={"User-Agent": "lighttrail/0.1"})
-    last_error: Exception | None = None
-    for attempt in range(_MAX_RETRIES + 1):
-        try:
-            with urllib.request.urlopen(request, timeout=_REQUEST_TIMEOUT) as response:
-                return json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as exc:
-            # 4xx 为请求/参数错误，重试无意义：立即失败并携带服务端原因（如变量名失效）
-            status = exc.code
-            reason = ""
-            try:
-                reason = exc.read().decode("utf-8", "replace")[:200]
-            except Exception:  # noqa: BLE001 - 错误体解析失败不影响主错误
-                reason = ""
-            if 400 <= status < 500:
-                detail = f"HTTP {status}" + (f"：{reason}" if reason else "")
-                raise WeatherError(f"天气接口请求无效：{detail}") from exc
-            last_error = exc
-            logger.warning("天气请求失败（第 %d 次）：HTTP %s", attempt + 1, status)
-        except Exception as exc:  # noqa: BLE001 - 网络层各类异常统一处理
-            last_error = exc
-            logger.warning("天气请求失败（第 %d 次）：%s", attempt + 1, exc)
-    raise WeatherError(f"天气数据获取失败：{last_error}")
+    try:
+        return get_json_sync(
+            url,
+            headers={"User-Agent": "lighttrail/0.1"},
+            timeout=_REQUEST_TIMEOUT,
+        )
+    except DataSourceError as exc:
+        raise WeatherError(f"天气数据获取失败：{exc}") from exc
 
 
 def _hourly_to_iso(value: str, tz_offset: str) -> str:

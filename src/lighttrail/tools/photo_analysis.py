@@ -29,7 +29,7 @@ from lighttrail.config import load_settings
 from lighttrail.contracts.models import PhotoAnalysisReport, PhotoReverseReport
 from lighttrail.contracts.tool import Confidence, Tool, ToolContext, ToolResult, ToolSpec
 from lighttrail.infra.quota import QuotaLedger
-from lighttrail.infra.validation import _extract_json
+from lighttrail.infra.validation import SchemaError, parse_with_retry
 from lighttrail.llm.client import ChatClient
 from lighttrail.llm.router import ModelRouter, RouteIntent
 
@@ -220,18 +220,16 @@ def analyze_photo(
     exif = _read_exif(image_path)
     encoded = _encode_image(image_path)
     prompt = _build_analysis_prompt(exif, gear, focus)
-    last_error = ""
-    raw = ""
-    for attempt in range(_MAX_RETRIES + 1):
-        raw = _multimodal_call(active_client, encoded, prompt, last_error)
-        try:
-            report = PhotoAnalysisReport.model_validate_json(_extract_json(raw))
-            return _report_to_result(report, exif, len(encoded) * 3 / 4 / 1024)
-        except Exception as exc:  # noqa: BLE001 - 校验失败回传模型自愈
-            last_error = str(exc)
-            if attempt >= _MAX_RETRIES:
-                break
-    raise PhotoError(f"照片分析输出解析失败（重试 {_MAX_RETRIES} 次）：{last_error}")
+
+    def _chat(prompt_text: str) -> str:
+        # 纠错指令由 parse_with_retry 拼进 prompt（B3-2：不再手写校验重试循环）
+        return _multimodal_call(active_client, encoded, prompt_text, "")
+
+    try:
+        report = parse_with_retry(PhotoAnalysisReport, _chat, prompt, max_retries=_MAX_RETRIES)
+    except SchemaError as exc:
+        raise PhotoError(f"照片分析输出解析失败：{exc}") from exc
+    return _report_to_result(report, exif, len(encoded) * 3 / 4 / 1024)
 
 
 def _build_analysis_prompt(exif: dict[str, str], gear: str, focus: str) -> str:
@@ -368,27 +366,25 @@ def reverse_engineer_photo(
     exif = _read_exif(image_path)
     encoded = _encode_image(image_path)
     prompt = _build_reverse_prompt(exif, gear, note)
-    last_error = ""
-    for attempt in range(_MAX_RETRIES + 1):
-        raw = _multimodal_call(active_client, encoded, prompt, last_error)
-        try:
-            report = PhotoReverseReport.model_validate_json(_extract_json(raw))
-            return {
-                "场景": report.scene,
-                "光向": report.light_direction,
-                "推断时段": report.estimated_time,
-                "机位特征": report.site_features,
-                "后期风格": report.post_style,
-                "复刻计划": report.replication_plan,
-                "参数建议": [{"参数": item.name, "值": item.value, "理由": item.reason} for item in report.suggestions],
-                "已识别EXIF": exif,
-                "置信度": report.confidence,
-            }
-        except Exception as exc:  # noqa: BLE001 - 校验失败回传模型自愈
-            last_error = str(exc)
-            if attempt >= _MAX_RETRIES:
-                break
-    raise PhotoError(f"照片反推输出解析失败（重试 {_MAX_RETRIES} 次）：{last_error}")
+
+    def _chat(prompt_text: str) -> str:
+        return _multimodal_call(active_client, encoded, prompt_text, "")
+
+    try:
+        report = parse_with_retry(PhotoReverseReport, _chat, prompt, max_retries=_MAX_RETRIES)
+    except SchemaError as exc:
+        raise PhotoError(f"照片反推输出解析失败：{exc}") from exc
+    return {
+        "场景": report.scene,
+        "光向": report.light_direction,
+        "推断时段": report.estimated_time,
+        "机位特征": report.site_features,
+        "后期风格": report.post_style,
+        "复刻计划": report.replication_plan,
+        "参数建议": [{"参数": item.name, "值": item.value, "理由": item.reason} for item in report.suggestions],
+        "已识别EXIF": exif,
+        "置信度": report.confidence,
+    }
 
 
 def _build_reverse_prompt(exif: dict[str, str], gear: str, note: str) -> str:
