@@ -4,6 +4,20 @@
 **唯一视觉真源**：`docs/design/delivery/lighttrail-prototype.html`（129KB 单文件，断网可开；**只读，不改**）
 **现状基线**：`frontend/` 已有 3 页（chat/sessions/card），E7-5 交付，212 测试全绿
 
+## 0. v1.1 增量（2026-09-14，B4 契约单一真源 —— 与本文 v1.0 正文冲突时以本节为准）
+
+1. **契约类型不手抄**：前端契约类型一律取自 `frontend/src/api/generated.ts`（`npm run gen:api`：
+   FastAPI contracts → OpenAPI → openapi-typescript）；`frontend/src/api/events.ts` 是纯门面
+   （`components["schemas"][…]` / `operations[…]["text/event-stream"]`）。事件字段改名即两侧同时变，
+   漂移由 `gen:api && git diff --exit-code` 门禁拦下。
+2. **置信度来自后端规则推导**：D3 置信度三层（主值 / 区间条 / 依据）直接渲染
+   `DecisionCard.confidence_detail`（`score/low/high/level/basis` + 三档计数），**前端不做本地换算**。
+3. **三态结论读字段**：`DecisionCard.verdict`（go/wait/risk/空）驱动三态卡高亮，不再从结论文本猜。
+4. **工具结果读结构化字段**：`tool_result.data` 是工具返回的结构化 dict（如 `sun_times` 的「日出」），
+   D2 天象时间线/月相/银河窗口直接读字段，不再解析摘要文本。
+5. **「概率依据条」已改为「依据构成」**：三色条显示 high/medium/low 真实依据条数与占比
+   （原 v1.0 §4.3 的「概率」表述作废——那是伪造数值，B4-3 已删）。
+
 ---
 
 ## 1. 权威声明
@@ -11,7 +25,7 @@
 1. **`lighttrail-prototype.html` 是唯一视觉真源**。所有页面结构、组件形态、交互、设计令牌只从它提取，**不新造色值/间距/字体**。
 2. **令牌提取**：以 html `<style>:root{...}` 为准（§3 已提取为全集字典）。前端 `styles.css` 现有令牌与真源**有漂移**（如 `--bg #12121c` ≠ 真源 `--bg-base #0A0D14`、`--good #7fe0a3` ≠ `--semantic-go #3FCF8E`），需整体重对齐为真源取值。
 3. **可解释性三铁律是验收硬门禁**（见 §6），不是可选项。
-4. **后端不动**：E7-3 五端点 + SSE 8 事件已覆盖设计稿 6 页 90% 数据需求；新增板块（天象时间线、机位地图、偏好芯片、相似历史、处方列表等）用**结构正确的 Fake 数据渲染并标注「示例数据」**（可解释性诚实），不为此造后端。
+4. **后端不新造业务端点**：E7-3 五端点 + SSE 8 事件已覆盖设计稿 6 页 90% 数据需求；新增板块（天象时间线、机位地图、偏好芯片、相似历史、处方列表等）用**结构正确的 Fake 数据渲染并标注「示例数据」**（可解释性诚实），不为此造后端。（注：B4 起**契约字段**随重构演进——SSE 事件负载建模、`DecisionCard` 增 `verdict`/`confidence_detail`、`tool_result` 增 `data`——全部走生成物与门禁，不算「造端点」。）
 5. **原版归档**：设计文档/原型 v1.1 已备份至 `docs/design/archive/`（`DESIGN-OVERVIEW-v1.1.md` / `交付说明-v1.1.md` / `lighttrail-prototype-v1.1.html`），不删。
 
 ---
@@ -23,7 +37,7 @@
 | 1 | 旅程总览 | `#/home` | 今日决策速览（火烧云环图 + CTA）、四阶段入口卡、最近计划、记忆摘要、下一窗口预告 | Ring、StageCard、TodayCard |
 | 2 | D1 灵感 | `#/d1` | 自然语言输入 + 示例 chips、参考图上传（反推）、方案卡 A/B/C（含依据链） | PromptBox、UploadZone、PlanCard |
 | 3 | D2 规划 | `#/d2` | 机位列表（评分/朝向/距离 + 静态地图）、天象时间线（sky-band）、月相、银河可见窗口、赶场时间轴 | SpotCard、SkyTimeline、RouteTimeline |
-| 4 | D3 决策 | `#/d3` | 三态大卡 + 倒计时 + 现场模式、概率依据条、置信度三层、曝光三角联动、「为什么这么判断」四步推理、相似历史 | VerdictCard、ConfidencePanel、ProbBars、ExposureTriangle、WhyPanel |
+| 4 | D3 决策 | `#/d3` | 三态大卡 + 倒计时 + 现场模式、依据构成条、置信度三层、曝光三角联动、「为什么这么判断」四步推理、相似历史 | VerdictCard、ConfidencePanel、ProbBars、ExposureTriangle、WhyPanel |
 | 5 | D4 复盘 | `#/d4` | 批量上传区、4 维度分析（曝光/构图/色彩/时间）、可执行处方（高/中/低） | BatchUpload、AnalysisGrid、PrescriptionList |
 | 6 | M1 记忆 | `#/m1` | 器材档案（可编辑）、事件历史（EXIF 摘要）、语义偏好芯片 | GearCard、EventList、PreferenceChips |
 
@@ -119,9 +133,12 @@
 ### 4.2 置信度三层（铁律①，D3 面板）
 - **主值**（font-display 大号，如 72%）+ **区间条**（`.interval-scale` 含 `.interval-range` 主值定位 `.interval-marker`）+ **依据列表**
 - 禁止单一数字/单一徽标
+- **数值来源（B4-3 起）**：`card.confidence_detail`（后端 `infra/confidence.py` 按依据来源级别加权推导）；
+  `basis` 说明推导口径，主值/区间/依据构成三者同源，前端零换算
 
-### 4.3 概率依据条（D3）
-- `.prob-fill.go/amber/blue` 三色条，对应 go / 等候 / 提示
+### 4.3 依据构成条（D3，原「概率依据条」）
+- `.prob-fill.go/amber/blue` 三色条：**依据构成**（high/medium/low 的真实条数与占比，取自 `confidence_detail` 计数）
+- 不显示未经模型/数据支撑的「概率」数字（v1.0 的概率换算属伪造数据，B4-3 删除）
 
 ### 4.4 环图（总览/今日卡）
 - SVG `.ring` + `.ring-bg` + `.ring-fill`（stroke-dashoffset 动画，过渡 240ms）
@@ -151,9 +168,10 @@
 | 今日决策速览 / 下一窗口预告 | /api/decide（card 事件）或 Fake | `decide` |
 | D1 方案卡 A/B/C | /api/decide（灵感意图） | `decide` |
 | D1 参考图上传反推 | /api/photos/review 或 Fake | `photos/review` |
-| D2 机位列表 / 天象时间线 / 月相 / 银河窗口 | 工具结果经 tool_result 事件 / Fake | `decide` |
-| D3 三态卡 + 倒计时 | card 事件（conclusion/time_window）+ 本地倒计时 | `decide` |
-| D3 置信度三层 | card.evidence + confidence；区间条用本地规则化转换 | `decide` |
+| D2 机位列表 / 天象时间线 / 月相 / 银河窗口 | `tool_result.data`（工具**结构化返回**，按中文字段读，如 `data["日出"]`）/ Fake | `decide` |
+| D3 三态卡 | `card.verdict`（go/wait/risk，模型结构化输出） | `decide` |
+| D3 倒计时 | `card.time_window` 文本取首个时刻（本地展示层解析；结构化时间窗待后续契约增补） | `decide` |
+| D3 置信度三层 | `card.confidence_detail`（后端规则推导：score/low/high/basis + 三档计数），前端只渲染 | `decide` |
 | D3 曝光三角联动 | 纯前端换算（EV 守恒） | — |
 | D3 四步推理 | step 事件（TraceBridge 已推） | `decide` |
 | D3 相似历史命中 | search_memory 工具结果或 Fake | `decide` |
@@ -161,13 +179,13 @@
 | M1 器材档案 | GET/PUT `/api/profile` | `profile` |
 | M1 事件历史 / 偏好芯片 | /api/sessions/{id}、/api/profile 或 Fake | `sessions`/`profile` |
 | 会话历史回放 | /api/sessions/{id} | `sessions` |
-| 解释中心 | 汇总 tool_result.data_source | `decide` |
+| 解释中心 | 汇总 `tool_result.data_source` | `decide` |
 
 ---
 
 ## 6. 可解释性三铁律（验收硬门禁）
 
-1. **置信度禁单一数字**：主值 + 区间条 + 依据列表 三层结构（对应 D3 ConfidencePanel）。
+1. **置信度禁单一数字**：主值 + 区间条 + 依据列表 三层结构（对应 D3 ConfidencePanel）；数值来源必须是 `confidence_detail`（规则推导），禁前端硬编码常量表（B4-3 已删 78/58/34 表）。
 2. **语义色永不单靠颜色**：go/wait/risk 三色必配图标 + 文字（对应三态卡）。
 3. **数据与依据·解释中心**：页脚模态集中展示本会话数据源清单（对应 DataCenterModal）。
 
@@ -183,11 +201,24 @@
 - 触控目标 ≥44px（`.btn/.icon-btn/.chip` ≤820 补 min-height）
 - 天象时间线横向滚动（细滚动条）；倒计时等数字用 `--font-data` tabular-nums
 
+
 ## 8. Fake 数据标注规范（诚实原则）
 
 - 凡端点和设计稿没有的真实数据（天象时间线细节、机位地图、偏好芯片、相似历史、处方列表），一律用**结构正确的 Fake** 渲染，并在界面显眼处标注「示例数据」。
 - 不许用假数据冒充真实 API 结果；可解释性诚实是产品底线。
 
 ---
+
+
+---
+
+## 9. 契约生成与门禁（B4 新增，硬性）
+
+- 生成：`cd frontend && npm run gen:api`（FastAPI → `frontend/.openapi.json` → `src/api/generated.ts`；
+  中间产物不入库，入库物只有 `generated.ts`）；后端契约改动后**必须**重新生成并提交生成物。
+- 门禁：`npm run gen:api && git diff --exit-code`（漂移即红）；前端源码静态门禁见
+  `tests/test_frontend_contract.py`（无第二份手抄契约 / 已删伪造辅助不得回归 / D3 读卡片字段 / D2 读结构化 data）。
+- 依赖：`openapi-typescript`（devDependency）；本机安装若遇 npm 全局缓存权限问题，用
+  `npm install --cache .npm-cache`（`.npm-cache/` 已 gitignore）。
 
 *本规范为前端开发的唯一 spec。每轮前端改动以本文件 + 真源 html 为准，改完 `npm run build` 通过 + 双视口自检。*
