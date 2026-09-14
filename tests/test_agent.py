@@ -10,10 +10,11 @@ from typing import Any
 
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel, to_openai_history
-from lighttrail.agent.tools import registry
+from lighttrail.composition import build_registry
 from lighttrail.runtime.agent import AgentRuntime
 from lighttrail.tools import basic, exposure  # noqa: F401  确保工具已注册
 
+registry = build_registry()
 
 class FakeChatClient:
     """按脚本预置响应序列的伪客户端，用于离线验证 runtime 循环。"""

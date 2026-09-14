@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import json
 
-from lighttrail.agent import registry
+from lighttrail.composition import build_registry
 from lighttrail.tools import astronomy  # noqa: F401
+
+registry = build_registry()
 
 SHANGHAI = {"latitude": 31.23, "longitude": 121.47, "date": "2026-08-16"}
 

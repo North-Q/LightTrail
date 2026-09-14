@@ -20,9 +20,10 @@ from types import SimpleNamespace
 import pytest
 
 import lighttrail.tools.photo_analysis as photo
-from lighttrail.agent.tools import registry
+from lighttrail.composition import build_registry
 from lighttrail.tools.photo_analysis import PhotoError, analyze_photo
 
+registry = build_registry()
 
 @pytest.fixture()
 def workdir() -> Path:

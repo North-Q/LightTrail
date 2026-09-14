@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import json
 
-from lighttrail.agent import registry
+from lighttrail.composition import build_registry
 from lighttrail.tools import exposure  # noqa: F401
 
+registry = build_registry()
 
 def _call(name: str, arguments: dict) -> dict:
     """通过注册表分发工具并解析结果。"""

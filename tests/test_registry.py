@@ -17,9 +17,9 @@ from typing import Any
 
 import pytest
 
-from lighttrail.agent.tools import ToolRegistry
 from lighttrail.contracts.tool import Confidence, ToolSpec
 from lighttrail.infra.trace import TraceRecorder
+from lighttrail.runtime.registry import ToolRegistry
 from lighttrail.tools._base import PureTool
 
 

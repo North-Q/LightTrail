@@ -18,7 +18,7 @@ import pytest
 import lighttrail.tools.photo_analysis as photo
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
-from lighttrail.agent.tools import registry
+from lighttrail.composition import build_registry
 from lighttrail.orchestrator import Orchestrator
 from lighttrail.runtime.agent import AgentRuntime
 from lighttrail.tools import (  # noqa: F401
@@ -30,6 +30,8 @@ from lighttrail.tools import (  # noqa: F401
     site_match,
     weather,
 )
+
+registry = build_registry()
 
 
 @pytest.fixture()

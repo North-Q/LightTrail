@@ -13,7 +13,7 @@ import json
 
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
-from lighttrail.agent.tools import registry
+from lighttrail.composition import build_registry
 from lighttrail.orchestrator import Orchestrator
 from lighttrail.runtime.agent import AgentRuntime
 from lighttrail.tools import (  # noqa: F401  触发注册
@@ -24,6 +24,8 @@ from lighttrail.tools import (  # noqa: F401  触发注册
     site_match,
     weather,
 )
+
+registry = build_registry()
 
 # E8 黄金用例集雏形：典型请求 + 预期题材 + 关键断言词
 GOLDEN_CASES = [

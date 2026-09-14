@@ -17,10 +17,12 @@ from pathlib import Path
 
 import pytest
 
-from lighttrail.agent.tools import registry
+from lighttrail.composition import build_registry
 from lighttrail.memory import EventStore, MemoryManager
 from lighttrail.memory.events import to_prompt_section
 from lighttrail.tools import memory_tool
+
+registry = build_registry()
 
 _SNAPSHOT = {"云量（%）": 35, "火烧云评分": 78, "月相": "蛾眉月"}
 

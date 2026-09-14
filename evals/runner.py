@@ -26,7 +26,7 @@ from evals.fake_data import (
 )
 from evals.judge import LLMJudge, LocalRubric, ToolCrossCheck
 from lighttrail.agent import Agent
-from lighttrail.agent.tools import registry
+from lighttrail.composition import build_registry
 from lighttrail.config import load_settings
 from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.trace import TraceRecorder
@@ -42,6 +42,8 @@ from lighttrail.tools import (  # noqa: F401  触发注册
     site_match,
     weather,
 )
+
+registry = build_registry()
 
 _EVALS_ROOT = Path(__file__).resolve().parent
 _GOLDEN_FILE = _EVALS_ROOT / "golden" / "L2-cases.json"

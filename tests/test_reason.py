@@ -11,12 +11,13 @@ from __future__ import annotations
 
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
-from lighttrail.agent.tools import registry
+from lighttrail.composition import build_registry
 from lighttrail.infra.trace import TraceRecorder
 from lighttrail.llm.client import UsageStats
 from lighttrail.runtime.agent import AgentRuntime
 from lighttrail.tools import basic, exposure  # noqa: F401  确保工具已注册
 
+registry = build_registry()
 
 class FakeChatClient:
     """记录调用参数的伪客户端（可预置 thinking 内容）。"""
