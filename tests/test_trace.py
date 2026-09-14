@@ -14,8 +14,9 @@ from __future__ import annotations
 
 import json
 
-from lighttrail.agent import Agent
-from lighttrail.agent.tools import ToolRegistry, registry
+from lighttrail.adapters.llm.provider import ChatClientProvider
+from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
+from lighttrail.composition import build_registry
 from lighttrail.infra.trace import (
     KIND_LLM,
     KIND_TOOL,
@@ -23,7 +24,11 @@ from lighttrail.infra.trace import (
     null_trace,
 )
 from lighttrail.llm.client import UsageStats
+from lighttrail.runtime.agent import AgentRuntime
+from lighttrail.runtime.registry import ToolRegistry
 from lighttrail.tools import basic, exposure  # noqa: F401  确保全局工具注册
+
+registry = build_registry()
 
 
 def _j(**kwargs: object) -> str:
@@ -172,9 +177,9 @@ def test_registry_dispatch_records_with_recorder() -> None:
     assert report.tool_calls[0].result_summary == "ok: True"
 
 
-# ------ Agent / ReActLoop 集成（E2-2）------
+# ------ AgentRuntime 集成（B2-7 换装；原 E2-2 ReActLoop 集成）------
 class _FakeChatClient:
-    """按脚本预置响应序列的伪客户端。"""
+    """按脚本预置响应序列的伪客户端（镜像真实 ChatClient 的 chat/acall 双通道）。"""
 
     def __init__(self, responses: list) -> None:
         self._responses = list(responses)
@@ -184,8 +189,18 @@ class _FakeChatClient:
         self.calls.append({"messages": messages, "model": model, "tools": tools})
         return self._responses.pop(0)
 
+    async def acall(self, messages, **kwargs) -> dict:
+        """async 通道：B2-7 起 runtime 经 Model 桥走 acall（usage 回调按真实签名回传对象）。"""
+        allowed = {
+            k: v
+            for k, v in kwargs.items()
+            if k in {"model", "tools", "temperature", "usage_callback"}
+        }
+        return self.chat(messages, **allowed)
+
 
 def _tool_call_msg() -> dict:
+    """一条带工具调用的助手响应。"""
     return {
         "role": "assistant",
         "content": "",
@@ -199,15 +214,25 @@ def _tool_call_msg() -> dict:
     }
 
 
+def _runtime(fake, *, recorder: TraceRecorder | None = None, model: str = "ecnu-plus") -> AgentRuntime:
+    """把伪客户端经自定义 Model 桥接成 AgentRuntime（记录器同时注入桥与 runtime）。"""
+    provider = ChatClientProvider(fake)
+    return AgentRuntime(
+        LightTrailModel(provider, model_name=model, recorder=recorder),
+        registry,
+        recorder=recorder,
+    )
+
+
 def test_agent_loop_writes_trace() -> None:
-    """Agent 注入 recorder：工具调用进轨迹、LLM/工具事件被订阅者收到。"""
+    """runtime 注入 recorder：工具调用进轨迹、LLM/工具事件被订阅者收到。"""
     recorder = TraceRecorder()
     kinds: list[str] = []
     recorder.subscribe(lambda event: kinds.append(event.kind))
 
     fake = _FakeChatClient([_tool_call_msg(), {"role": "assistant", "content": "现在是 23:40。"}])
-    agent = Agent(fake, registry, model="ecnu-plus", recorder=recorder)
-    agent.run("现在几点？")
+    runtime = _runtime(fake, recorder=recorder)
+    runtime.run("现在几点？")
 
     section = recorder.to_prompt_section()
     assert "get_current_time" in section
@@ -218,31 +243,33 @@ def test_agent_loop_writes_trace() -> None:
     assert KIND_LLM in kinds
 
 
-def test_loop_injects_trace_into_next_round_system() -> None:
-    """第二轮 LLM 请求的 system 第⑤层包含第一轮工具轨迹；首轮不包含。"""
+def test_trace_layer_visible_to_next_run() -> None:
+    """轨迹层（⑤）：本轮工具调用进轨迹，下一次组装 system 时可见。
+
+    实测差异（2026-09-14）：pydantic-ai 单轮 ReAct 内不重算 system，故同轮第二次请求看不到
+    刚发生的工具调用（旧 ReActLoop 每轮重算）；工具结果本身仍以 role=tool 进入上下文。
+    """
     recorder = TraceRecorder()
     fake = _FakeChatClient([_tool_call_msg(), {"role": "assistant", "content": "回复"}])
-    agent = Agent(fake, registry, model="ecnu-plus", recorder=recorder)
-    agent.run("现在几点？")
+    runtime = _runtime(fake, recorder=recorder)
+    runtime.run("现在几点？")
 
     first_system = fake.calls[0]["messages"][0]["content"]
-    second_system = fake.calls[1]["messages"][0]["content"]
     assert "会话轨迹摘要" not in first_system  # 首轮无事件
-    assert "## 会话轨迹摘要" in second_system
-    assert "① 调用 get_current_time" in second_system  # LLM 事件不占序号
+    assert "① 调用 get_current_time" in runtime.system_prompt()
 
 
 def test_run_with_trace_returns_report() -> None:
     """run_with_trace 返回 (文本, TraceReport)，含 sources 与置信度。"""
     recorder = TraceRecorder()
     fake = _FakeChatClient([_tool_call_msg(), {"role": "assistant", "content": "现在是 23:40。"}])
-    agent = Agent(fake, registry, model="ecnu-plus", recorder=recorder)
-    text, report = agent.run_with_trace("现在几点？")
+    runtime = _runtime(fake, recorder=recorder)
+    text, report = runtime.run_with_trace("现在几点？")
 
     assert text == "现在是 23:40。"
     assert len(report.tool_calls) == 1
     assert report.tool_calls[0].name == "get_current_time"
-    assert report.tool_calls[0].confidence == "high"  # 确定性工具
+    assert report.tool_calls[0].confidence == "high"  # 确定性工具（ToolSpec 声明）
     assert report.sources[0].tool == "get_current_time"
     assert report.sources[0].field == "时间"
     assert len(report.llm_calls) == 2
@@ -259,39 +286,29 @@ def test_run_with_trace_report_scoped_to_this_run() -> None:
             {"role": "assistant", "content": "第二次"},
         ]
     )
-    agent = Agent(fake, registry, model="ecnu-plus", recorder=recorder)
-    text1, report1 = agent.run_with_trace("第一问")
-    text2, report2 = agent.run_with_trace("第二问")
+    runtime = _runtime(fake, recorder=recorder)
+    text1, report1 = runtime.run_with_trace("第一问")
+    text2, report2 = runtime.run_with_trace("第二问")
 
     assert text1 == "第一次"
     assert text2 == "第二次"
     assert len(report1.tool_calls) == 1
     assert len(report2.tool_calls) == 1
-    # 第二次的轨迹注入包含第一次的工具调用（对模型的记忆），但报告只含本轮
-    assert len(recorder.to_prompt_section().splitlines()) >= 2
+    assert len(recorder.to_report().tool_calls) == 2  # 全量仍含两轮
+
 
 # ------ B0-2：token 记账（LLM usage 接通 TraceReport）------
-class _UsageFakeChatClient:
-    """带 usage 的伪客户端：按 ChatClient 契约经 usage_callback 回传用量。"""
+class _UsageFakeChatClient(_FakeChatClient):
+    """带 usage 的伪客户端：按真实 ChatClient 契约经 usage_callback 回传 UsageStats。"""
 
-    def __init__(self, responses: list, usage: UsageStats) -> None:
-        self._responses = list(responses)
+    def __init__(self, responses: list, usage) -> None:
+        super().__init__(responses)
         self.usage = usage
-        self.calls: list = []
 
-    def chat(
-        self,
-        messages,
-        *,
-        model=None,
-        tools=None,
-        temperature=0.2,
-        usage_callback=None,
-    ) -> dict:
-        self.calls.append({"messages": messages, "model": model, "tools": tools})
+    def chat(self, messages, *, model=None, tools=None, temperature=0.2, usage_callback=None) -> dict:
         if usage_callback is not None:
             usage_callback(self.usage)
-        return self._responses.pop(0)
+        return super().chat(messages, model=model, tools=tools, temperature=temperature)
 
 
 def test_record_llm_tokens_from_usage_callback() -> None:
@@ -301,8 +318,8 @@ def test_record_llm_tokens_from_usage_callback() -> None:
         [_tool_call_msg(), {"role": "assistant", "content": "现在是 23:40。"}],
         UsageStats(prompt_tokens=120, completion_tokens=30, cached_input_tokens=40),
     )
-    agent = Agent(fake, registry, model="ecnu-plus", recorder=recorder)
-    agent.run("现在几点？")
+    runtime = _runtime(fake, recorder=recorder)
+    runtime.run("现在几点？")
 
     llm_calls = recorder.to_report().llm_calls
     assert len(llm_calls) == 2
@@ -315,8 +332,8 @@ def test_record_llm_tokens_none_without_usage() -> None:
     """供应商 / 离线 Fake 未提供 usage 时 token 三项如实为 None（不填 0 冒充）。"""
     recorder = TraceRecorder()
     fake = _FakeChatClient([{"role": "assistant", "content": "你好"}])
-    agent = Agent(fake, registry, model="ecnu-plus", recorder=recorder)
-    agent.run("你好")
+    runtime = _runtime(fake, recorder=recorder)
+    runtime.run("你好")
     call = recorder.to_report().llm_calls[0]
     assert call["tokens"] is None
     assert call["输入_tokens"] is None
