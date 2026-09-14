@@ -187,7 +187,7 @@ def _record_group(group: str, request: str, router: ModelRouter, settings: Any) 
     client = ChatClient(
         settings.api_key,
         settings.base_url,
-        serial_llm=settings.serial_llm,
+        concurrency=settings.concurrency,
         quota=QuotaLedger(warn_threshold=settings.quota_warn_threshold),
     )
     recording = RecordingChatClient(client)
@@ -389,7 +389,7 @@ def run_l3(*, use_llm: bool = False, limit: int = 10) -> dict[str, Any]:
             raise RuntimeError("--llm-judge 需要真实 API Key（检查 .env）")
         router = ModelRouter()
         judge_model = RouteIntent.DEEP_REASONING.resolve(router)
-        client = ChatClient(settings.api_key, settings.base_url, serial_llm=settings.serial_llm)
+        client = ChatClient(settings.api_key, settings.base_url, concurrency=settings.concurrency)
         judge = LLMJudge(lambda prompt: client.chat(
             [{"role": "system", "content": "你是严格的评估判官。"}, {"role": "user", "content": prompt}],
             model=judge_model,

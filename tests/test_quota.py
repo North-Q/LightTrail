@@ -143,8 +143,12 @@ def test_client_records_usage_into_ledger() -> None:
     """ChatClient 注入 quota 后按响应 usage 记账；未注入不记账。"""
     ledger = _make_ledger()
     client = ChatClient(api_key="sk-test", base_url="http://127.0.0.1:1", quota=ledger)
-    client._client = SimpleNamespace(
-        chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **_: _make_resp(100, 50, 20)))
+
+    async def _create_with_usage(**_):
+        return _make_resp(100, 50, 20)
+
+    client._async_client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=_create_with_usage))
     )
     client.chat([{"role": "user", "content": "hi"}], model="ecnu-plus")
     # 输入 100（其中缓存 20 按命中价）+ 输出 50
@@ -152,8 +156,12 @@ def test_client_records_usage_into_ledger() -> None:
     assert ledger.usage().hours_ratio == pytest.approx(0.0284 / 2000.0)
     # 未注入 quota 的客户端零记账、不抛错
     bare = ChatClient(api_key="sk-test", base_url="http://127.0.0.1:1")
-    bare._client = SimpleNamespace(
-        chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **_: _make_resp(1, 1, 0)))
+
+    async def _create_plain(**_):
+        return _make_resp(1, 1, 0)
+
+    bare._async_client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=_create_plain))
     )
     bare.chat([{"role": "user", "content": "hi"}], model="ecnu-plus")
 

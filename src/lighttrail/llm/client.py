@@ -1,27 +1,30 @@
-"""LLM 客户端封装：OpenAI 兼容接口的薄封装。
+"""LLM 客户端封装：OpenAI 兼容接口的 async-first 薄封装（B3-1 重写）。
 
-设计要点：
-- 并发策略可配置（B1-5 起由 settings 驱动）：迁移期仍由 `serial_llm` 开关决定是否串行，
-  其取值来自 `settings.concurrency == 1`——并发是**纯配置**，无平台语义（ADR-004）。
-  串行锁是**实例级**且只包住单次 API 往返（`chat.completions.create`），
-  重试循环在锁外——关闭串行后并发与重试互不阻塞；
-- 容错：对限流（429）与服务器错误（5xx）做指数退避重试；
-- 超时：连接 30s、读取 120s，容忍模型 thinking 模式下的长响应。
+设计要点（v4 §3 D5 / ADR-004；B3-1 落地）：
+- **单一并发机制**：只保留一个跨越同步/异步调用方的限流器（`_ConcurrencyLimiter`，上限
+  `LLM_CONCURRENCY`，默认 4）；旧的三套机制（threading.Lock + 自研 `_AsyncGate` FIFO 闸门 +
+  call_soon_threadsafe 桥）已删除；
+- **单一实现**：真正的调用逻辑只在 `acall`（async-first）；同步 `chat` 只是「后台共享事件循环 +
+  run_coroutine_threadsafe」的门面，不再逐行复制；
+- 限流只包住单次 API 往返，重试在限流之外（并发模式下多个调用各自重试互不阻塞）；
+- 容错：对限流（429）与服务器错误（5xx）做指数退避重试（最多 3 次，基础 1s + 抖动）；
+- 超时：连接 30s、读取 120s，容忍 thinking 模式下的长响应；
+- 平台扩展参数（ADR-003）：thinking / reasoning_effort 由 SDK 原生参数或 extra_body 双路径承载
+  （`_NATIVE_REASON_PARAMS` 运行时探测），业务代码不感知。
 
-并发是配置不是架构：默认 LLM_CONCURRENCY=4（settings.concurrency），业务层（Agent/管线）
-不感知；B3 批次用单个 asyncio.Semaphore 接替本文件的 serial_llm 开关。
+并发是配置不是架构（ADR-004）：`LLM_CONCURRENCY=1` 即等价旧「串行」；`serial_llm` 仅作
+只读兼容别名过渡一版（=True → concurrency=1），B5 批次随旧开关一并删除。
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import inspect
 import logging
 import random
 import threading
-import time
-from collections import deque
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -41,6 +44,9 @@ _BASE_BACKOFF_SEC = 1.0
 
 # 可重试的错误码（openai SDK 通常已映射为 APIConnectionError / RateLimitError 等）
 _RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+
+# 默认并发上限（settings.LLM_CONCURRENCY 的模型侧默认，B1-5 起配置为唯一真源）
+_DEFAULT_CONCURRENCY = 4
 
 # 运行时探测：openai SDK 是否原生支持 thinking / reasoning_effort 命名参数。
 # 不同 SDK 版本签名不同（如 openai 3.1 无 thinking，须经 extra_body 携带），
@@ -79,73 +85,117 @@ class UsageStats:
 UsageCallback = Callable[[UsageStats], None]
 
 
-class _AsyncGate:
-    """异步并发闸门：acall 的 LLM 串行边界（容量 1），支持排队位置查询。
+class _ConcurrencyLimiter:
+    """跨事件循环的 LLM 并发限流器（B3-1：单一并发机制）。
 
     设计要点：
-    - 公平 FIFO：按到达顺序放行（先到先得），避免并发请求饿死；
-    - 只保护单次 API 往返（acall 内部 acquire/release），重试在闸门外；
-    - 线程安全：内部状态由锁保护；跨事件循环唤醒经 future 所属 loop 的
-      call_soon_threadsafe（默认单进程单事件循环部署下即等价于普通
-      asyncio.Semaphore，这里做得更通用，兼容 CLI/Web 混合复用场景）。
+    - 上限同时约束同步与异步调用方：内部用 `threading.BoundedSemaphore`，异步侧经
+      `asyncio.to_thread` 获取——避免 `asyncio.Semaphore` 绑 loop 的问题（同步门面走后台共享
+      事件循环、Web 走 uvicorn 事件循环，是两个 loop）；
+    - 只包住单次 API 往返，重试在限流之外（ADR-004：并发是纯配置）；
+    - `in_flight()` 供 SSE queued 事件展示「排队第 N 位」。
+
+    Args:
+        limit: 在途请求上限（>=1；1 即等价旧「串行」语义）。
     """
 
-    def __init__(self, capacity: int) -> None:
-        if capacity < 1:
-            raise LLMError("并发闸门容量必须 >= 1")
-        self._capacity = capacity
-        self._active = 0
-        self._waiting = 0
-        self._waiters: deque[asyncio.Future[None]] = deque()
+    def __init__(self, limit: int) -> None:
+        if limit < 1:
+            raise LLMError("LLM 并发上限必须 >= 1")
+        self._limit = limit
+        self._semaphore = threading.BoundedSemaphore(limit)
         self._lock = threading.Lock()
+        self._active = 0
 
-    def position(self) -> int:
-        """当前占用 + 排队中的请求数（0 表示闸门空闲）。"""
-        with self._lock:
-            return self._active + self._waiting
+    @property
+    def limit(self) -> int:
+        """配置的并发上限。"""
+        return self._limit
 
-    async def acquire(self) -> None:
-        """进入临界区；容量已满时排队等待（FIFO 放行）。"""
+    def in_flight(self) -> int:
+        """当前在途（已获取配额）的请求数。"""
         with self._lock:
-            if self._active < self._capacity and not self._waiters:
-                self._active += 1
-                return
-            self._waiting += 1
-            future: asyncio.Future[None] = asyncio.get_running_loop().create_future()
-            self._waiters.append(future)
+            return self._active
+
+    @contextlib.contextmanager
+    def sync(self) -> Iterator[None]:
+        """同步调用方进入临界区（阻塞直到有空位）。"""
+        self._semaphore.acquire()
+        with self._lock:
+            self._active += 1
         try:
-            await future
-        except asyncio.CancelledError:
-            # 被取消时若尚未放行，把自己移出队列，避免闸门计数泄漏
+            yield
+        finally:
             with self._lock:
-                if not future.done():
-                    self._waiting -= 1
-                    try:
-                        self._waiters.remove(future)
-                    except ValueError:
-                        pass
-            raise
-
-    def release(self) -> None:
-        """退出临界区；有等待者时把队首放行进闸（占用位直接转移给后者）。"""
-        with self._lock:
-            if self._waiters:
-                self._waiting -= 1
-                next_future = self._waiters.popleft()
-                loop = next_future.get_loop()
-                loop.call_soon_threadsafe(next_future.set_result, None)
-            else:
                 self._active -= 1
+            self._semaphore.release()
+
+    @contextlib.asynccontextmanager
+    async def acquire(self) -> Any:
+        """异步调用方进入临界区（在线程池里阻塞获取，不卡事件循环）。"""
+        await asyncio.to_thread(self._semaphore.acquire)
+        with self._lock:
+            self._active += 1
+        try:
+            yield
+        finally:
+            with self._lock:
+                self._active -= 1
+            self._semaphore.release()
+
+
+# ------ 同步门面用的后台共享事件循环 ------
+_sync_loop: asyncio.AbstractEventLoop | None = None
+_sync_loop_lock = threading.Lock()
+
+
+def _shared_loop() -> asyncio.AbstractEventLoop:
+    """返回同步门面共用的后台事件循环（首次调用时创建守护线程）。"""
+    global _sync_loop
+    with _sync_loop_lock:
+        if _sync_loop is None or _sync_loop.is_closed():
+            loop = asyncio.new_event_loop()
+            thread = threading.Thread(
+                target=loop.run_forever, name="lighttrail-llm-sync", daemon=True
+            )
+            thread.start()
+            _sync_loop = loop
+        return _sync_loop
+
+
+def _run_sync(coro: Any) -> Any:
+    """在后台共享事件循环里执行协程并等待结果（同步门面唯一入口）。
+
+    Args:
+        coro: 待执行协程。
+
+    Returns:
+        协程结果。
+
+    Raises:
+        LLMError: 调用方已在事件循环内（应改用 acall 而非 chat）。
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        pass
+    else:
+        coro.close()
+        raise LLMError("同步门面不能在事件循环内调用，请改用 acall()")
+    future = asyncio.run_coroutine_threadsafe(coro, _shared_loop())
+    return future.result()
 
 
 class ChatClient:
-    """OpenAI 兼容对话客户端（并发策略可配置、带重试）。
+    """OpenAI 兼容对话客户端（async-first、可配置并发、带重试）。
 
     Args:
         api_key: API 密钥。
         base_url: OpenAI 兼容接口地址。
         timeout: (连接超时, 读取超时)。
-        serial_llm: 是否串行调用；由 settings.serial_llm（concurrency == 1）派生，B3 删除。
+        concurrency: 在途 LLM 请求上限（默认 4，见 ADR-004；1 等价旧「串行」）。
+        serial_llm: 只读兼容别名（True → concurrency=1）；B5 批次删除。
+        quota: 配额账本（成功响应后按 usage 记账；未注入时不记账）。
     """
 
     def __init__(
@@ -154,22 +204,30 @@ class ChatClient:
         base_url: str,
         *,
         timeout: tuple[float, float] = (30.0, 120.0),
-        serial_llm: bool = True,
+        concurrency: int = _DEFAULT_CONCURRENCY,
+        serial_llm: bool | None = None,
         quota: QuotaLedger | None = None,
     ) -> None:
+        if serial_llm:
+            # 兼容映射：旧开关 =True 等价 concurrency=1（ADR-004；B5 删除该别名）
+            concurrency = 1
         self._client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
-        self._serial_llm = serial_llm
-        # 实例级串行锁：仅当 serial_llm=True 时启用，且只保护单次 API 往返
-        self._lock = threading.Lock()
-        # 配额账本（E4-2）：成功响应后按 usage 记账；未注入时零开销不记账
         self._quota = quota
-        # async 通道（E7-1）：AsyncOpenAI 惰性创建；并发边界由 serial_llm 驱动——
-        # True 时建容量 1 的 asyncio 闸门（只串行 LLM 往返），False 时不设闸门直接并行
+        self._limiter = _ConcurrencyLimiter(concurrency)
         self._api_key = api_key
         self._base_url = base_url
         self._timeout = timeout
         self._async_client: AsyncOpenAI | None = None
-        self._async_gate = _AsyncGate(capacity=1) if serial_llm else None
+
+    # ------ 对外接口 ------
+    @property
+    def concurrency(self) -> int:
+        """当前并发上限（供诊断/测试断言）。"""
+        return self._limiter.limit
+
+    def queue_position(self) -> int:
+        """当前在途（执行中）的 LLM 请求数（0 = 空闲；供 SSE queued 事件）。"""
+        return self._limiter.in_flight()
 
     def chat(
         self,
@@ -182,44 +240,34 @@ class ChatClient:
         reasoning_effort: str | None = None,
         usage_callback: UsageCallback | None = None,
     ) -> dict[str, Any]:
-        """发起一次对话补全，返回消息字典（兼容 tool_calls 字段）。
+        """同步门面：在后台共享事件循环里执行 `acall`（B3-1 起不再另写一份实现）。
 
         Args:
             messages: OpenAI 格式消息列表。
-            model: 模型名，缺省由上层（Agent）决定。
+            model: 模型名，缺省由上层（Agent/管线）决定。
             tools: OpenAI 格式工具定义列表，可为 None。
             temperature: 采样温度，工具调用链路使用较低值保证稳定。
-            thinking: 思考模式扩展参数（如 {"type": "enabled"}），供深推理通道使用；
-                None 时不携带（平台不支持时自然降级，不强制）。
-            reasoning_effort: 推理强度（如 low/medium/high），None 时不携带。
+            thinking: 思考模式扩展参数（如 {"type": "enabled"}），None 时不携带。
+            reasoning_effort: 推理强度（low/medium/high），None 时不携带。
+            usage_callback: token 用量回调（供应商返回 usage 时调用一次）。
 
         Returns:
             助手消息字典，含 role/content；可能含 tool_calls 与 thinking 摘要。
 
         Raises:
-            LLMError: 重试耗尽或参数错误。
+            LLMError: 重试耗尽、参数错误，或在事件循环内调用（应改用 acall）。
         """
-        payload: dict[str, Any] = {"model": model, "messages": messages, "temperature": temperature}
-        if tools:
-            payload["tools"] = tools
-        self._attach_reason_params(payload, thinking, reasoning_effort)
-
-        last_exc: Exception | None = None
-        for attempt in range(_MAX_RETRIES):
-            try:
-                # 串行开关只包住单次往返；重试在锁外，因此并发模式下
-                # 多个调用各自重试互不阻塞
-                resp = self._request_once(payload)
-                self._record_usage(payload, resp, usage_callback)
-                return self._to_message_dict(resp)
-            except Exception as exc:  # noqa: BLE001 - 需要统一判定可重试性
-                last_exc = exc
-                if not self._should_retry(exc) or attempt == _MAX_RETRIES - 1:
-                    break
-                backoff = _BASE_BACKOFF_SEC * (2**attempt) + random.uniform(0, 0.5)
-                logger.warning("LLM 调用失败（第 %d 次），%.1fs 后重试：%s", attempt + 1, backoff, exc)
-                time.sleep(backoff)
-        raise LLMError(f"LLM 调用失败：{last_exc}") from last_exc
+        return _run_sync(
+            self.acall(
+                messages,
+                model=model,
+                tools=tools,
+                temperature=temperature,
+                thinking=thinking,
+                reasoning_effort=reasoning_effort,
+                usage_callback=usage_callback,
+            )
+        )
 
     async def acall(
         self,
@@ -232,27 +280,19 @@ class ChatClient:
         reasoning_effort: str | None = None,
         usage_callback: UsageCallback | None = None,
     ) -> dict[str, Any]:
-        """async 对话通道（E7-1）：语义与 chat() 一致，供 FastAPI/SSE 事件循环使用。
-
-        并发边界由 serial_llm 配置驱动：
-        - True 时经 asyncio 闸门（容量 1）严格串行——**只串行 LLM 往返**，工具计算
-          与 HTTP 数据请求（天气/地图等非 LLM 请求）不进闸门，可并发执行；
-        - False 时不设闸门，调用直接并行（接入支持并发的 API 时关闭即可，
-          业务代码零改动——ADR-002 平台中立）。
-        排队位置经 queue_position() 查询（供 SSE queued 事件展示「排队第 N 位」）。
+        """async 调用通道（唯一实现）：限流只包单次往返，重试在限流之外。
 
         Args:
             messages: OpenAI 格式消息列表。
-            model: 模型名，缺省由上层（Agent）决定。
+            model: 模型名，缺省由上层决定。
             tools: OpenAI 格式工具定义列表，可为 None。
-            temperature: 采样温度，工具调用链路使用较低值保证稳定。
-            thinking: 思考模式扩展参数（如 {"type": "enabled"}），None 时不携带。
-            reasoning_effort: 推理强度（low/medium/high），None 时不携带。
-            usage_callback: token 用量回调；供应商返回 usage 时以 UsageStats 回调一次
-                （供 TraceReport 记账）。
+            temperature: 采样温度。
+            thinking: 思考模式扩展参数，None 时不携带。
+            reasoning_effort: 推理强度，None 时不携带。
+            usage_callback: token 用量回调。
 
         Returns:
-            助手消息字典（与 chat() 同一转换逻辑，含 role/content/tool_calls/thinking）。
+            助手消息字典（与同步门面统一转换逻辑）。
 
         Raises:
             LLMError: 重试耗尽或参数错误。
@@ -265,42 +305,22 @@ class ChatClient:
         last_exc: Exception | None = None
         for attempt in range(_MAX_RETRIES):
             try:
-                # 串行闸门只包住单次往返；重试在闸门外——并发模式下多个调用各自重试互不阻塞
-                resp = await self._request_once_async(payload)
+                async with self._limiter.acquire():
+                    resp = await self._get_async_client().chat.completions.create(**payload)
                 self._record_usage(payload, resp, usage_callback)
                 return self._to_message_dict(resp)
-            except Exception as exc:  # noqa: BLE001 - 同 chat()：统一判定可重试性
+            except Exception as exc:  # noqa: BLE001 - 需要统一判定可重试性
                 last_exc = exc
                 if not self._should_retry(exc) or attempt == _MAX_RETRIES - 1:
                     break
                 backoff = _BASE_BACKOFF_SEC * (2**attempt) + random.uniform(0, 0.5)
-                logger.warning("LLM async 调用失败（第 %d 次），%.1fs 后重试：%s", attempt + 1, backoff, exc)
+                logger.warning("LLM 调用失败（第 %d 次），%.1fs 后重试：%s", attempt + 1, backoff, exc)
                 await asyncio.sleep(backoff)
-        raise LLMError(f"LLM async 调用失败：{last_exc}") from last_exc
+        raise LLMError(f"LLM 调用失败：{last_exc}") from last_exc
 
-    async def _request_once_async(self, payload: dict[str, Any]) -> Any:
-        """发送单次异步请求：serial_llm=True 时经串行闸门，否则直接调用。"""
-        if self._async_gate is None:
-            return await self._get_async_client().chat.completions.create(**payload)
-        gate = self._async_gate
-        await gate.acquire()
-        try:
-            return await self._get_async_client().chat.completions.create(**payload)
-        finally:
-            gate.release()
-
-    def queue_position(self) -> int:
-        """查询闸门上「执行中 + 排队中」的请求数（0 = 空闲；供 SSE queued 事件）。
-
-        serial_llm=False 时无闸门，恒为 0（无需排队）；新请求的排队位置
-        = queue_position() + 1。
-        """
-        if self._async_gate is None:
-            return 0
-        return self._async_gate.position()
-
+    # ------ 内部实现 ------
     def _get_async_client(self) -> AsyncOpenAI:
-        """惰性创建 AsyncOpenAI 客户端（首次 acall 时建立，避免占用无用连接）。"""
+        """惰性创建 AsyncOpenAI 客户端（首次调用时建立，避免占用无用连接）。"""
         if self._async_client is None:
             self._async_client = AsyncOpenAI(
                 api_key=self._api_key, base_url=self._base_url, timeout=self._timeout
@@ -316,7 +336,7 @@ class ChatClient:
         """把深推理扩展参数附加到请求体。
 
         SDK 原生支持时用命名参数（规范路径）；否则经 extra_body 合并——
-        OpenAI 兼容代理（如 ECNU）从请求体中读取 thinking/reasoning_effort 字段，
+        OpenAI 兼容代理从请求体中读取 thinking/reasoning_effort 字段，
         因此 extra_body 与命名参数等价，且兼容任意 SDK 版本。
         """
         if _NATIVE_REASON_PARAMS:
@@ -373,13 +393,6 @@ class ChatClient:
             cached_input_tokens=int(getattr(details, "cached_tokens", 0) or 0),
         )
 
-    def _request_once(self, payload: dict[str, Any]):
-        """发送单次请求：serial_llm=True 时经串行锁，否则直接调用。"""
-        if self._serial_llm:
-            with self._lock:
-                return self._client.chat.completions.create(**payload)
-        return self._client.chat.completions.create(**payload)
-
     @staticmethod
     def _should_retry(exc: Exception) -> bool:
         """判定异常是否值得重试（限流 / 服务器错误 / 连接问题）。
@@ -401,7 +414,7 @@ class ChatClient:
         return isinstance(exc, (ConnectionError, OSError)) or "httpx" in module
 
     @staticmethod
-    def _to_message_dict(resp) -> dict[str, Any]:
+    def _to_message_dict(resp: Any) -> dict[str, Any]:
         """把 SDK 响应对象转换为纯字典消息（含可选 tool_calls 与 thinking 摘要）。"""
         msg = resp.choices[0].message
         out: dict[str, Any] = {"role": "assistant", "content": msg.content or ""}

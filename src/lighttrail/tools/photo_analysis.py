@@ -78,7 +78,7 @@ def default_client_factory() -> ChatClient:
     return ChatClient(
         settings.api_key,
         settings.base_url,
-        serial_llm=settings.serial_llm,
+        concurrency=settings.concurrency,
         quota=QuotaLedger(warn_threshold=settings.quota_warn_threshold),
     )
 
