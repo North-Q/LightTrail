@@ -177,6 +177,21 @@ def test_map_messages_shapes() -> None:
     assert "instructions" not in mapped[0]  # 只保留 OpenAI 协议字段
 
 
+def test_map_messages_keeps_only_latest_instructions() -> None:
+    """逐轮变化的 instructions 只取最新一份（否则会向供应商发多条 system —— ECNU 实测 500）。"""
+    messages = [
+        ModelRequest(parts=[UserPromptPart(content="第一问")], instructions="SYS-1"),
+        ModelResponse(parts=[ToolCallPart("_doubler", {"x": 1}, tool_call_id="c1")]),
+        ModelRequest(parts=[ToolReturnPart("_doubler", 2, tool_call_id="c1")], instructions="SYS-2（含轨迹）"),
+    ]
+
+    mapped = _map_messages(messages)
+
+    systems = [item["content"] for item in mapped if item["role"] == "system"]
+    assert systems == ["SYS-2（含轨迹）"]  # 只保留最新，不累积
+    assert [item["role"] for item in mapped] == ["system", "user", "assistant", "tool"]
+
+
 def test_map_tools_passthrough_schema() -> None:
     """工具映射：ToolDefinition → OpenAI function schema，参数 JSON Schema 原样透传。"""
     tool = ToolDefinition(

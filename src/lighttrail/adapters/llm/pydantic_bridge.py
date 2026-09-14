@@ -295,16 +295,23 @@ def _map_messages(messages: list[ModelMessage]) -> list[dict[str, Any]]:
     """
     body: list[dict[str, Any]] = []
     system_texts: list[str] = []
+    instructions_text: str | None = None
     for message in messages:
         if isinstance(message, ModelRequest):
+            # instructions 会逐轮变化（如 ⑤层轨迹摘要）——同一轮内只取**最新**一份，
+            # 否则会把多份 system 一起发给供应商（实测 ECNU 对重复 system 返回 500）
             instructions = getattr(message, "instructions", None)
-            if instructions and instructions not in system_texts:
-                system_texts.append(instructions)
+            if instructions:
+                instructions_text = instructions
             for part in message.parts:
                 _map_request_part(part, body, system_texts)
         elif isinstance(message, ModelResponse):
             body.append(_map_response(message))
-    return [{"role": "system", "content": text} for text in system_texts] + body
+    leading: list[str] = []
+    if instructions_text:
+        leading.append(instructions_text)
+    leading.extend(text for text in system_texts if text not in leading)
+    return [{"role": "system", "content": text} for text in leading] + body
 
 
 def _to_model_response(
