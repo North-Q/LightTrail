@@ -21,7 +21,7 @@
 - [x] B1-4 剩余 Protocol（MemoryStore / KnowledgeProvider / DataSource / TraceSink）
 - [x] B1-5 config.py 换 pydantic-settings + 护栏配置项 + import-linter 契约门禁
 
-### B2 引擎重写 🔄 进行中（B2-1 ~ B2-6 已完成；B2-7 部分完成，2026-09-14）
+### B2 引擎重写 ✅ 已完成（B2-1 ~ B2-7 全部交付，2026-09-14，停闸门 2）
 
 - [x] B2-1 声明式 ToolSpec 改造：basic + exposure
 - [x] B2-2 声明式 ToolSpec 改造：astronomy + weather（+ confidence_rule 动态置信度）
@@ -29,12 +29,11 @@
 - [x] B2-4 ToolRegistry 迁入 runtime/ + composition root（agent/tools 转 shim；适配器契约开启）
 - [x] B2-5 PydanticAI 自定义 Model 桥（ADR-002/003 语义不丢）
 - [x] B2-6 AgentRuntime 接入 + ContextBuilder 迁入 runtime（能力叙述自动生成）
-- [~] B2-7 主体完成 ✅（热插拔 / 架构禁止边 / CLI+Web+编排器切 runtime / **6 个用例文件换装**）；
-      ★ B2 尾巴：① 剩余换装：test_trace / test_memory + evals/runner（2 处）；② `agent.tools` 全局 registry
-      有 13 处引用，需先在 tests/conftest.py 提供共享 registry 替代，再按序删 orchestrator 旧分支、
-      agent/core.py 旧门面、loop.py、context.py、tools.py → 然后 B2 真正收口（细节见 devlog「B2-7 尾巴细化」）
+- [x] B2-7 热插拔验收 + 架构禁止边 + 生产路径全切 AgentRuntime（CLI/Web/四管线/evals）
+      + 9/9 用例文件换装 + 删除旧 agent/ 包与全部 shim + 桥重复 system 修复（真实联调抓到）
+      → **B2 引擎重写整批完成（停闸门 2）**
 
-### B3 适配层 + 并发
+### B3 适配层 + 并发 ★ 下一步
 
 - [ ] B3-1 async-first LLMProvider（单 Semaphore，LLM_CONCURRENCY 默认 4，删三套并发机制）
 - [ ] B3-2 tenacity 统一重试 + httpx 数据源

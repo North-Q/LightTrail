@@ -152,6 +152,22 @@
   然后按序删除：orchestrator 旧 Agent 分支 → agent/core.py 旧门面 → agent/loop.py → agent/context.py →
   agent/tools.py（最后，等 13 处引用清零）。
 
+### B2-7 收尾（2026-09-14，B2 批次闭环）
+
+- **换装全部完成（9/9 用例文件 + evals）**：test_orchestrator / test_pipeline_e2e / test_reverse_plan /
+  test_reason / test_agent / test_context / test_memory / test_trace / evals-runner；
+- **删除旧 `agent/` 包**（`core.py` 旧门面、`loop.py` 旧 ReAct 循环、`context.py`/`tools.py` 两个 shim），
+  orchestrator 去掉迁移期双路径（`self._runtime` 成为唯一 LLM 交互面），`composition.build_agent` 移除，
+  `smoke.py` 换装；pyproject 的 import-linter 配置同步去掉 `lighttrail.agent`；
+- **真实联调抓并修掉一个真 bug（重要）**：桥的 `_map_messages` 会把逐轮变化的 `instructions`
+  （⑤层轨迹）累积成多份 system 消息 → ECNU 对重复 system 返回 500，表现为「Web 工具轮失败而 CLI 正常」；
+  已改为只取最新一份 + 补回归用例（`5784120`）；
+- **收尾验证**：pytest **298 全绿**；ruff 0；`lint-imports` 2 kept / 0 broken；冒烟 21 项；
+  CLI 自由对话 + CLI `--pipeline` + Web `/api/chat` + Web `/api/decide` 四条真实链路全部通过
+  （decide 产出真实 DecisionCard）；
+- **B2 批次结论**：引擎重写完成——注册表方向反转（声明式 ToolSpec + 装配根）、元数据单一真源、
+  PydanticAI runtime 接管循环（Model 桥保 ADR-002/003）、R1/R2 根因消除、迁移期 shim 与 legacy 分支清零。
+
 ### B2 中间态验证（B2-1 ~ B2-7 第一批后）
 
 - pytest **295 全绿**；ruff 0；`lint-imports` 2 kept / 0 broken；离线冒烟 21 项；`npm run build` 通过；
