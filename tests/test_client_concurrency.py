@@ -19,7 +19,7 @@ from typing import Any
 
 import pytest
 
-import lighttrail.llm.client as client_mod
+import lighttrail.adapters.llm.client as client_mod  # monkeypatch 打真源模块，确保影响实现
 from lighttrail.llm.client import ChatClient, LLMError
 
 _DELAY = 0.05

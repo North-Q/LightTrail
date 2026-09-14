@@ -19,6 +19,7 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from lighttrail.adapters.llm.client import ChatClient
 from lighttrail.api.routes import router
 from lighttrail.api.session import SessionManager
 from lighttrail.composition import (
@@ -28,7 +29,6 @@ from lighttrail.composition import (
     load_settings,
 )
 from lighttrail.config import DEFAULT_MODEL
-from lighttrail.llm.client import ChatClient
 from lighttrail.memory import MemoryManager
 from lighttrail.runtime.registry import ToolRegistry
 from lighttrail.tools import (  # noqa: F401  触发全部工具注册

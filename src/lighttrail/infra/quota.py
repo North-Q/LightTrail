@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import threading
 import time
 from dataclasses import dataclass
 
@@ -104,6 +105,8 @@ class QuotaLedger:
         self._now = now
         # 记录：[(timestamp, credits)]，按加入顺序追加，查询时按窗口裁剪
         self._records: list[tuple[float, float]] = []
+        # 并发记账锁（B3-5 / v4 D5 配套）：LLM 并发（默认 4）下 record 与 usage 必须原子
+        self._lock = threading.Lock()
 
     # ------ 对外接口：记账 ------
     def record(self, model: str, in_tokens: int, out_tokens: int, *, cached_input_tokens: int = 0) -> float:
@@ -130,7 +133,8 @@ class QuotaLedger:
             + cached * price.cached_input_per_m
             + out_tokens * price.output_per_m
         ) / 1_000_000.0
-        self._records.append((self._clock(), credits))
+        with self._lock:
+            self._records.append((self._clock(), credits))
         return credits
 
     # ------ 对外接口：预估与放行 ------
@@ -176,8 +180,10 @@ class QuotaLedger:
         """返回三窗口水位快照（滚动窗口内 credits 合计 / 限额）。"""
         now = self._clock()
         ratios: dict[str, float] = {}
+        with self._lock:
+            records = list(self._records)
         for name, seconds, limit in self._windows:
-            total = sum(credits for ts, credits in self._records if now - ts < seconds)
+            total = sum(credits for ts, credits in records if now - ts < seconds)
             ratios[name] = total / limit if limit > 0 else 0.0
         return UsageSnapshot(
             hours_ratio=ratios.get("hours", 0.0),
