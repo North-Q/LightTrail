@@ -21,6 +21,9 @@ import pytest
 from lighttrail.contracts.context import RequestContext
 from lighttrail.memory import MemoryManager, SemanticStore
 
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_KNOWLEDGE_SEED = _REPO_ROOT / "data" / "knowledge" / "seed" / "atmospheric-knowledge.json"
+
 
 @pytest.fixture()
 def workdir() -> Path:
@@ -32,6 +35,15 @@ def workdir() -> Path:
 def _manager(workdir: Path) -> MemoryManager:
     """内存语义存储 + 临时数据目录的 manager（不写真实 data/）。"""
     return MemoryManager(workdir, semantic_store=SemanticStore(path=None))
+
+
+def test_domain_knowledge_seed_is_global_and_not_user_semantic() -> None:
+    """领域事实必须进入全局知识种子，而非 semantic.json 的用户记忆格式。"""
+    seed = json.loads(_KNOWLEDGE_SEED.read_text(encoding="utf-8"))
+    assert seed["scope"] == "global-readonly"
+    assert seed["lifecycle"] == "seed"
+    assert "卷云冰晶" in seed["entries"][0]["content"]
+    assert seed["entries"][0]["source_status"] == "pending-verification"
 
 
 def _add_glow_events(manager: MemoryManager, successes: int, fails: int = 0) -> None:

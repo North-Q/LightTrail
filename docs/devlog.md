@@ -9,6 +9,14 @@
   `data/events.db` 迁至 `data/users/_local/memory/events.db`；
 - 新增命名空间隔离、迁移幂等回归；全量验证：pytest 342 passed、ruff 0、lint-imports 3 kept / 0 broken。
 
+## 2026-09-15（B5-2 semantic 层拆分 — 待提交）
+
+- 明确 `memory/semantic.py` 仅保存可绑定到当前用户事件或确认偏好的经验，领域通识不再属于
+  用户语义记忆；
+- 新增全局只读种子 `data/knowledge/seed/atmospheric-knowledge.json`，含迁出的卷云冰晶示例与
+  `pending-verification` 来源状态；B6 将负责补齐可核验来源、入库和检索；
+- 新增种子边界回归；局部验证：pytest 28 passed、ruff 0。
+
 
 ## 2026-09-14（B4 契约单一真源 + 前端重接：B4-1 ~ B4-5 全部交付，停闸门 4）
 

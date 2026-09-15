@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "lifecycle": "seed",
+  "scope": "global-readonly",
+  "说明": "B5-2 从用户语义记忆拆出的领域知识种子；B6 将负责入库与检索。每条在进入正式知识库前须补齐可核验来源。",
+  "entries": [
+    {
+      "id": "cirrus-ice-crystals-longwave-scattering",
+      "content": "卷云冰晶对长波散射敏感。",
+      "keywords": ["卷云", "冰晶", "散射", "火烧云"],
+      "source": "architecture-v4-proposal.md §3 D10（迁移示例，待 B6 补外部可核验来源）",
+      "source_status": "pending-verification"
+    }
+  ]
+}

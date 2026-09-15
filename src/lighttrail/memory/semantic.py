@@ -1,8 +1,8 @@
-"""语义记忆（M1.3）：结论型经验的精选注入，写入需 double-confirm。
+"""用户语义记忆（M1.3）：用户结论型经验的精选注入，写入需 double-confirm。
 
 设计要点（架构 v2.0 §2.5，E3-3 落地）：
-- 语义记忆是「结论」不是「数据」：如「偏好低云量+高云为主的晚霞，火烧云成功率约 7 成」，
-  token 效率最高，但写入必须人工/规则双重确认，防污染；
+- 这里只保存「关于该用户」的结论：来自其拍摄事件或经其确认的偏好；「关于世界」的
+  领域事实属于全局只读知识库，种子文件位于 data/knowledge/seed/，不得写入本模块；
 - 维护：手动 data/semantic.json + 关键词规则命中注入；事件自动提炼（E6-3 sediment_semantics）产出候选，仍走双确认；
 - 写入模型：staged_add 入「候选池」→ confirm/reject 显式裁决，未确认不计入命中；
 - 注入策略：命中规则时最多注入 1-2 条到档案段旁（第④层），不常驻全量。
@@ -25,10 +25,10 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class SemanticEntry:
-    """一条已确认的语义记忆。
+    """一条已确认的用户语义记忆。
 
     Attributes:
-        content: 结论型经验文本（≤1 句，可直接注入）。
+        content: 与当前用户相关的结论型经验文本（≤1 句，可直接注入）。
         keywords: 命中关键词（任一出现在意图中即触发注入）。
     """
 
@@ -81,10 +81,10 @@ class SemanticStore:
 
     # ------ 对外接口：写入（double-confirm）------
     def staged_add(self, content: str, keywords: list[str] | tuple[str, ...] | None = None) -> int:
-        """把候选语义记忆加入待确认池（未确认不参与命中）。
+        """把用户语义记忆候选加入待确认池（未确认不参与命中）。
 
         Args:
-            content: 结论文本。
+            content: 绑定用户事件或偏好的结论文本，不能填领域通识。
             keywords: 命中关键词。
 
         Returns:
@@ -151,7 +151,7 @@ class SemanticStore:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "version": 1,
-            "说明": "语义记忆（结论型经验）。写入须经由 staged_add → confirm 双确认，未确认条目不落盘",
+            "说明": "用户语义记忆（结论型经验）。仅存关于该用户的经验；写入须经 staged_add → confirm 双确认，未确认条目不落盘",
             "entries": [
                 {"content": entry.content, "keywords": list(entry.keywords)}
                 for entry in self._entries
