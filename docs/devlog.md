@@ -186,6 +186,14 @@
     **复盘端点 `/api/photos/review`** → 给回的是复盘卡而非复刻计划（FRONTEND-SPEC §5 当时即如此映射，属占位）。
   两项方案待选，已记 TODO.md F7/F8。**审计到此形成清单 F1–F8**：其中 D4 竞态 / D4 兜底显示 / CLI 编码 / L2 脆弱断言
   已当场修复，其余六项属产品与接线决策，等主理人拍板（B5 批次一并定夺最省事）。
+- **会话回放链路真实自检（六页最后一条流程）**：D1 决策 → localStorage 会话记录 → 总览页「最近计划」点击 →
+  回放渲染出「用户：今晚上海火烧云值得冲吗？」+「光迹：## 拍摄方案（决策卡片）…」+ 决策卡 ✓；
+  `/api/sessions/{id}` 真实 JSON 形状与前端 `SessionDetail` 一致（`session{session_id/history/pipeline/
+  workspace/user_id/created_at/updated_at}`、`workspace.last_card` 带 `verdict` + `confidence_detail`、
+  `trace{llm_calls/tool_calls/steps/sources}`）——该条流程未发现新缺陷。
+- **环境清理（第二次）**：5173 端口上又发现一个 **2026-09-09 20:05 启动的残留 Vite dev server**
+  （与之前那个 9-09 残留后端同源、同日启动），已结束。教训同前：本地起服务前先确认端口占用，
+  否则会被旧实例静默接管（`scripts/live_check.py` 已内建端口守卫）。
 
 
 - **测试规模**：332 → **336**（+4：D4 竞态回归、D4 兜底门禁、CLI 编码容错 2 例）；ruff 0；`npm run build` 通过。
