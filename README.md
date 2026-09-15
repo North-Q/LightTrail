@@ -27,16 +27,18 @@
   - 结构化输出契约（pydantic 自愈重试）+ 三层评估体系（工具 pytest / 黄金用例集 / LLM-as-judge）
 - **语言**：Python（近期主用）
 - 探索大模型在垂直场景（摄影）中的应用方法
-- 架构设计详见 [`docs/architecture-v4-proposal.md`](docs/architecture-v4-proposal.md)（v4 定稿，目标架构）；旧架构文档 `docs/architecture.md` 为重构前现状基线
+- 架构基线详见 [`docs/architecture.md`](docs/architecture.md)（v3.0）；v4 提案保留为重构决策记录
 
 ## 目录结构
 
 ```
 LightTrail/
 ├── docs/                # PRD v0.3(+v0.4 修订) / 架构 v4 方案 / 重构路线图 / ADR / 设计原型
-├── src/lighttrail/      # 源码（重构前形态，B0–B7 逐步迁移至 v4 目标结构）
-│   ├── agent/           # ReAct 循环 / ContextBuilder 五层组装 / 工具注册表
-│   ├── llm/             # ChatClient / ModelRouter 能力矩阵
+├── src/lighttrail/      # 源码（contracts / runtime / adapters / 领域模块）
+│   ├── contracts/       # 零依赖契约与端口
+│   ├── adapters/        # LLM / 数据源适配实现
+│   ├── runtime/         # AgentRuntime / ToolRegistry / ContextBuilder
+│   ├── llm/             # ModelRouter 能力矩阵
 │   ├── orchestrator/    # 四管线编排 + Intent/DecisionCard 契约（pydantic 自愈）
 │   ├── memory/          # 四层记忆：档案 / 事件（SQLite）/ 语义 / Manager
 │   ├── infra/           # TraceRecorder / 置信度规则 / QuotaLedger 配额账本
@@ -46,7 +48,7 @@ LightTrail/
 │                        #   壳层自检 npm run check:ui 六页路由逐一渲染校验）
 ├── evals/               # 三层评估：黄金用例 cassette + LLM-as-judge
 ├── scripts/             # 真实联调自检（scripts/live_check.py，真实 Key、配额克制）
-├── tests/               # 323 项 pytest 用例（离线 Fake 数据源，不触网）
+├── tests/               # 343 项 pytest 用例（离线 Fake 数据源，不触网）
 ├── data/                # 本地记忆数据（profile/events.db/semantic，不入库）
 └── README.md
 ```
@@ -64,7 +66,8 @@ LightTrail/
 - [x] 多模态与差异化（E6：照片分析 / 反推 / 复盘闭环 / 语义记忆提炼；ADR-003 扩展参数适配）
 - [x] Web 服务层（E7：FastAPI 五端点 SSE + trace→SSE 桥接 + SPA 六页旅程）
 - [x] 评估体系（E8：L2 黄金用例 cassette 回放零成本 + L3 LLM-as-judge「工具即裁判」）
-- [ ] **架构重建（进行中，B0–B7）**：契约层 + 声明式工具注册 + PydanticAI 引擎 + async-first 并发 + 前后端契约单一真源 + 记忆/知识库双链路 + 意图路由与受控规划通道——方案见 [docs/architecture-v4-proposal.md](docs/architecture-v4-proposal.md)（D1–D14 已定稿），任务见 [docs/REFACTOR-ROADMAP.md](docs/REFACTOR-ROADMAP.md)
+- [x] **B5 架构重建收口**：用户记忆命名空间、领域知识种子、真实机位坐标、到期 shim 清理、ADR-004 与架构文档同步
+- [ ] **B6/B7 后续重构**：知识库检索链路、意图路由与受控规划通道——任务见 [docs/REFACTOR-ROADMAP.md](docs/REFACTOR-ROADMAP.md)
 - [ ] 开源发布（重构后）
 - [ ] 主动提醒服务（被动提醒 MVP，重构后迭代）
 

@@ -98,13 +98,13 @@
       → 沉淀机位在 D2 列表静默不显示，建议 B5-3 统一为英文键；(c) ⏳ B5-1 前置提示——
       `tests/test_memory.py` 的命名空间隔离用例已覆盖 B5-1；B5-3 仍需统一沉淀产物键形状。
 
-### B5 记忆命名空间 + 清理 + 文档
+### B5 记忆命名空间 + 清理 + 文档 ✅ 已完成（2026-09-15，停闸门 5）
 
 - [x] B5-1 MemoryStore user_id 命名空间（data/users/{user_id}/）+ 存量迁移（2026-09-15）
 - [x] B5-2 semantic 层拆分（用户偏好留记忆 / 领域结论迁知识库种子，2026-09-15）
 - [x] B5-3 坐标改用 favorite_spots（消灭 _DEFAULT_LAT 双份）+ 预算显式化（2026-09-15）
-- [ ] B5-4 死代码清理 + requirements.txt 对齐 pyproject + shim 到期删除
-- [ ] B5-5 ADR-004（并发为纯配置）+ architecture.md 重写 v3.0 + 文档同步
+- [x] B5-4 死代码清理 + requirements.txt 对齐 pyproject + shim 到期删除（801c88a）
+- [x] B5-5 ADR-004（并发为纯配置）+ architecture.md 重写 v3.0 + 文档同步
 
 ### B6 知识库链路（可与 B7 并行）
 

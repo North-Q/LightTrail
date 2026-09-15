@@ -1,5 +1,11 @@
 # LightTrail 开发日志
 
+## 2026-09-15（B5-4/B5-5 清理与文档基线 — 已提交）
+
+- 删除 `lighttrail.llm.client` 与 `orchestrator.schemas` 到期 shim，移除 `LLM_SERIAL_LLM`；照片工具改由装配根注入 LLM 客户端并经注册表调用。
+- `requirements.txt` 与 `pyproject.toml` 运行依赖对齐；新增 ADR-004，`architecture.md` 重写为当前 v3.0 架构基线，README、AGENTS、TODO 和长期目标同步。
+- 验证：pytest 343 passed、ruff 0、lint-imports 3 kept / 0 broken、smoke 21 项通过。
+
 ## 2026-09-15（B5-1 MemoryStore user_id 命名空间 — 待提交）
 
 - `MemoryManager` 的读写入口以 `RequestContext` 为首参；档案、事件 SQLite、语义 JSON 按

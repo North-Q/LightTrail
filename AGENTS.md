@@ -19,13 +19,13 @@
 ## 技术约定
 - 语言：Python（小北近期主用）
 - LLM：华东师大开发者平台，OpenAI 兼容，Base URL `https://chat.ecnu.edu.cn/open/api/v1`，主模型 `ecnu-max` / `ecnu-plus`
-- 注意（2026-09-12 起）：「ECNU 串行约束」前提已作废，并发为**纯配置** `LLM_CONCURRENCY`（默认 4，B1 落地）；`LLM_SERIAL_LLM` 只作只读兼容别名过渡一版（=1 时等价串行），B3 批次删除。重构完成前代码仍是旧形态（`llm/client.py` 串行闸门），改动遵循 REFACTOR-ROADMAP 批次节奏
+- 并发为**纯配置** `LLM_CONCURRENCY`（默认 4；设为 1 即串行）；旧 `LLM_SERIAL_LLM` 已删除。适配层维护单一限流器，详见 ADR-004。
 - 项目目录：`D:\Project\LightTrail`（小北所有项目统一放 D:\Project）
 
 ## 协作约定
 - 沟通口语化、简洁直接；正式产出（文档/README/代码注释/邮件）用书面化
 - 涉及外部动作（发邮件、发布、对外提交）必须先经小北确认
-- 当前阶段：**架构重建期**——依据 docs/architecture-v4-proposal.md（D1–D14 定稿）与 docs/REFACTOR-ROADMAP.md（唯一任务清单）推进 B0–B7；E1–E8 已交付并作为重构资产保留（旧路线图归档 docs/archive/DEVELOPMENT-ROADMAP-v2.5.md）。**B0 止血护栏（停闸门 0）与 B1 契约层 + 配置（停闸门 1）均已完成（2026-09-13）**：SessionManager 三 bug / tokens 记账 / 假注释清理；零依赖 contracts/（ToolSpec/ToolContext/RequestContext/Plan/TraceEvent/端口）+ 契约模型下沉与旧路径 shim + LLM 配置密钥端口与部署级实现 + 统一护栏配置项 + import-linter「契约零依赖」门禁。既有交付：地基拆分 / TraceRecorder / 四层记忆 / ModelRouter+QuotaLedger / 四管线编排与一句话出方案闭环 / 照片分析智能工具（depth=1 红线）+ 照片反推 + 复盘管线闭环 + 语义记忆提炼 / **Web 服务层**（async ChatClient 串行闸门 + SessionManager 会话持久化 + FastAPI 五端点 SSE + trace→SSE 桥接 + SPA 三核心页）；pytest **306 全绿**、ruff 0 告警、smoke 21 项通过、**15 个已注册工具**；ADR-002 平台中立性 + ADR-003 扩展参数适配已落地；E6-0 四管线真实联调 + E7-0 SSE 真实联调均通过、远程基线已建立。**B2 已完成**（2026-09-14）：声明式 ToolSpec + 装配根 + PydanticAI Model 桥 + AgentRuntime，生产路径（CLI/Web/四管线）全切 runtime，旧 `agent/` 包与迁移期 shim 已删除。**B3 已完成**（2026-09-14）：async-first 单一并发机制、tenacity/httpx 收敛重试、管线并行取数（-71% 延迟）、TraceSink + 出口白名单、QuotaLedger 加锁；`lint-imports` 3 kept / 0 broken。**下一步 B4 契约单一真源 + 前端重接**（OpenAPI→TS 生成 + 去前端假数据，任务清单见 REFACTOR-ROADMAP §6）。项目已具备可演示的 Web 形态（`uvicorn lighttrail.api.app:app` + `npm run dev`）。项目对话记忆详见 `.workbuddy/memory/`。
+- 当前阶段：**B5 已完成，停闸门 5**。B0–B4 完成契约、运行时、并发和前端重接；B5 完成用户记忆命名空间、知识种子边界、真实机位坐标、到期 shim 清理及文档同步。当前基线：pytest 343、ruff 0、lint-imports 3 kept / 0 broken、smoke 21 项、15 个工具。下一批须经确认后进入 B6/B7。
 
 ## 代码风格（基于现有代码反推，新增代码遵守）
 
@@ -53,7 +53,7 @@ src/lighttrail/
 ├── contracts/          # 零依赖契约层（ToolSpec/ToolContext/RequestContext/Plan/TraceEvent/端口）
 ├── adapters/           # 适配层（llm/config_provider：DeploymentConfigProvider + EnvKeyVault）
 ├── cli.py              # CLI 入口（自由对话 + --pipeline 管线模式，trace 进度走 stderr）
-├── llm/client.py       # OpenAI 兼容客户端（串行可配置 + 重试 + thinking extra_body 兼容）
+├── llm/router.py       # ModelRouter 能力矩阵
 ├── llm/router.py       # ModelRouter 能力矩阵（RouteIntent 能力声明，可注入）
 ├── runtime/            # 引擎层：AgentRuntime / ToolRegistry / ContextBuilder（PydanticAI）
 ├── composition.py      # 装配根（唯一 new 点）
@@ -62,11 +62,11 @@ src/lighttrail/
 ├── infra/              # TraceRecorder / confidence（置信度规则）/ quota（配额账本）/ validation
 ├── tools/              # 具体工具实现（…/memory_tool/photo_analysis，共 15 工具）
 └── smoke.py            # 离线冒烟测试（21 项检查，发布前冒烟入口）
-tests/                  # 37 个测试文件，306 用例（含 architecture AST 禁止边门禁；离线 Fake，不触网）
+tests/                  # 37 个测试文件，343 用例（含 architecture AST 禁止边门禁；离线 Fake，不触网）
 ```
 
-## ECNU API 调用模式（见 `llm/client.py`，新增工具遵守；B3 起由 `adapters/llm` 接替）
-- 并发可配置（B1-5 已落地）：`LLM_CONCURRENCY`（默认 4）为唯一配置；`LLM_SERIAL_LLM` 只作只读别名（=1 → concurrency=1），B3 删除；单 Semaphore 只包单次 API 往返、重试在外（ADR-002 平台中立；ADR-004 并发为纯配置，B5-5 落盘）
+## LLM API 调用模式（适配层 `adapters/llm`）
+- `LLM_CONCURRENCY`（默认 4）为唯一配置；单 Semaphore 只包单次 API 往返、重试在外（ADR-004）
 - 指数退避重试：最多 3 次，基础 1s + 随机抖动
 - 可重试状态码：429、500、502、503、504
 - 超时：连接 30s、读取 120s（容忍 thinking 模式长响应）
