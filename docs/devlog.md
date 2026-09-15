@@ -17,6 +17,14 @@
   `pending-verification` 来源状态；B6 将负责补齐可核验来源、入库和检索；
 - 新增种子边界回归；局部验证：pytest 28 passed、ruff 0。
 
+## 2026-09-15（B5-3 机位坐标真源与上下文预算 — 待提交）
+
+- 删除编排与四管线中的上海默认坐标；采集与反推只消费档案 `favorite_spots` 的真实经纬度，
+  空档案返回 `missing_favorite_spot` 并提示先录入机位；
+- 高频机位沉淀统一写入英文键 `name/latitude/longitude/subject`，旧中文键仅在读取时兼容；
+- ContextBuilder 五层预算新增 `CONTEXT_*_BUDGET` 配置入口，经装配根传入；全量验证：pytest 346
+  passed、ruff 0、lint-imports 3 kept / 0 broken。
+
 
 ## 2026-09-14（B4 契约单一真源 + 前端重接：B4-1 ~ B4-5 全部交付，停闸门 4）
 

@@ -200,7 +200,12 @@ class MemoryManager:
             latitude, longitude = _split_coordinates(str(info["coordinates"]))
             if latitude is None:
                 continue
-            spot = {"名称": location, "纬度": latitude, "经度": longitude, "题材": "、".join(sorted(info["subjects"]))[:40]}
+            spot = {
+                "name": location,
+                "latitude": latitude,
+                "longitude": longitude,
+                "subject": "、".join(sorted(info["subjects"]))[:40],
+            }
             state.profile.favorite_spots.append(spot)
             added.append(spot)
         if added:

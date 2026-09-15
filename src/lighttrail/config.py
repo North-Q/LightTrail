@@ -46,6 +46,11 @@ DEFAULT_DATA_DIR = "data"
 DEFAULT_REACT_MAX_ROUNDS = 12
 DEFAULT_PIPELINE_MAX_STEPS = 12
 DEFAULT_LLM_TIMEOUT: tuple[float, float] = (30.0, 120.0)
+DEFAULT_CONTEXT_ROLE_BUDGET = 220
+DEFAULT_CONTEXT_CONDUCT_BUDGET = 220
+DEFAULT_CONTEXT_TOOLS_BUDGET = 1200
+DEFAULT_CONTEXT_PROFILE_BUDGET = 400
+DEFAULT_CONTEXT_TRACE_BUDGET = 300
 
 # 资源上限与配额（QuotaLedger 默认持有）
 DEFAULT_QUOTA_WARN_THRESHOLD = 0.9
@@ -121,6 +126,11 @@ class Settings(BaseSettings):
         default=DEFAULT_PLAN_MAX_STEPS, ge=1, validation_alias="PLAN_MAX_STEPS"
     )
     llm_timeout: Annotated[tuple[float, float], NoDecode] = DEFAULT_LLM_TIMEOUT
+    context_role_budget: int = Field(default=DEFAULT_CONTEXT_ROLE_BUDGET, ge=1)
+    context_conduct_budget: int = Field(default=DEFAULT_CONTEXT_CONDUCT_BUDGET, ge=1)
+    context_tools_budget: int = Field(default=DEFAULT_CONTEXT_TOOLS_BUDGET, ge=1)
+    context_profile_budget: int = Field(default=DEFAULT_CONTEXT_PROFILE_BUDGET, ge=1)
+    context_trace_budget: int = Field(default=DEFAULT_CONTEXT_TRACE_BUDGET, ge=1)
 
     # ------ 派生属性 ------
     @property

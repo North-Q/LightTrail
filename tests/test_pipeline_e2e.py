@@ -10,10 +10,13 @@
 from __future__ import annotations
 
 import json
+import tempfile
+from pathlib import Path
 
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.composition import build_registry
+from lighttrail.memory import MemoryManager, UserProfile
 from lighttrail.orchestrator import Orchestrator
 from lighttrail.runtime.agent import AgentRuntime
 from lighttrail.tools import (  # noqa: F401  触发注册
@@ -26,6 +29,10 @@ from lighttrail.tools import (  # noqa: F401  触发注册
 )
 
 registry = build_registry()
+_MEMORY = MemoryManager(
+    Path(tempfile.mkdtemp(prefix="lt_e2e_memory_")),
+    profile=UserProfile(favorite_spots=[{"name": "测试机位", "latitude": 31.2, "longitude": 121.5}]),
+)
 
 # E8 黄金用例集雏形：典型请求 + 预期题材 + 关键断言词
 GOLDEN_CASES = [
@@ -108,7 +115,7 @@ def test_e2e_galaxy_plan_and_followup_react() -> None:
         ]
     )
     runtime = _runtime(fake)
-    orc = Orchestrator(fake, registry, runtime, dispatch=_fake_dispatch)
+    orc = Orchestrator(fake, registry, runtime, memory=_MEMORY, dispatch=_fake_dispatch)
 
     text = orc.plan("这周末想去拍银河")
     assert "## 拍摄方案" in text
@@ -135,7 +142,7 @@ def test_e2e_fire_cloud_live_decision() -> None:
         ]
     )
     runtime = _runtime(fake)
-    orc = Orchestrator(fake, registry, runtime, dispatch=_fake_dispatch)
+    orc = Orchestrator(fake, registry, runtime, memory=_MEMORY, dispatch=_fake_dispatch)
     text = orc.plan("明天傍晚去拍火烧云值得吗")
     assert "建议 18:10" in text
     assert "置信度：medium" in text

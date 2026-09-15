@@ -64,6 +64,7 @@ def test_defaults(clean_env: None) -> None:
     assert settings.data_dir == "data"
     assert settings.quota_warn_threshold == pytest.approx(0.9)
     assert settings.reason_thinking is True
+    assert settings.context_profile_budget == 400
     assert settings.api_key == ""
     assert settings.has_api_key is False
     assert settings.base_url.startswith("https://")
@@ -110,6 +111,12 @@ def test_guardrail_defaults_and_overrides(clean_env: None, monkeypatch: pytest.M
     monkeypatch.setenv("PLAN_MAX_STEPS", "3")
     settings = _load()
     assert (settings.react_max_rounds, settings.pipeline_max_steps, settings.plan_max_steps) == (6, 5, 3)
+
+
+def test_context_budget_override(clean_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    """上下文各层预算由配置显式控制。"""
+    monkeypatch.setenv("CONTEXT_PROFILE_BUDGET", "180")
+    assert _load().context_profile_budget == 180
 
 
 def test_timeout_parsing(clean_env: None, monkeypatch: pytest.MonkeyPatch) -> None:

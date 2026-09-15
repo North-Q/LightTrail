@@ -11,11 +11,14 @@
 from __future__ import annotations
 
 import json
+import tempfile
+from pathlib import Path
 
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.composition import build_registry
 from lighttrail.infra.trace import TraceRecorder
+from lighttrail.memory import MemoryManager, UserProfile
 from lighttrail.orchestrator import Orchestrator
 from lighttrail.orchestrator.context import PipelineContext
 from lighttrail.orchestrator.orchestrator import _render_card
@@ -37,6 +40,10 @@ from lighttrail.tools import (  # noqa: F401  触发注册
 )
 
 registry = build_registry()
+_MEMORY = MemoryManager(
+    Path(tempfile.mkdtemp(prefix="lt_pipeline_memory_")),
+    profile=UserProfile(favorite_spots=[{"name": "测试机位", "latitude": 31.2, "longitude": 121.5}]),
+)
 
 
 class FakeChatClient:
@@ -105,6 +112,7 @@ def _make_env(recorder: TraceRecorder | None = None) -> PipelineEnv:
         dispatch=_fake_dispatch,
         reason=lambda prompt, system: _CARD_JSON,
         recorder=recorder or TraceRecorder(),
+        memory=_MEMORY,
     )
 
 
@@ -159,6 +167,16 @@ def test_inspiration_pipeline_records_scores() -> None:
     assert ctx.scores["火烧云评分"] == 62
 
 
+def test_empty_profile_honestly_degrades_without_coordinates(tmp_path: Path) -> None:
+    """空档案不再回退上海占位坐标，而是提示先录入机位。"""
+    env = PipelineEnv(dispatch=_fake_dispatch, reason=lambda prompt, system: _CARD_JSON, memory=MemoryManager(tmp_path))
+    card = PIPELINES["inspiration"].run(
+        PipelineContext(user_request="今晚拍银河", intent=Intent(subject_type="银河")), env
+    )
+    assert card.degraded == "missing_favorite_spot"
+    assert "录入" in card.conclusion
+
+
 def test_review_pipeline_missing_image_returns_skeleton() -> None:
     """复盘管线缺图时返回骨架卡（提示提供照片路径，不触 LLM）。"""
     env = _make_env()
@@ -178,7 +196,7 @@ def test_orchestrator_plan_full_flow() -> None:
         ]
     )
     runtime = _runtime(fake, recorder=recorder)
-    orc = Orchestrator(fake, registry, runtime, recorder=recorder, dispatch=_fake_dispatch)
+    orc = Orchestrator(fake, registry, runtime, memory=_MEMORY, recorder=recorder, dispatch=_fake_dispatch)
     text = orc.plan("这周末想去拍银河")
 
     assert "## 拍摄方案" in text
@@ -205,7 +223,7 @@ def test_orchestrator_plan_falls_back_to_react_on_bad_card() -> None:
     reply = {"role": "assistant", "content": "我建议先看云图再决定。"}
     fake = FakeChatClient([{"role": "assistant", "content": _INTENT_JSON}, bad_card, bad_card, bad_card, reply])
     runtime = _runtime(fake, recorder=recorder)
-    orc = Orchestrator(fake, registry, runtime, recorder=recorder, dispatch=_fake_dispatch)
+    orc = Orchestrator(fake, registry, runtime, memory=_MEMORY, recorder=recorder, dispatch=_fake_dispatch)
     text = orc.plan("今晚火烧云值得冲吗")
 
     assert text == "我建议先看云图再决定。"
@@ -225,7 +243,7 @@ def test_fallback_carries_card_context() -> None:
         ]
     )
     runtime = _runtime(fake)
-    orc = Orchestrator(fake, registry, runtime, dispatch=_fake_dispatch)
+    orc = Orchestrator(fake, registry, runtime, memory=_MEMORY, dispatch=_fake_dispatch)
     orc.plan("这周末想去拍银河")  # 成功产出卡片
     reply = orc._fallback("参数激进一点")
     assert reply == "好，参数改激进一些。"
@@ -267,6 +285,7 @@ def test_card_verdict_comes_from_structured_output() -> None:
         dispatch=_fake_dispatch,
         reason=lambda prompt, system: json.dumps(payload, ensure_ascii=False),
         recorder=TraceRecorder(),
+        memory=_MEMORY,
     )
     ctx = PipelineContext(
         user_request="这周末想去拍银河",

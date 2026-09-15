@@ -208,6 +208,7 @@ def _record_group(group: str, request: str, router: ModelRouter, settings: Any) 
     memory_dir = Path(tempfile.mkdtemp(prefix="lt_evals_record_"))
     try:
         memory = MemoryManager(memory_dir)
+        memory.update_profile({"favorite_spots": [{"name": "评估机位", "latitude": 31.2, "longitude": 121.5}]})
         fake = FakeDispatcher()
         dispatch = dispatch_with_trace(fake, recorder)
         provider = ChatClientProvider(recording)
@@ -241,6 +242,7 @@ def _run_pipeline_case(case: dict[str, Any], cassettes: dict[str, Any]) -> tuple
     memo_dir = Path(tempfile.mkdtemp(prefix="lt_evals_l2_"))
     try:
         memory = MemoryManager(memo_dir)
+        memory.update_profile({"favorite_spots": [{"name": "评估机位", "latitude": 31.2, "longitude": 121.5}]})
         recorder = TraceRecorder()
         client = CassetteChatClient(cassettes, group_for={case["id"]: group})
         client.set_group(group)

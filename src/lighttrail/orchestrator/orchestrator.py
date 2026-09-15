@@ -34,10 +34,6 @@ logger = logging.getLogger("lighttrail.orchestrator")
 # 意图解析器系统指令（迁移期从 parse_intent 内联抽出，两条路径共用）
 _INTENT_SYSTEM = "你是 LightTrail 摄影决策引擎的意图解析器。"
 
-# 反推采集默认坐标（上海）：档案 favorite_spots 精确坐标接线见 B5-3（当前仍为兜底常量）
-_DEFAULT_LAT = 31.23
-_DEFAULT_LON = 121.47
-
 
 def _default_photo_analyze() -> Callable[[str, str], dict]:
     """默认照片分析绑定（延迟 import tools.photo_analysis；测试注入 Fake）。"""
@@ -74,16 +70,13 @@ def _extract_plan_params(plan_reference: str) -> list[dict[str, Any]]:
 
 
 def _candidate_sites(memory: MemoryManager | None) -> list[dict[str, Any]]:
-    """候选机位：档案常去地点（无坐标时按默认坐标近似偏移兜底）。"""
-    sites: list[dict[str, Any]] = []
-    if memory is not None:
-        for index, name in enumerate(memory.profile.common_locations):
-            sites.append(
-                {"名称": name, "纬度": _DEFAULT_LAT + index * 0.01, "经度": _DEFAULT_LON + index * 0.01, "题材": ""}
-            )
-    if not sites:
-        sites.append({"名称": "默认机位（上海）", "纬度": _DEFAULT_LAT, "经度": _DEFAULT_LON, "题材": ""})
-    return sites
+    """从档案真实 favorite_spots 读取候选机位；无记录时返回空。"""
+    if memory is None:
+        return []
+    return [
+        {"名称": item["name"], "纬度": item["latitude"], "经度": item["longitude"], "题材": item["subject"]}
+        for item in memory.profile.valid_favorite_spots()
+    ]
 
 
 def _build_reverse_plan_prompt(reverse: dict[str, Any], date_iso: str, data: dict[str, Any]) -> str:
@@ -317,6 +310,16 @@ class Orchestrator:
         """
         self._recorder.record_step("反推_多模态", input_summary=image_path[:80], output_summary="")
         reverse = self._photo_reverse(image_path, note, equipment)
+        if not _candidate_sites(self._env.memory):
+            return finalize_card(
+                DecisionCard(
+                    conclusion="请先在档案中录入至少一个带经纬度的常用机位，再生成复刻计划。",
+                    evidence=[],
+                    confidence="low",
+                    verdict="wait",
+                    degraded="missing_favorite_spot",
+                )
+            )
         date_iso, data = self._collect_candidate_day()
         self._recorder.record_step(
             "反推_候选日", input_summary=date_iso, output_summary=json.dumps(data, ensure_ascii=False)[:120]
@@ -327,7 +330,10 @@ class Orchestrator:
 
     def _collect_candidate_day(self) -> tuple[str, dict[str, Any]]:
         """为复刻选候选日：未来 3 天取平均云量最低（通透优先）作为基准日并采集数据。"""
-        lat, lon = _DEFAULT_LAT, _DEFAULT_LON  # 反推阶段用默认坐标（上海）；接档案 favorite_spots 属 B5-3
+        sites = _candidate_sites(self._env.memory)
+        if not sites:
+            raise ValueError("缺少带经纬度的 favorite_spot")
+        lat, lon = sites[0]["纬度"], sites[0]["经度"]
         weather_raw = self._env.dispatch(
             "weather_forecast",
             json.dumps({"latitude": lat, "longitude": lon, "days": 3, "tz_offset": "+08:00"}, ensure_ascii=False),

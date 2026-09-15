@@ -160,8 +160,8 @@ def test_sediment_favorite_spots(workdir: Path) -> None:
     _add_glow_events(manager, successes=3)
     added = manager.sediment_favorite_spots(min_count=2)
     assert len(added) == 1
-    assert added[0]["名称"] == "临港海边"
-    assert added[0]["纬度"] == 30.9123
+    assert added[0]["name"] == "临港海边"
+    assert added[0]["latitude"] == 30.9123
     # 重复调用不重复加
     assert manager.sediment_favorite_spots(min_count=2) == []
     # 档案落盘 + 注入段含坐标

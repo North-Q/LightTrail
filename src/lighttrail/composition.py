@@ -22,7 +22,14 @@ from lighttrail.llm.client import ChatClient
 from lighttrail.memory import MemoryManager
 from lighttrail.orchestrator import Orchestrator
 from lighttrail.runtime.agent import DEFAULT_MAX_TOOL_ROUNDS, AgentRuntime
-from lighttrail.runtime.context import ContextBuilder
+from lighttrail.runtime.context import (
+    LAYER_CONDUCT,
+    LAYER_PROFILE,
+    LAYER_ROLE,
+    LAYER_TOOLS,
+    LAYER_TRACE,
+    ContextBuilder,
+)
 from lighttrail.runtime.registry import ToolRegistry
 from lighttrail.tools import TOOLS
 
@@ -90,7 +97,7 @@ def build_runtime(
         LightTrailModel(provider, model_name=settings.model, recorder=recorder),
         registry,
         reason_model=LightTrailModel(provider, model_name=settings.model_reason, recorder=recorder),
-        context=build_context(registry, recorder=recorder, memory=memory),
+        context=build_context(registry, settings=settings, recorder=recorder, memory=memory),
         recorder=recorder,
         max_tool_rounds=getattr(settings, "react_max_rounds", DEFAULT_MAX_TOOL_ROUNDS),
         reason_thinking=settings.reason_thinking,
@@ -100,6 +107,7 @@ def build_runtime(
 def build_context(
     registry: ToolRegistry,
     *,
+    settings: Settings | None = None,
     recorder: Recorder | None = None,
     memory: MemoryManager | None = None,
 ) -> ContextBuilder:
@@ -109,10 +117,20 @@ def build_context(
         profile_provider = lambda: "\n".join(
             block.text for block in memory.build_injections(RequestContext(), "")
         )
+    budgets = None
+    if settings is not None and hasattr(settings, "context_role_budget"):
+        budgets = {
+            LAYER_ROLE: settings.context_role_budget,
+            LAYER_CONDUCT: settings.context_conduct_budget,
+            LAYER_TOOLS: settings.context_tools_budget,
+            LAYER_PROFILE: settings.context_profile_budget,
+            LAYER_TRACE: settings.context_trace_budget,
+        }
     return ContextBuilder(
         registry=registry,
         profile_provider=profile_provider,
         trace_provider=(lambda: recorder.to_prompt_section()) if recorder is not None else None,
+        budgets=budgets,
     )
 
 

@@ -130,3 +130,31 @@ class UserProfile:
             if spots:
                 parts.append("常去机位：" + "、".join(spots))
         return _truncate("；".join(parts), _MAX_SECTION_CHARS)
+
+    def valid_favorite_spots(self) -> list[dict[str, Any]]:
+        """返回拥有有效坐标的常用机位，统一输出英文键形状。
+
+        读取旧档案时兼容中文键，但所有新写入应使用 name/latitude/longitude/subject。
+        """
+        normalized: list[dict[str, Any]] = []
+        for spot in self.favorite_spots:
+            if not isinstance(spot, dict):
+                continue
+            name = str(spot.get("name") or spot.get("名称") or "").strip()
+            latitude = spot.get("latitude", spot.get("纬度"))
+            longitude = spot.get("longitude", spot.get("经度"))
+            try:
+                latitude = float(latitude)
+                longitude = float(longitude)
+            except (TypeError, ValueError):
+                continue
+            if name and -90 <= latitude <= 90 and -180 <= longitude <= 180:
+                normalized.append(
+                    {
+                        "name": name,
+                        "latitude": latitude,
+                        "longitude": longitude,
+                        "subject": str(spot.get("subject") or spot.get("题材") or ""),
+                    }
+                )
+        return normalized

@@ -131,10 +131,12 @@ def make_app(data_dir: Path):
         photo_analyze: Callable[[str, str], dict] = _fake_photo_analyze,
     ) -> tuple[object, FakeChatClient]:
         fake = FakeChatClient(responses)
+        memory = MemoryManager(data_dir)
+        memory.update_profile({"favorite_spots": [{"name": "测试机位", "latitude": 31.2, "longitude": 121.5}]})
         deps = ApiDeps(
             client=fake,
             sessions=SessionManager(data_dir),
-            memory=MemoryManager(data_dir),
+            memory=memory,
             model="ecnu-plus",
             reason_thinking=False,
             dispatch=_fake_dispatch,

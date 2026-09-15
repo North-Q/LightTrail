@@ -29,9 +29,6 @@ from lighttrail.orchestrator.context import PipelineContext
 
 logger = logging.getLogger("lighttrail.orchestrator.pipelines")
 
-# 默认坐标：上海（档案常去机位精确坐标接线见 B5-3）
-_DEFAULT_LAT = 31.23
-_DEFAULT_LON = 121.47
 # 默认时区（与工具层 tz_offset 默认值一致）
 _LOCAL_TZ = timezone(timedelta(hours=8))
 
@@ -59,14 +56,24 @@ def _target_date(time_hint: str) -> str:
 
 
 def _candidate_sites(memory: MemoryManager | None) -> list[dict[str, Any]]:
-    """候选机位：档案常去机位名 + 占位坐标（非真实坐标，B5-3 接 favorite_spots 后取真实值）。"""
-    sites: list[dict[str, Any]] = []
-    if memory is not None:
-        for index, name in enumerate(memory.profile.common_locations):
-            sites.append({"名称": name, "纬度": _DEFAULT_LAT + index * 0.01, "经度": _DEFAULT_LON + index * 0.01, "题材": ""})
-    if not sites:
-        sites.append({"名称": "默认机位（上海）", "纬度": _DEFAULT_LAT, "经度": _DEFAULT_LON, "题材": ""})
-    return sites
+    """从档案的真实 favorite_spots 返回候选机位；空档案不编造坐标。"""
+    if memory is None:
+        return []
+    return [
+        {"名称": item["name"], "纬度": item["latitude"], "经度": item["longitude"], "题材": item["subject"]}
+        for item in memory.profile.valid_favorite_spots()
+    ]
+
+
+def _missing_site_card() -> DecisionCard:
+    """没有可用真实机位时诚实降级，避免以占位坐标调用外部数据源。"""
+    return DecisionCard(
+        conclusion="请先在档案中录入至少一个带经纬度的常用机位，再生成拍摄决策。",
+        evidence=[],
+        confidence="low",
+        verdict="wait",
+        degraded="missing_favorite_spot",
+    )
 
 
 def _collection_steps(subject_type: str, lat: float, lon: float, date_iso: str) -> list[tuple[str, str]]:
@@ -272,9 +279,16 @@ class InspirationPipeline(Pipeline):
 
     def _run(self, ctx: PipelineContext, env: PipelineEnv) -> DecisionCard:
         intent = ctx.intent or Intent(subject_type="")
+        sites = _candidate_sites(env.memory)
+        if env.memory is not None and not sites:
+            return _missing_site_card()
+        if not sites:
+            return _missing_site_card()
+        site = sites[0]
         date_iso = _target_date(intent.time_hint)
-        steps = _collection_steps(intent.subject_type, _DEFAULT_LAT, _DEFAULT_LON, date_iso)
+        steps = _collection_steps(intent.subject_type, site["纬度"], site["经度"], date_iso)
         ctx.data = _collect(env, ctx, steps)
+        ctx.data["候选机位"] = sites
         ctx.scores = _score(ctx.data)
         prompt = _build_synthesis_prompt(ctx, env)
         env.recorder.record_step("综合_reason", input_summary=prompt[:80], output_summary="")
@@ -291,16 +305,19 @@ class PlanningPipeline(Pipeline):
 
     def _run(self, ctx: PipelineContext, env: PipelineEnv) -> DecisionCard:
         intent = ctx.intent or Intent(subject_type="")
+        sites = _candidate_sites(env.memory)
+        if not sites:
+            return _missing_site_card()
+        site = sites[0]
         date_iso = _target_date(intent.time_hint)
         steps = [
-            ("weather_forecast", json.dumps({"latitude": _DEFAULT_LAT, "longitude": _DEFAULT_LON, "days": 7, "tz_offset": "+08:00"}, ensure_ascii=False)),
+            ("weather_forecast", json.dumps({"latitude": site["纬度"], "longitude": site["经度"], "days": 7, "tz_offset": "+08:00"}, ensure_ascii=False)),
             ("moon_phase", json.dumps({"date": date_iso}, ensure_ascii=False)),
-            ("sun_times", json.dumps({"latitude": _DEFAULT_LAT, "longitude": _DEFAULT_LON, "date": date_iso}, ensure_ascii=False)),
+            ("sun_times", json.dumps({"latitude": site["纬度"], "longitude": site["经度"], "date": date_iso}, ensure_ascii=False)),
         ]
         ctx.data = _collect(env, ctx, steps)
         ctx.scores = _score(ctx.data)
         # 机位匹配：用档案常去机位做候选（无精确坐标时兜底默认机位）
-        sites = _candidate_sites(env.memory)
         ctx.data["候选机位"] = sites
         env.recorder.record_step("机位匹配", input_summary=json.dumps(sites, ensure_ascii=False)[:80], output_summary="")
         prompt = _build_synthesis_prompt(ctx, env)
@@ -318,10 +335,14 @@ class LiveDecisionPipeline(Pipeline):
         if ctx.intent is None:
             ctx.intent = Intent(subject_type="火烧云", time_hint="今晚")
         today = datetime.now(_LOCAL_TZ).date().isoformat()
+        sites = _candidate_sites(env.memory)
+        if not sites:
+            return _missing_site_card()
+        site = sites[0]
         steps = [
-            ("sun_times", json.dumps({"latitude": _DEFAULT_LAT, "longitude": _DEFAULT_LON, "date": today}, ensure_ascii=False)),
-            ("sunset_glow_score", json.dumps({"latitude": _DEFAULT_LAT, "longitude": _DEFAULT_LON, "date": today}, ensure_ascii=False)),
-            ("weather_forecast", json.dumps({"latitude": _DEFAULT_LAT, "longitude": _DEFAULT_LON, "days": 1, "tz_offset": "+08:00"}, ensure_ascii=False)),
+            ("sun_times", json.dumps({"latitude": site["纬度"], "longitude": site["经度"], "date": today}, ensure_ascii=False)),
+            ("sunset_glow_score", json.dumps({"latitude": site["纬度"], "longitude": site["经度"], "date": today}, ensure_ascii=False)),
+            ("weather_forecast", json.dumps({"latitude": site["纬度"], "longitude": site["经度"], "days": 1, "tz_offset": "+08:00"}, ensure_ascii=False)),
         ]
         ctx.data = _collect(env, ctx, steps)
         ctx.scores = _score(ctx.data)
