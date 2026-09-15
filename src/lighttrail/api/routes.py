@@ -180,7 +180,6 @@ def _run_setup(deps: Any, recorder: TraceRecorder) -> tuple[AgentRuntime, Orches
     if dispatch is not None:
         dispatch = _traced_dispatch(dispatch, recorder)
     orchestrator = Orchestrator(
-        deps.client,
         deps.registry,
         runtime,
         memory=deps.memory,

@@ -25,17 +25,17 @@ from evals.fake_data import (
     dispatch_with_trace,
 )
 from evals.judge import LLMJudge, LocalRubric, ToolCrossCheck
+from lighttrail.adapters.llm.client import ChatClient
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.composition import build_registry
 from lighttrail.config import load_settings
+from lighttrail.contracts.models import DecisionCard
 from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.trace import TraceRecorder
-from lighttrail.llm.client import ChatClient
 from lighttrail.llm.router import ModelRouter, RouteIntent
 from lighttrail.memory import MemoryManager
 from lighttrail.orchestrator import Orchestrator
-from lighttrail.orchestrator.schemas import DecisionCard
 from lighttrail.runtime.agent import AgentRuntime
 from lighttrail.tools import (  # noqa: F401  触发注册
     astronomy,
@@ -219,9 +219,7 @@ def _record_group(group: str, request: str, router: ModelRouter, settings: Any) 
             recorder=recorder,
             reason_thinking=settings.reason_thinking,
         )
-        orchestrator = Orchestrator(
-            recording, registry, runtime, memory=memory, recorder=recorder, dispatch=dispatch
-        )
+        orchestrator = Orchestrator(registry, runtime, memory=memory, recorder=recorder, dispatch=dispatch)
         _ = orchestrator.run_pipeline(request)
     finally:
         shutil.rmtree(memory_dir, ignore_errors=True)
@@ -255,9 +253,7 @@ def _run_pipeline_case(case: dict[str, Any], cassettes: dict[str, Any]) -> tuple
             reason_model=LightTrailModel(provider, model_name="ecnu-max", recorder=recorder),
             recorder=recorder,
         )
-        orchestrator = Orchestrator(
-            client, registry, runtime, memory=memory, recorder=recorder, dispatch=dispatch
-        )
+        orchestrator = Orchestrator(registry, runtime, memory=memory, recorder=recorder, dispatch=dispatch)
         card = orchestrator.run_pipeline(case["request"], mode=case.get("mode", ""))
         trace = [f"{ref.name}" for ref in recorder.to_report().tool_calls]
         problems = assert_card(card, case.get("expect") or {})

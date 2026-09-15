@@ -3,7 +3,7 @@
 设计要点（架构 v4 §2.3 / D4）：
 - 跨层共享的 pydantic 模型一律住契约层：工具（photo_analysis 的复盘/反推契约）、
   编排（Intent/DecisionCard）、服务层（FastAPI 请求/响应）都依赖它——消灭
-  `tools → orchestrator.schemas` 这类反向依赖（R2）；
+  领域工具不再反向依赖编排层模型模块（R2）；
 - 全部管线 LLM 输出走 pydantic 校验（model_validate_json），校验失败由
   parse_with_retry（infra/validation.py）回传模型自愈；
 - DecisionCard 的 evidence / confidence 为**必填**——结构性保证 M2（依据/来源/

@@ -8,8 +8,8 @@
   两者同时存在时 LLM_ 优先（AliasChoices 原生表达，不再手写解析）；
 - 模型名默认值（ecnu-plus / ecnu-max）只是**可覆盖的部署默认值**：模型选择一律走
   ModelRouter 能力声明，业务代码不写品牌判断；
-- 并发是**纯配置**（LLM_CONCURRENCY，默认 4，见 D5）：`LLM_SERIAL_LLM` 仅作只读兼容
-  别名过渡一版（=1 时等价串行），B3 批次删除；不要在新代码里写「默认串行适配平台」的逻辑；
+- 并发是**纯配置**（LLM_CONCURRENCY，默认 4，见 D5）；设置为 1 即采用串行执行，
+  不要在新代码里写平台特定并发逻辑；
 - 类型校验前置：非法布尔/数字/超时格式直接抛 ValidationError（不再静默取默认值）。
 
 统一护栏（D5，全部可配置并在 trace 中可见）：
@@ -25,7 +25,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Annotated, Any
 
-from pydantic import AliasChoices, Field, ValidationInfo, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from lighttrail.contracts.llm import DEFAULT_CONCURRENCY
@@ -65,7 +65,6 @@ class Settings(BaseSettings):
         model: 工具调用链路主模型（LLM_MODEL / ECNU_MODEL）。
         model_reason: 深推理模型（LLM_MODEL_REASON / ECNU_MODEL_REASON）。
         concurrency: 在途 LLM 请求上限（LLM_CONCURRENCY，默认 4）。
-        legacy_serial_llm: 只读兼容别名（LLM_SERIAL_LLM；True → concurrency=1，B3 删除）。
         reason_thinking: 深推理通道是否携带 thinking 扩展参数（LLM_REASON_THINKING）。
         data_dir: 数据目录（LIGHTTRAIL_DATA_DIR）。
         quota_warn_threshold: 配额告警水位（LIGHTTRAIL_QUOTA_WARN_THRESHOLD，0-1）。
@@ -97,11 +96,6 @@ class Settings(BaseSettings):
     model_reason: str = Field(
         default=DEFAULT_MODEL_REASON,
         validation_alias=AliasChoices("LLM_MODEL_REASON", "ECNU_MODEL_REASON"),
-    )
-    # 声明顺序有意义：legacy_serial_llm 必须先于 concurrency（后者用它做兼容映射）
-    legacy_serial_llm: bool | None = Field(
-        default=None,
-        validation_alias=AliasChoices("LLM_SERIAL_LLM", "ECNU_SERIAL_LLM"),
     )
     concurrency: int = Field(default=DEFAULT_CONCURRENCY, ge=1, validation_alias="LLM_CONCURRENCY")
     reason_thinking: bool = Field(default=True, validation_alias="LLM_REASON_THINKING")
@@ -138,11 +132,6 @@ class Settings(BaseSettings):
         """是否配置了可用 API Key（占位值视为未配置）。"""
         return bool(self.api_key) and not self.api_key.startswith("sk-your-")
 
-    @property
-    def serial_llm(self) -> bool:
-        """只读兼容属性（B3 批次删除）：concurrency == 1 等价旧「串行」语义。"""
-        return self.concurrency == 1
-
     # ------ 校验 ------
     @field_validator("llm_timeout", mode="before")
     @classmethod
@@ -152,15 +141,6 @@ class Settings(BaseSettings):
             parts = [part for part in value.strip().strip("[]()").replace(" ", ",").split(",") if part]
             return tuple(float(part) for part in parts)
         return value
-
-    @field_validator("concurrency", mode="after")
-    @classmethod
-    def _apply_serial_llm_alias(cls, value: int, info: ValidationInfo) -> int:
-        """兼容映射：LLM_SERIAL_LLM=true → concurrency=1（B3 批次随旧开关一并删除）。"""
-        if info.data.get("legacy_serial_llm"):
-            return 1
-        return value
-
 
 def load_settings() -> Settings:
     """加载配置快照（.env + 环境变量 + 内置默认；非法值直接抛 ValidationError）。

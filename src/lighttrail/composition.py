@@ -4,21 +4,22 @@
 - 唯一职责是装配：Settings → 契约端口 → 领域工具 → 运行时/应用对象；不含业务判断、
   不含品牌字面量（品牌默认值在 config 默认值与 adapters/llm）；
 - 允许依赖所有层（顶层例外），业务代码一律只依赖 contracts 端口；
-- 迁移期：LLM 客户端与 Agent 仍取既有实现（`llm/client.py`、`agent/core.py`）；
-  B2-5/B2-6 落地 PydanticAI runtime 后，本文件切到 `runtime.AgentRuntime`，
-  调用方（cli / api）无需再改；
+- LLM 客户端实现位于 adapters，运行时统一使用 `runtime.AgentRuntime`；调用方（CLI / API）
+  只调用本模块的装配函数。
 - 参数一律显式传入（不读全局单例、不读环境变量），便于测试整体替换与依赖审计。
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
+from lighttrail.adapters.llm.client import ChatClient
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.config import Settings, load_settings
 from lighttrail.contracts.context import RequestContext
 from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.trace import Recorder, TraceRecorder
-from lighttrail.llm.client import ChatClient
 from lighttrail.memory import MemoryManager
 from lighttrail.orchestrator import Orchestrator
 from lighttrail.runtime.agent import DEFAULT_MAX_TOOL_ROUNDS, AgentRuntime
@@ -31,7 +32,7 @@ from lighttrail.runtime.context import (
     ContextBuilder,
 )
 from lighttrail.runtime.registry import ToolRegistry
-from lighttrail.tools import TOOLS
+from lighttrail.tools import TOOLS, photo_analysis
 
 __all__ = [
     "build_client",
@@ -47,17 +48,26 @@ __all__ = [
 ]
 
 
-def build_registry(*, recorder: Recorder | None = None, spec_tools: tuple | None = None) -> ToolRegistry:
+def build_registry(
+    *,
+    recorder: Recorder | None = None,
+    spec_tools: tuple | None = None,
+    photo_client_factory: Callable[[], ChatClient] | None = None,
+) -> ToolRegistry:
     """构造工具注册表（声明式收集点注入；不再有全局单例）。
 
     Args:
         recorder: 可观测性记录器（缺省关闭态）。
         spec_tools: 工具清单覆盖（测试注入替身；缺省用领域收集点 TOOLS）。
+        photo_client_factory: 照片工具的同步 LLM 客户端工厂；缺省按当前 Settings 构造。
 
     Returns:
         装配完成的工具注册表。
     """
-    return ToolRegistry(spec_tools or TOOLS, recorder=recorder)
+    if spec_tools is not None:
+        return ToolRegistry(spec_tools, recorder=recorder)
+    factory = photo_client_factory or (lambda: build_client(load_settings()))
+    return ToolRegistry((*TOOLS, *photo_analysis.build_tools(factory)), recorder=recorder)
 
 
 def build_ledger(settings: Settings, *, now: float | None = None) -> QuotaLedger:
@@ -66,17 +76,17 @@ def build_ledger(settings: Settings, *, now: float | None = None) -> QuotaLedger
 
 
 def build_client(settings: Settings, *, quota: QuotaLedger | None = None) -> ChatClient:
-    """构造 LLM 客户端（迁移期实现；B3 换 adapters/llm 的 async-first provider）。"""
+    """构造 LLM 客户端（适配层 async-first 实现的同步门面）。"""
     return ChatClient(
         settings.api_key,
         settings.base_url,
-        serial_llm=settings.serial_llm,
+        concurrency=settings.concurrency,
         quota=quota or build_ledger(settings),
     )
 
 
 def build_provider(settings: Settings, *, quota: QuotaLedger | None = None) -> ChatClientProvider:
-    """构造 LLMProvider 端口实现（迁移期桥接 ChatClient；B3 换同层 async-first 实现）。"""
+    """构造 LLMProvider 端口实现。"""
     return ChatClientProvider(build_client(settings, quota=quota))
 
 
@@ -145,7 +155,6 @@ def build_recorder() -> TraceRecorder:
 
 
 def build_orchestrator(
-    client: ChatClient,
     registry: ToolRegistry,
     runtime: AgentRuntime,
     *,
@@ -153,4 +162,4 @@ def build_orchestrator(
     recorder: Recorder | None = None,
 ) -> Orchestrator:
     """构造编排器（四管线 + 降级 ReAct 通道）。"""
-    return Orchestrator(client, registry, runtime, memory=memory, recorder=recorder)
+    return Orchestrator(registry, runtime, memory=memory, recorder=recorder)

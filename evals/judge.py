@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from lighttrail.orchestrator.schemas import DecisionCard
+from lighttrail.contracts.models import DecisionCard
 
 RUBRIC_DIMS = ("决策合理性", "依据完整性", "个性化程度", "不确定性坦白")
 

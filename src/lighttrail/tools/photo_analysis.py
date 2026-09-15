@@ -3,8 +3,8 @@
 设计要点（架构 v2.0 §2.4 智能工具约束）：
 - **深度=1 红线**：本工具内部调用一次多模态 LLM（不携带工具），绝不调用
   `registry.dispatch`，防止智能工具递归；
-- **走同一个并发边界与配额账本**：客户端由 `default_client_factory()` 按 settings 构造
-  （并发开关 + QuotaLedger 同 CLI 链路），依赖经工厂/参数显式注入（B2-3 去模块级全局）；
+- **走同一个并发边界与配额账本**：客户端仅由装配根构造并经工厂注入，领域工具不读取
+  settings、不创建适配器实例；
 - **多模态模型按能力路由**：`RouteIntent.VISION` → 能力矩阵解析（默认 plus）；
 - **输出走 pydantic schema**（PhotoAnalysisReport，E5-2 契约）——校验失败把错误
   回传模型自愈（≤2 次），仍失败抛 SchemaError 由工具层返回可读错误；
@@ -26,11 +26,10 @@ from typing import Any
 from PIL import Image, ImageOps
 
 from lighttrail.config import load_settings
+from lighttrail.contracts.llm import SyncLLMClient
 from lighttrail.contracts.models import PhotoAnalysisReport, PhotoReverseReport
 from lighttrail.contracts.tool import Confidence, Tool, ToolContext, ToolResult, ToolSpec
-from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.validation import SchemaError, parse_with_retry
-from lighttrail.llm.client import ChatClient
 from lighttrail.llm.router import ModelRouter, RouteIntent
 
 logger = logging.getLogger("lighttrail.tools.photo")
@@ -63,24 +62,6 @@ _ANALYZE_SYSTEM = (
     "并给「下次同样的场景怎么拍」的可执行处方。"
     "处方必须结合用户器材落在具体参数（光圈/快门/ISO/焦段/机位/时机），不要泛泛点评。"
 )
-
-
-def default_client_factory() -> ChatClient:
-    """按部署配置构造多模态客户端（并发开关 + 配额账本与 CLI 链路一致）。
-
-    本模块**不持有任何全局客户端**：装配根/迁移期收集点调用本工厂，测试注入自己的
-    Fake 工厂——依赖经构造或参数显式注入，无 setter 全局态（B2-3 去服务定位器）。
-
-    Returns:
-        新的 ChatClient 实例。
-    """
-    settings = load_settings()
-    return ChatClient(
-        settings.api_key,
-        settings.base_url,
-        concurrency=settings.concurrency,
-        quota=QuotaLedger(warn_threshold=settings.quota_warn_threshold),
-    )
 
 
 def _encode_image(image_path: str | Path) -> str:
@@ -202,7 +183,7 @@ def analyze_photo(
     focus: str = "",
     equipment: str = "",
     *,
-    client: ChatClient | None = None,
+    client: SyncLLMClient,
 ) -> dict:
     """多模态分析一张照片：EXIF + 画面 → 构图/曝光/色彩评价 + 可执行处方。
 
@@ -210,12 +191,11 @@ def analyze_photo(
         image_path: 图片文件路径（支持 jpg/png/heic 转码，最长边自动压缩到 1024px）。
         focus: 分析重点（可空），如「星空对焦与噪点」。
         equipment: 器材覆盖（可空，缺省读用户档案）；如「松下 S5M2 + 14mm f/1.8」。
-        client: 多模态客户端；None 时用部署级默认（测试注入 Fake）。
+        client: 多模态客户端（由装配根或测试显式注入）。
 
     Returns:
         中文结构分析 dict（场景/主体/构图/曝光/色彩/评语/处方/参数建议/EXIF/置信度）。
     """
-    active_client = client or default_client_factory()
     gear = equipment.strip() or _read_gear()
     exif = _read_exif(image_path)
     encoded = _encode_image(image_path)
@@ -223,7 +203,7 @@ def analyze_photo(
 
     def _chat(prompt_text: str) -> str:
         # 纠错指令由 parse_with_retry 拼进 prompt（B3-2：不再手写校验重试循环）
-        return _multimodal_call(active_client, encoded, prompt_text, "")
+        return _multimodal_call(client, encoded, prompt_text, "")
 
     try:
         report = parse_with_retry(PhotoAnalysisReport, _chat, prompt, max_retries=_MAX_RETRIES)
@@ -254,7 +234,7 @@ def _build_analysis_prompt(exif: dict[str, str], gear: str, focus: str) -> str:
     return "\n".join(lines)
 
 
-def _multimodal_call(client: ChatClient, encoded: str, prompt: str, last_error: str) -> str:
+def _multimodal_call(client: SyncLLMClient, encoded: str, prompt: str, last_error: str) -> str:
     """一次多模态调用：返回模型文本；校验错误拼进指令（自愈第 N 轮）。
 
     Args:
@@ -345,7 +325,7 @@ def reverse_engineer_photo(
     note: str = "",
     equipment: str = "",
     *,
-    client: ChatClient | None = None,
+    client: SyncLLMClient,
 ) -> dict:
     """反推一张参考图的拍摄方案并给复刻计划。
 
@@ -353,7 +333,7 @@ def reverse_engineer_photo(
         image_path: 参考图片文件路径。
         note: 用户补充约束（时间/地点/器材限制等）。
         equipment: 器材覆盖（缺省读用户档案）。
-        client: 多模态客户端；None 时用部署级默认（测试注入 Fake）。
+        client: 多模态客户端（由装配根或测试显式注入）。
 
     Returns:
         中文结构字段（场景/光向/推断时段/机位特征/后期风格/复刻计划/参数建议/置信度）。
@@ -361,14 +341,13 @@ def reverse_engineer_photo(
     Raises:
         PhotoError: 图片读取或输出解析失败（重试后）。
     """
-    active_client = client or default_client_factory()
     gear = equipment.strip() or _read_gear()
     exif = _read_exif(image_path)
     encoded = _encode_image(image_path)
     prompt = _build_reverse_prompt(exif, gear, note)
 
     def _chat(prompt_text: str) -> str:
-        return _multimodal_call(active_client, encoded, prompt_text, "")
+        return _multimodal_call(client, encoded, prompt_text, "")
 
     try:
         report = parse_with_retry(PhotoReverseReport, _chat, prompt, max_retries=_MAX_RETRIES)
@@ -418,7 +397,7 @@ class AnalyzePhotoTool:
 
     spec = _SPEC_ANALYZE_PHOTO
 
-    def __init__(self, client_factory: Callable[[], ChatClient]) -> None:
+    def __init__(self, client_factory: Callable[[], SyncLLMClient]) -> None:
         self._client_factory = client_factory
 
     def __call__(self, ctx: ToolContext, **kwargs: Any) -> ToolResult:
@@ -436,7 +415,7 @@ class ReverseEngineerPhotoTool:
 
     spec = _SPEC_REVERSE_ENGINEER_PHOTO
 
-    def __init__(self, client_factory: Callable[[], ChatClient]) -> None:
+    def __init__(self, client_factory: Callable[[], SyncLLMClient]) -> None:
         self._client_factory = client_factory
 
     def __call__(self, ctx: ToolContext, **kwargs: Any) -> ToolResult:
@@ -445,7 +424,7 @@ class ReverseEngineerPhotoTool:
         return ToolResult(content=json.dumps(data, ensure_ascii=False, default=str), data=data)
 
 
-def build_tools(client_factory: Callable[[], ChatClient]) -> tuple[Tool, ...]:
+def build_tools(client_factory: Callable[[], SyncLLMClient]) -> tuple[Tool, ...]:
     """构造本模块工具（依赖显式注入；装配根/测试各自构造自己的实例）。
 
     Args:
@@ -457,16 +436,11 @@ def build_tools(client_factory: Callable[[], ChatClient]) -> tuple[Tool, ...]:
     return (AnalyzePhotoTool(client_factory), ReverseEngineerPhotoTool(client_factory))
 
 
-# 默认收集点：工厂惰性构造客户端，导入时不建连接（TODO(B2-4): 由装配根注入工厂）
-TOOLS: tuple[Tool, ...] = build_tools(default_client_factory)
-
-
 __all__ = [
     "AnalyzePhotoTool",
     "PhotoError",
     "ReverseEngineerPhotoTool",
     "analyze_photo",
     "build_tools",
-    "default_client_factory",
     "reverse_engineer_photo",
 ]

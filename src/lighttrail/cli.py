@@ -96,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
     recorder = build_recorder()
     recorder.subscribe(_print_progress)
     client = build_client(settings)
-    registry = build_registry(recorder=recorder)
+    registry = build_registry(recorder=recorder, photo_client_factory=lambda: client)
     memory = build_memory(settings)
     # B2-7：自由对话走 PydanticAI runtime（--pipeline 的编排器仍用旧 Agent，切换见 B2-7 剩余项）
     runtime = build_runtime(
@@ -105,7 +105,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.pipeline:
         request = " ".join(args.pipeline)
-        orchestrator = build_orchestrator(client, registry, runtime, memory=memory, recorder=recorder)
+        orchestrator = build_orchestrator(registry, runtime, memory=memory, recorder=recorder)
         print(orchestrator.plan(request))
         return 0
 

@@ -3,7 +3,7 @@
 验证：
 - 默认值：并发 4、护栏 12/12/8、超时 (30,120)、既有字段（数据目录/配额水位/模型名）；
 - 别名解析：LLM_* 优先于 ECNU_*（AliasChoices）；
-- LLM_CONCURRENCY 与护栏项可覆盖；LLM_SERIAL_LLM=true → concurrency=1 兼容映射；
+- LLM_CONCURRENCY 与护栏项可覆盖；并发为单一配置源；
 - LLM_TIMEOUT 支持 "30,120" 与 "[45, 90]" 两种写法；
 - 非法值直接抛 ValidationError（不再静默取默认）；frozen 快照不可变。
 
@@ -28,8 +28,6 @@ _ENV_KEYS = (
     "LLM_MODEL_REASON",
     "ECNU_MODEL_REASON",
     "LLM_CONCURRENCY",
-    "LLM_SERIAL_LLM",
-    "ECNU_SERIAL_LLM",
     "LLM_REASON_THINKING",
     "LLM_TIMEOUT",
     "REACT_MAX_ROUNDS",
@@ -56,7 +54,6 @@ def test_defaults(clean_env: None) -> None:
     """默认值：并发 4、护栏 12/12/8、超时 (30,120)、空 Key 视为未配置。"""
     settings = _load()
     assert settings.concurrency == 4
-    assert settings.serial_llm is False  # 默认并发（非串行），B3 删除该属性
     assert settings.react_max_rounds == 12
     assert settings.pipeline_max_steps == 12
     assert settings.plan_max_steps == 8
@@ -90,20 +87,6 @@ def test_concurrency_override(clean_env: None, monkeypatch: pytest.MonkeyPatch) 
     """LLM_CONCURRENCY 可覆盖（纯配置，无平台语义）。"""
     monkeypatch.setenv("LLM_CONCURRENCY", "8")
     assert _load().concurrency == 8
-    assert _load().serial_llm is False
-
-
-def test_legacy_serial_llm_maps_to_concurrency_one(
-    clean_env: None, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """兼容映射：LLM_SERIAL_LLM=true → concurrency=1（B3 随旧开关一并删除）。"""
-    monkeypatch.setenv("LLM_CONCURRENCY", "8")
-    monkeypatch.setenv("LLM_SERIAL_LLM", "true")
-    settings = _load()
-    assert settings.concurrency == 1
-    assert settings.serial_llm is True
-
-
 def test_guardrail_defaults_and_overrides(clean_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
     """护栏项（D5）默认 12/12/8，且全部可配置。"""
     monkeypatch.setenv("REACT_MAX_ROUNDS", "6")
@@ -133,10 +116,6 @@ def test_invalid_values_raise(clean_env: None, monkeypatch: pytest.MonkeyPatch) 
     with pytest.raises(ValidationError):
         _load()
     monkeypatch.delenv("LLM_CONCURRENCY")
-    monkeypatch.setenv("LLM_SERIAL_LLM", "maybe")
-    with pytest.raises(ValidationError):
-        _load()
-    monkeypatch.delenv("LLM_SERIAL_LLM")
     monkeypatch.setenv("LLM_CONCURRENCY", "0")
     with pytest.raises(ValidationError):
         _load()

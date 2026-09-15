@@ -13,8 +13,8 @@ import json
 import pytest
 from pydantic import ValidationError
 
+from lighttrail.contracts.models import DecisionCard, Intent
 from lighttrail.infra.validation import SchemaError, parse_with_retry
-from lighttrail.orchestrator.schemas import DecisionCard, Intent
 
 _INTENT = {"subject_type": "星空", "location": "崇明", "time_hint": "今晚", "mode": "inspiration"}
 

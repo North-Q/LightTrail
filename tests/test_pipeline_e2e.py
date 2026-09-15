@@ -115,7 +115,7 @@ def test_e2e_galaxy_plan_and_followup_react() -> None:
         ]
     )
     runtime = _runtime(fake)
-    orc = Orchestrator(fake, registry, runtime, memory=_MEMORY, dispatch=_fake_dispatch)
+    orc = Orchestrator(registry, runtime, memory=_MEMORY, dispatch=_fake_dispatch)
 
     text = orc.plan("这周末想去拍银河")
     assert "## 拍摄方案" in text
@@ -142,7 +142,7 @@ def test_e2e_fire_cloud_live_decision() -> None:
         ]
     )
     runtime = _runtime(fake)
-    orc = Orchestrator(fake, registry, runtime, memory=_MEMORY, dispatch=_fake_dispatch)
+    orc = Orchestrator(registry, runtime, memory=_MEMORY, dispatch=_fake_dispatch)
     text = orc.plan("明天傍晚去拍火烧云值得吗")
     assert "建议 18:10" in text
     assert "置信度：medium" in text
@@ -152,7 +152,7 @@ def test_golden_cases_are_parsable() -> None:
     """黄金用例集雏形：全部请求可被意图解析（供 E8 展开）。"""
     fake = FakeChatClient([{"role": "assistant", "content": _intent_json(c["subject"])} for c in GOLDEN_CASES])
     runtime = _runtime(fake)
-    orc = Orchestrator(fake, registry, runtime, dispatch=_fake_dispatch)
+    orc = Orchestrator(registry, runtime, dispatch=_fake_dispatch)
     for case in GOLDEN_CASES:
         intent = orc.parse_intent(case["request"])
         assert intent.subject_type == case["subject"], case
@@ -168,7 +168,7 @@ def test_cli_pipeline_entry_prints_card(monkeypatch, capsys) -> None:
         base_url = "http://127.0.0.1:1"
         model = "ecnu-plus"
         model_reason = "ecnu-max"
-        serial_llm = False
+        concurrency = 4
         react_max_rounds = 12
         data_dir = "data"
         quota_warn_threshold = 0.9
@@ -238,7 +238,6 @@ def test_review_pipeline_closed_loop(monkeypatch) -> None:
     fake = _review_fake_agent_client()
     runtime = _runtime(fake)
     orc = Orchestrator(
-        fake,
         registry,
         runtime,
         dispatch=_fake_dispatch,
@@ -256,7 +255,7 @@ def test_review_pipeline_reports_plan_diff() -> None:
     """与历史计划对账：计划 f/8 vs 实拍 f/5.6 → 差异进入综合 prompt。"""
     fake = _review_fake_agent_client()
     runtime = _runtime(fake)
-    orc = Orchestrator(fake, registry, runtime, dispatch=_fake_dispatch, photo_analyze=_fake_analyze)
+    orc = Orchestrator(registry, runtime, dispatch=_fake_dispatch, photo_analyze=_fake_analyze)
     plan_json = json.dumps({"params": [{"name": "光圈", "value": "f/8", "reason": "计划建议"}]}, ensure_ascii=False)
     orc.review("D:/photos/sample.jpg", plan_reference=plan_json)
     prompt = fake.calls[0]["messages"][-1]["content"]
@@ -267,7 +266,7 @@ def test_review_pipeline_missing_image_returns_skeleton() -> None:
     """缺 image_path → 骨架卡（review_missing_image），不触发 LLM 调用。"""
     fake = _review_fake_agent_client()
     runtime = _runtime(fake)
-    orc = Orchestrator(fake, registry, runtime, dispatch=_fake_dispatch, photo_analyze=_fake_analyze)
+    orc = Orchestrator(registry, runtime, dispatch=_fake_dispatch, photo_analyze=_fake_analyze)
     text = orc.review("")
     assert "image_path" in text
     assert fake.calls == []

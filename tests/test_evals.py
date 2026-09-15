@@ -20,9 +20,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from evals.fake_data import CassetteChatClient, card, intents
 from evals.judge import LLMJudge, LocalRubric, ToolCrossCheck
 from evals.runner import assert_card, run_l2, run_l3
-from lighttrail.contracts.models import ConfidenceDetail
+from lighttrail.contracts.models import ConfidenceDetail, DecisionCard, ParamSuggestion, Source
 from lighttrail.infra.confidence import confidence_detail
-from lighttrail.orchestrator.schemas import DecisionCard, ParamSuggestion, Source
 from lighttrail.tools import exposure  # noqa: F401  触发注册
 
 

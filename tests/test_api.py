@@ -22,9 +22,9 @@ from pathlib import Path
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from lighttrail.adapters.llm.client import LLMError
 from lighttrail.api.app import ApiDeps, create_app
 from lighttrail.api.session import SessionManager
-from lighttrail.llm.client import LLMError
 from lighttrail.memory import MemoryManager
 
 # 工具触发注册（conftest 已导入，此处双保险）

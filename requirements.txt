@@ -1,8 +1,19 @@
 # LightTrail 运行时依赖
-# 当前最小链路仅依赖 openai SDK（学校开发者平台为 OpenAI 兼容接口）
+# LLM OpenAI 兼容客户端
 openai>=1.40.0
 # 天文历法计算（日出日落/月相/晨昏蒙影）
 astral>=3.2
 # 照片分析（E6-1）：图片缩放编码 + EXIF 读取
 Pillow>=10.0
 exifread>=3.0
+# Web 服务与配置
+fastapi>=0.110
+uvicorn>=0.29
+python-multipart>=0.0.9
+pydantic>=2.6
+pydantic-settings>=2.2
+# HTTP 数据源与重试
+httpx>=0.27
+tenacity>=9.0
+# Agent runtime
+pydantic-ai-slim>=2.41,<3

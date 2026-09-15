@@ -28,8 +28,8 @@ from lighttrail.api.session import (
     restore_context,
     snapshot_context,
 )
+from lighttrail.contracts.models import DecisionCard, Intent, LocationSuggestion, Source
 from lighttrail.orchestrator.context import PipelineContext
-from lighttrail.orchestrator.schemas import DecisionCard, Intent, LocationSuggestion, Source
 
 
 @pytest.fixture()

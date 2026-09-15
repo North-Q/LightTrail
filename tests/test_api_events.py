@@ -24,7 +24,8 @@ from httpx import ASGITransport, AsyncClient
 from lighttrail.api.app import ApiDeps, create_app
 from lighttrail.api.events import TraceBridge, map_trace_event, sse_text
 from lighttrail.api.session import SessionManager
-from lighttrail.infra.trace import TraceEvent, TraceRecorder
+from lighttrail.contracts.events import TraceEvent
+from lighttrail.infra.trace import TraceRecorder
 from lighttrail.memory import MemoryManager
 from lighttrail.tools import (  # noqa: F401  触发注册
     astronomy,

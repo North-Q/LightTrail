@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 
+from lighttrail.adapters.llm.client import UsageStats
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.composition import build_registry
@@ -23,7 +24,6 @@ from lighttrail.infra.trace import (
     TraceRecorder,
     null_trace,
 )
-from lighttrail.llm.client import UsageStats
 from lighttrail.runtime.agent import AgentRuntime
 from lighttrail.runtime.registry import ToolRegistry
 from lighttrail.tools import basic, exposure  # noqa: F401  确保全局工具注册

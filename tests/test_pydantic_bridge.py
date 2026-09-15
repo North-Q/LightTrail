@@ -30,10 +30,10 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.models import ModelRequestParameters, ModelSettings, ToolDefinition
 
+from lighttrail.adapters.llm.client import UsageStats
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel, _map_messages, _map_tools
 from lighttrail.contracts.llm import LLMProvider
-from lighttrail.llm.client import UsageStats
 
 
 @pytest.fixture(autouse=True)

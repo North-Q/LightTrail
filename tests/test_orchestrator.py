@@ -17,6 +17,7 @@ from pathlib import Path
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.composition import build_registry
+from lighttrail.contracts.models import DecisionCard, Intent
 from lighttrail.infra.trace import TraceRecorder
 from lighttrail.memory import MemoryManager, UserProfile
 from lighttrail.orchestrator import Orchestrator
@@ -28,7 +29,6 @@ from lighttrail.orchestrator.pipelines import (
     ReviewPipeline,
     default_mode,
 )
-from lighttrail.orchestrator.schemas import DecisionCard, Intent
 from lighttrail.runtime.agent import AgentRuntime
 from lighttrail.tools import (  # noqa: F401  触发注册
     astronomy,
@@ -196,7 +196,7 @@ def test_orchestrator_plan_full_flow() -> None:
         ]
     )
     runtime = _runtime(fake, recorder=recorder)
-    orc = Orchestrator(fake, registry, runtime, memory=_MEMORY, recorder=recorder, dispatch=_fake_dispatch)
+    orc = Orchestrator(registry, runtime, memory=_MEMORY, recorder=recorder, dispatch=_fake_dispatch)
     text = orc.plan("这周末想去拍银河")
 
     assert "## 拍摄方案" in text
@@ -223,7 +223,7 @@ def test_orchestrator_plan_falls_back_to_react_on_bad_card() -> None:
     reply = {"role": "assistant", "content": "我建议先看云图再决定。"}
     fake = FakeChatClient([{"role": "assistant", "content": _INTENT_JSON}, bad_card, bad_card, bad_card, reply])
     runtime = _runtime(fake, recorder=recorder)
-    orc = Orchestrator(fake, registry, runtime, memory=_MEMORY, recorder=recorder, dispatch=_fake_dispatch)
+    orc = Orchestrator(registry, runtime, memory=_MEMORY, recorder=recorder, dispatch=_fake_dispatch)
     text = orc.plan("今晚火烧云值得冲吗")
 
     assert text == "我建议先看云图再决定。"
@@ -243,7 +243,7 @@ def test_fallback_carries_card_context() -> None:
         ]
     )
     runtime = _runtime(fake)
-    orc = Orchestrator(fake, registry, runtime, memory=_MEMORY, dispatch=_fake_dispatch)
+    orc = Orchestrator(registry, runtime, memory=_MEMORY, dispatch=_fake_dispatch)
     orc.plan("这周末想去拍银河")  # 成功产出卡片
     reply = orc._fallback("参数激进一点")
     assert reply == "好，参数改激进一些。"

@@ -373,7 +373,9 @@ class ReviewPipeline(Pipeline):
             env.recorder.record_step("复盘_缺图", input_summary=ctx.user_request, output_summary="")
             return ctx.card
         focus = str(ctx.data.get("focus") or "")
-        analyzer = env.photo_analyze or _default_photo_analyze()
+        if env.photo_analyze is None:
+            raise RuntimeError("复盘管线未装配照片分析工具")
+        analyzer = env.photo_analyze
         env.recorder.record_step("复盘_照片分析", input_summary=image_path[:80], output_summary=focus[:60])
         report = analyzer(image_path, focus)
         exif = report.get("已识别EXIF") if isinstance(report, dict) else {}
@@ -384,16 +386,6 @@ class ReviewPipeline(Pipeline):
         ctx.card = parse_with_retry(DecisionCard, lambda p: env.reason(p, ""), prompt)
         env.recorder.record_step("复盘_卡片", input_summary=ctx.card.conclusion, output_summary="")
         return ctx.card
-
-
-def _default_photo_analyze() -> Callable[[str, str], dict[str, Any]]:
-    """默认照片分析绑定（延迟 import，避免模块级 tools 依赖；测试注入 Fake）。"""
-    from lighttrail.tools import photo_analysis
-
-    def analyze(image_path: str, focus: str) -> dict[str, Any]:
-        return photo_analysis.analyze_photo(image_path, focus=focus)
-
-    return analyze
 
 
 def _diff_exif_vs_plan(exif: dict[str, Any], plan_params: Any) -> list[str]:

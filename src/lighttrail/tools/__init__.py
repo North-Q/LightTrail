@@ -22,8 +22,8 @@ from lighttrail.tools import (
     weather,
 )
 
-# 声明式工具清单：15 个工具全部声明式（新增工具 = 在此追加一行）
-# 智能工具（记忆检索 / 照片分析 / 照片反推）的依赖经工厂注入，无模块级可写全局
+# 基础声明式工具清单。照片工具需要同步 LLM 端口，只能由 composition 注入后追加，
+# 避免领域层自行构造适配器客户端。
 TOOLS: tuple[Tool, ...] = (
     *basic.TOOLS,
     *exposure.TOOLS,
@@ -31,7 +31,6 @@ TOOLS: tuple[Tool, ...] = (
     *weather.TOOLS,
     *site_match.TOOLS,
     *memory_tool.build_tools(memory_tool.default_store_factory),
-    *photo_analysis.build_tools(photo_analysis.default_client_factory),
 )
 
 __all__ = [

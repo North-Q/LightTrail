@@ -90,6 +90,28 @@ class LLMProvider(Protocol):
 
 
 @runtime_checkable
+class SyncLLMClient(Protocol):
+    """同步补全端口：仅供同步多模态领域工具使用。
+
+    完整应用链路应优先依赖 async-first 的 ``LLMProvider``。照片工具仍运行在同步
+    ToolRegistry 调度面，因此通过这个最小端口接收装配根提供的客户端。
+    """
+
+    def chat(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        model: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        temperature: float = 0.2,
+        thinking: dict[str, Any] | None = None,
+        reasoning_effort: str | None = None,
+    ) -> dict[str, Any]:
+        """同步发起一次对话补全。"""
+        ...
+
+
+@runtime_checkable
 class UserConfigProvider(Protocol):
     """LLM 配置优先级链的唯一解析入口（§7.2）。
 
@@ -126,5 +148,6 @@ __all__ = [
     "KeyVault",
     "LLMConfig",
     "LLMProvider",
+    "SyncLLMClient",
     "UserConfigProvider",
 ]

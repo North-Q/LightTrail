@@ -20,14 +20,12 @@ from typing import Any
 from lighttrail.contracts.models import DecisionCard, Intent
 from lighttrail.infra.trace import Recorder, null_trace
 from lighttrail.infra.validation import parse_with_retry
-from lighttrail.llm.client import ChatClient
 from lighttrail.llm.router import ModelRouter
 from lighttrail.memory import MemoryManager
 from lighttrail.orchestrator.context import PipelineContext
 from lighttrail.orchestrator.pipelines import PIPELINES, PipelineEnv, default_mode, finalize_card
 from lighttrail.runtime.agent import AgentRuntime
 from lighttrail.runtime.registry import ToolRegistry
-from lighttrail.tools.astronomy import _parse_date  # noqa: F401  日期校验辅助（供 reverse 采集）
 
 logger = logging.getLogger("lighttrail.orchestrator")
 
@@ -35,24 +33,34 @@ logger = logging.getLogger("lighttrail.orchestrator")
 _INTENT_SYSTEM = "你是 LightTrail 摄影决策引擎的意图解析器。"
 
 
-def _default_photo_analyze() -> Callable[[str, str], dict]:
-    """默认照片分析绑定（延迟 import tools.photo_analysis；测试注入 Fake）。"""
-    from lighttrail.tools import photo_analysis
-
+def _default_photo_analyze(registry: ToolRegistry, recorder: Recorder) -> Callable[[str, str], dict]:
+    """默认照片分析绑定：经注册表调用已注入依赖的领域工具。"""
     def analyze(image_path: str, focus: str) -> dict:
-        return photo_analysis.analyze_photo(image_path, focus=focus)
+        raw = registry.dispatch(
+            "analyze_photo", json.dumps({"image_path": image_path, "focus": focus}), recorder=recorder
+        )
+        result = json.loads(raw)
+        if not isinstance(result, dict):
+            raise TypeError("照片分析工具返回格式非法")
+        return result
 
     return analyze
 
 
-def _default_photo_reverse() -> Callable[[str, str, str], dict]:
-    """默认照片反推绑定（延迟 import tools.photo_analysis；测试注入 Fake）。"""
-    from lighttrail.tools import photo_analysis
-
+def _default_photo_reverse(
+    registry: ToolRegistry, recorder: Recorder
+) -> Callable[[str, str, str], dict]:
+    """默认照片反推绑定：经注册表调用已注入依赖的领域工具。"""
     def reverse(image_path: str, note: str, equipment: str) -> dict:
-        return photo_analysis.reverse_engineer_photo(
-            image_path, note=note, equipment=equipment
+        raw = registry.dispatch(
+            "reverse_engineer_photo",
+            json.dumps({"image_path": image_path, "note": note, "equipment": equipment}),
+            recorder=recorder,
         )
+        result = json.loads(raw)
+        if not isinstance(result, dict):
+            raise TypeError("照片反推工具返回格式非法")
+        return result
 
     return reverse
 
@@ -140,7 +148,6 @@ class Orchestrator:
 
     def __init__(
         self,
-        client: ChatClient,
         registry: ToolRegistry,
         agent: AgentRuntime,
         *,
@@ -154,7 +161,6 @@ class Orchestrator:
         """初始化编排器。
 
         Args:
-            client: LLM 客户端（意图理解走默认模型）。
             registry: 工具注册表（数据采集直调）。
             agent: LLM 交互面——B2-7 起传 `AgentRuntime`（PydanticAI）；
                 迁移期亦接受旧 `Agent` 门面（TODO(B2-7): 测试全部换装后删旧分支）。
@@ -163,10 +169,9 @@ class Orchestrator:
             router: 模型路由（缺省取 agent 内部路由）。
             dispatch: 数据采集函数（工具名, 参数 JSON）→ 结果 JSON；缺省用注册表
                 直调并注入 recorder；测试可传 Fake 数据源（不触网、不依赖 API Key）。
-            photo_analyze: 照片分析绑定（缺省走 photo_analysis 工具与部署级客户端）。
-            photo_reverse: 照片反推绑定（同上；测试注入 Fake，避免依赖模块级全局）。
+            photo_analyze: 照片分析绑定（缺省经注册表调用已装配工具）。
+            photo_reverse: 照片反推绑定（同上；测试可注入 Fake）。
         """
-        self._client = client
         self._registry = registry
         self._runtime = agent
         self._recorder: Recorder = recorder or null_trace
@@ -178,9 +183,9 @@ class Orchestrator:
             memory=memory,
             recorder=self._recorder,
             router=self._router,
-            photo_analyze=photo_analyze or _default_photo_analyze(),
+            photo_analyze=photo_analyze or _default_photo_analyze(self._registry, self._recorder),
         )
-        self._photo_reverse = photo_reverse or _default_photo_reverse()
+        self._photo_reverse = photo_reverse or _default_photo_reverse(self._registry, self._recorder)
         self.last_card: DecisionCard | None = None
 
     # ------ 对外接口 ------

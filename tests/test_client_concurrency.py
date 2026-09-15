@@ -1,7 +1,7 @@
 """ChatClient 并发与容错的 pytest 用例（B3-1 重写后的契约）。
 
 B3-1 契约变化：
-- 并发是**纯配置**（ADR-004）：`concurrency=1` 等价旧「串行」，默认 4；旧 `serial_llm` 只作兼容别名；
+- 并发是**纯配置**（ADR-004）：`concurrency=1` 等价串行，默认 4；
 - **单一实现**：真正逻辑在 `acall`（async-first），同步 `chat` 是后台共享事件循环上的门面；
 - **单一并发机制**：一个跨 loop 的限流器（`threading.BoundedSemaphore` + `asyncio.to_thread`），
   旧的三套机制（Lock + 自研 FIFO 闸门 + call_soon_threadsafe 桥）已删除；
@@ -20,7 +20,7 @@ from typing import Any
 import pytest
 
 import lighttrail.adapters.llm.client as client_mod  # monkeypatch 打真源模块，确保影响实现
-from lighttrail.llm.client import ChatClient, LLMError
+from lighttrail.adapters.llm.client import ChatClient, LLMError
 
 _DELAY = 0.05
 
@@ -127,12 +127,6 @@ async def test_sync_facade_rejects_running_loop() -> None:
     client, _ = _probed_client(concurrency=4)
     with pytest.raises(LLMError):
         client.chat([{"role": "user", "content": "hi"}])
-
-
-def test_serial_llm_alias_maps_to_concurrency_one() -> None:
-    """兼容别名：serial_llm=True → concurrency=1（B5 批次删除该别名）。"""
-    client = ChatClient(api_key="sk-test", base_url="http://127.0.0.1:1", serial_llm=True)
-    assert client.concurrency == 1
 
 
 # ------ reason 扩展参数：SDK 原生 vs extra_body（平台/SDK 版本中立，ADR-003）------

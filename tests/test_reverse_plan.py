@@ -181,7 +181,7 @@ def test_orchestrator_reverse_plan_full_flow(workdir: Path, monkeypatch) -> None
     memory = MemoryManager(workdir)
     memory.update_profile({"favorite_spots": [{"name": "临港海边", "latitude": 30.9, "longitude": 121.9}]})
     orc = Orchestrator(
-        agent_fake, registry, runtime, memory=memory, dispatch=_fake_dispatch, photo_reverse=_fake_reverse
+        registry, runtime, memory=memory, dispatch=_fake_dispatch, photo_reverse=_fake_reverse
     )
     text = orc.reverse_plan(str(image), note="只能周末去")
 
@@ -214,9 +214,7 @@ def test_orchestrator_reverse_plan_fallback_on_failure(workdir: Path, monkeypatc
     def _fake_reverse(image_path: str, note: str, equipment: str) -> dict:
         return photo.reverse_engineer_photo(image_path, note=note, equipment=equipment, client=photo_fake)
 
-    orc = Orchestrator(
-        agent_fake, registry, runtime, dispatch=_fake_dispatch, photo_reverse=_fake_reverse
-    )
+    orc = Orchestrator(registry, runtime, dispatch=_fake_dispatch, photo_reverse=_fake_reverse)
     text = orc.reverse_plan(str(image))
     assert isinstance(text, str)
     assert len(text) > 0

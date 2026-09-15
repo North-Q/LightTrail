@@ -85,11 +85,12 @@ def create_app(deps: ApiDeps | None = None) -> FastAPI:
         if not settings.has_api_key:
             logger.warning("未配置有效 API Key：服务可启动，但 LLM 调用会失败（请检查 .env）")
         # 装配根是唯一的 new 点（B2-4）
+        client = build_client(settings)
         deps = ApiDeps(
-            client=build_client(settings),
+            client=client,
             sessions=SessionManager(settings.data_dir),
             memory=build_memory(settings),
-            registry=build_registry(),
+            registry=build_registry(photo_client_factory=lambda: client),
             model=settings.model,
             reason_thinking=settings.reason_thinking,
         )

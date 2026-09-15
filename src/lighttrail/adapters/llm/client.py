@@ -1,7 +1,6 @@
 """LLM 客户端实现：OpenAI 兼容接口的 async-first 薄封装（B3-1 重写；B3-5 迁入适配层）。
 
-归属：本文件是 LLM 客户端的**实现真源**（适配层 L4）。旧路径 `lighttrail.llm.client`
-保留为 re-export shim 供迁移期调用方使用；TODO(B5-4): 域工具改经 ToolContext.llm 端口后删除 shim。
+归属：本文件是 LLM 客户端的**实现真源**（适配层 L4）。
 
 设计要点（v4 §3 D5 / ADR-004；B3-1 落地）：
 - **单一并发机制**：只保留一个跨越同步/异步调用方的限流器（`_ConcurrencyLimiter`，上限
@@ -15,8 +14,7 @@
 - 平台扩展参数（ADR-003）：thinking / reasoning_effort 由 SDK 原生参数或 extra_body 双路径承载
   （`_NATIVE_REASON_PARAMS` 运行时探测），业务代码不感知。
 
-并发是配置不是架构（ADR-004）：`LLM_CONCURRENCY=1` 即等价旧「串行」；`serial_llm` 仅作
-只读兼容别名过渡一版（=True → concurrency=1），B5 批次随旧开关一并删除。
+并发是配置不是架构（ADR-004）：`LLM_CONCURRENCY=1` 即可采用串行执行。
 """
 
 from __future__ import annotations
@@ -204,7 +202,6 @@ class ChatClient:
         base_url: OpenAI 兼容接口地址。
         timeout: (连接超时, 读取超时)。
         concurrency: 在途 LLM 请求上限（默认 4，见 ADR-004；1 等价旧「串行」）。
-        serial_llm: 只读兼容别名（True → concurrency=1）；B5 批次删除。
         quota: 配额账本（成功响应后按 usage 记账；未注入时不记账）。
     """
 
@@ -215,12 +212,8 @@ class ChatClient:
         *,
         timeout: tuple[float, float] = (30.0, 120.0),
         concurrency: int = _DEFAULT_CONCURRENCY,
-        serial_llm: bool | None = None,
         quota: QuotaLedger | None = None,
     ) -> None:
-        if serial_llm:
-            # 兼容映射：旧开关 =True 等价 concurrency=1（ADR-004；B5 删除该别名）
-            concurrency = 1
         self._client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
         self._quota = quota
         self._limiter = _ConcurrencyLimiter(concurrency)

@@ -145,15 +145,6 @@ def test_trace_event_frozen_and_default_payload() -> None:
         first.name = "c"  # type: ignore[misc]
 
 
-def test_schemas_shim_reexports_same_objects() -> None:
-    """旧路径 shim 与新真源指向同一对象（迁移期零行为变化）。"""
-    from lighttrail.contracts import models
-    from lighttrail.orchestrator import schemas
-
-    for name in ("DecisionCard", "Intent", "Source", "PhotoAnalysisReport", "PhotoReverseReport"):
-        assert getattr(schemas, name) is getattr(models, name)
-
-
 def test_trace_event_reexported_from_infra_trace() -> None:
     """infra.trace 迁移期仍可导出 TraceEvent / KIND_*（旧 import 路径可用）。"""
     from lighttrail.infra import trace

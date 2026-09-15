@@ -4,7 +4,7 @@
 - 端口是 async-first（`complete` 为协程）；既有 `ChatClient.acall` 已是 async 通道，
   本实现直接委托，不再维护第二套并发控制（B3 会把 ChatClient 重写成同层实现）；
 - `usage_callback(prompt, completion)` 沿用 ChatClient 的回传机制，供上层记账；
-- 品牌与平台扩展参数适配仍在 `lighttrail.llm.client`（ADR-002/003）：本文件只做转发。
+- 品牌与平台扩展参数适配封装在同层 `client.py`（ADR-002/003）：本文件只做转发。
 """
 
 from __future__ import annotations

@@ -7,12 +7,11 @@
 - 只放「跨层共享的类型与端口」，不放实现、不放业务规则：
   - tool.py：ToolSpec / ToolContext / Tool / Confidence / ToolResult；
   - context.py：RequestContext（用户体系预留，贯穿 session/memory/quota/LLM 配置）；
-  - llm.py：LLMConfig / LLMProvider / UserConfigProvider / KeyVault；
+  - llm.py：LLMConfig / LLMProvider / SyncLLMClient / UserConfigProvider / KeyVault；
   - models.py / plan.py / events.py：Intent / DecisionCard / Plan / TraceEvent / SSEEvent；
   - memory.py / knowledge.py / datasource.py / observability.py：其余端口；
 - 分层纪律：`contracts → ∅`（零依赖），`domain/adapters → contracts`，反向依赖一律违规。
-- 迁移期兼容：旧路径（orchestrator.schemas、infra.trace）保留 re-export shim，
-  shim 带 TODO 与删除批次（B5），到期不删即批次不通过。
+- 迁移期兼容由边界层单独管理，业务实现一律从本包导入。
 """
 
 from __future__ import annotations
@@ -33,6 +32,7 @@ from lighttrail.contracts.llm import (
     KeyVault,
     LLMConfig,
     LLMProvider,
+    SyncLLMClient,
     UserConfigProvider,
 )
 from lighttrail.contracts.memory import EventRecord, MemoryBlock, MemoryStore, TokenBudget
@@ -79,6 +79,7 @@ __all__ = [
     "SSEEvent",
     "SSEEventPayload",
     "Source",
+    "SyncLLMClient",
     "TokenBudget",
     "Tool",
     "ToolContext",

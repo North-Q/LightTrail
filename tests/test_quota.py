@@ -15,9 +15,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from lighttrail.adapters.llm.client import ChatClient
 from lighttrail.infra.quota import CallPlan, Pricing, QuotaError, QuotaLedger
 from lighttrail.infra.trace import TraceReport
-from lighttrail.llm.client import ChatClient
 from lighttrail.llm.router import ModelRouter, RouteIntent
 
 _FIXED_NOW = 1_800_000_000.0
