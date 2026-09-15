@@ -1,5 +1,15 @@
 # LightTrail 开发日志
 
+## 2026-09-15（B5-1 MemoryStore user_id 命名空间 — 待提交）
+
+- `MemoryManager` 的读写入口以 `RequestContext` 为首参；档案、事件 SQLite、语义 JSON 按
+  `data/users/{user_id}/memory/` 隔离，`user_id` 严格限制为字母、数字、下划线与连字符；
+- 新增 `memory/migration.py` 与 `scripts/migrate_memory_namespace.py`：仅迁移旧根目录的
+  `profile.json`、`events.db`、`semantic.json`，目标存在即跳过，重复执行不覆盖数据；已将本地
+  `data/events.db` 迁至 `data/users/_local/memory/events.db`；
+- 新增命名空间隔离、迁移幂等回归；全量验证：pytest 342 passed、ruff 0、lint-imports 3 kept / 0 broken。
+
+
 ## 2026-09-14（B4 契约单一真源 + 前端重接：B4-1 ~ B4-5 全部交付，停闸门 4）
 
 > 批次目标（v4 §6 B4 / §3 D8）：pydantic 单一真源 → OpenAPI → openapi-typescript 生成；

@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from lighttrail.contracts.context import RequestContext
 from lighttrail.contracts.models import DecisionCard, Intent
 from lighttrail.infra.confidence import confidence_detail
 from lighttrail.infra.trace import Recorder, null_trace
@@ -219,7 +220,10 @@ def _build_synthesis_prompt(ctx: PipelineContext, env: PipelineEnv) -> str:
         lines.append(f"规范意图：题材={intent.subject_type or '未指定'}，地点={intent.location or '未指定'}，时间={intent.time_hint or '未指定'}")
     memory_text = ""
     if env.memory is not None:
-        memory_text = "\n".join(block.text for block in env.memory.build_injections(intent.subject_type if intent else ""))
+        memory_text = "\n".join(
+            block.text
+            for block in env.memory.build_injections(RequestContext(), intent.subject_type if intent else "")
+        )
     if memory_text:
         lines.append(f"用户记忆：\n{memory_text}")
     if ctx.data:

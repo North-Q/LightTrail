@@ -36,6 +36,7 @@ from lighttrail.api.events import (
     to_payload,
 )
 from lighttrail.composition import build_context
+from lighttrail.contracts.context import RequestContext
 from lighttrail.contracts.events import (
     CardEvent,
     DoneEvent,
@@ -395,7 +396,7 @@ async def put_profile(payload: ProfilePayload, request: Request) -> dict[str, An
     """部分更新档案：只更新出现字段，未知字段忽略。"""
     deps = request.app.state.deps
     fields = payload.model_dump(exclude_none=True)
-    deps.memory.update_profile(fields)
+    deps.memory.update_profile(RequestContext(), fields)
     return asdict(deps.memory.profile)
 
 

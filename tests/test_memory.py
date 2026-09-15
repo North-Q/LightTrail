@@ -21,7 +21,9 @@ import pytest
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.composition import build_context, build_registry
+from lighttrail.contracts.context import RequestContext
 from lighttrail.memory import MemoryManager, SemanticStore, UserProfile
+from lighttrail.memory.migration import migrate_memory_namespace
 from lighttrail.runtime.agent import AgentRuntime
 
 
@@ -92,7 +94,9 @@ def test_update_and_save_persists(memory_dir) -> None:
     """update_profile 落盘后可重新加载。"""
     manager = MemoryManager(memory_dir)
     manager.update_profile({"camera_body": "索尼 A7M4", "preferences": ["街头"]})
-    saved = json.loads(Path(memory_dir, "profile.json").read_text(encoding="utf-8"))
+    saved = json.loads(
+        Path(memory_dir, "users", "_local", "memory", "profile.json").read_text(encoding="utf-8")
+    )
     assert saved["camera_body"] == "索尼 A7M4"
     assert saved["preferences"] == ["街头"]
 
@@ -104,7 +108,9 @@ def test_update_ignores_unknown_fields(memory_dir) -> None:
     """未知字段被忽略，不写入。"""
     manager = MemoryManager(memory_dir)
     manager.update_profile({"api_key": "secret", "camera_body": "理光 GR3"})
-    saved = json.loads(Path(memory_dir, "profile.json").read_text(encoding="utf-8"))
+    saved = json.loads(
+        Path(memory_dir, "users", "_local", "memory", "profile.json").read_text(encoding="utf-8")
+    )
     assert "api_key" not in saved
     assert saved["camera_body"] == "理光 GR3"
 
@@ -253,13 +259,33 @@ def test_profile_example_spot_shape_is_machine_readable() -> None:
         assert isinstance(spot["latitude"], (int, float)) and isinstance(spot["longitude"], (int, float))
 
 
-def test_user_id_namespace_is_not_implemented_yet(memory_dir: Path) -> None:
-    """现状共识（B5-1 改造点）：记忆仍写在 data_dir 根，尚未按 user_id 分层。
-
-    该用例是**有意的前置提示**：B5-1 落地后请翻转断言（改为断言写入
-    `data_dir/users/{user_id}/memory/`），否则会在改造完成后提醒不到人。
-    """
+def test_user_id_namespace_is_isolated(memory_dir: Path) -> None:
+    """不同 user_id 的事件和档案必须落在互不重叠的命名空间。"""
     manager = MemoryManager(memory_dir)
-    manager.add_event("2026-09-15T19:00:00+08:00", "测试机位", outcome="success")
-    assert (memory_dir / "events.db").exists()
-    assert not (memory_dir / "users").exists()
+    local = RequestContext()
+    other = RequestContext(user_id="other")
+    manager.update_profile(local, {"camera_body": "松下 S5M2"})
+    manager.update_profile(other, {"camera_body": "索尼 A7C2"})
+    manager.add_event(local, "2026-09-15T19:00:00+08:00", "临港")
+    manager.add_event(other, "2026-09-15T19:00:00+08:00", "外滩")
+    assert manager.profile_for(local).camera_body == "松下 S5M2"
+    assert manager.profile_for(other).camera_body == "索尼 A7C2"
+    assert (memory_dir / "users" / "_local" / "memory" / "events.db").exists()
+    assert (memory_dir / "users" / "other" / "memory" / "events.db").exists()
+
+
+def test_memory_migration_is_idempotent(memory_dir: Path) -> None:
+    """旧根目录文件只迁一次，重复执行不覆盖已迁移的数据。"""
+    (memory_dir / "profile.json").write_text('{"camera_body": "松下 S5M2"}', encoding="utf-8")
+    first = migrate_memory_namespace(memory_dir)
+    second = migrate_memory_namespace(memory_dir)
+    target = memory_dir / "users" / "_local" / "memory" / "profile.json"
+    assert first.moved == (target,)
+    assert second.moved == ()
+    assert json.loads(target.read_text(encoding="utf-8"))["camera_body"] == "松下 S5M2"
+
+
+def test_memory_migration_rejects_path_like_user_id(memory_dir: Path) -> None:
+    """迁移脚本不允许 user_id 逃逸出 users 目录。"""
+    with pytest.raises(ValueError, match="user_id"):
+        migrate_memory_namespace(memory_dir, "../other")

@@ -15,6 +15,7 @@ from __future__ import annotations
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.config import Settings, load_settings
+from lighttrail.contracts.context import RequestContext
 from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.trace import Recorder, TraceRecorder
 from lighttrail.llm.client import ChatClient
@@ -106,7 +107,7 @@ def build_context(
     profile_provider = None
     if memory is not None:
         profile_provider = lambda: "\n".join(
-            block.text for block in memory.build_injections("")
+            block.text for block in memory.build_injections(RequestContext(), "")
         )
     return ContextBuilder(
         registry=registry,

@@ -1,6 +1,6 @@
 # TODO · LightTrail（光迹）
 
-> 项目待办 + 灵感收集。更新日期：2026-09-14
+> 项目待办 + 灵感收集。更新日期：2026-09-15
 > **当前阶段：架构重建期**——任务编号见 `docs/REFACTOR-ROADMAP.md`（B0-1 … B7-6）；方案权威 `docs/architecture-v4-proposal.md`；codex 入口 `docs/codex-longterm-goal.md` v7。
 > E1–E8 已完成（旧 E 系列路线图归档至 `docs/archive/DEVELOPMENT-ROADMAP-v2.5.md`）；E9/E10 等未做功能项的处置见 PRD 附录 A2（v0.4 范围修订）。
 
@@ -96,12 +96,11 @@
       + 2 例模板门禁（字段覆盖 / 机位形状机器可读，删字段即红）；(b) ⏳ 键形状分裂——记忆层
       `sediment_favorite_spots` 写中文键（名称/纬度/经度/题材），前端读英文键（name/latitude/longitude）
       → 沉淀机位在 D2 列表静默不显示，建议 B5-3 统一为英文键；(c) ⏳ B5-1 前置提示——
-      `tests/test_memory.py::test_user_id_namespace_is_not_implemented_yet` 断言「记忆仍写在 data_dir 根」，
-      B5-1 落地后请翻转。
+      `tests/test_memory.py` 的命名空间隔离用例已覆盖 B5-1；B5-3 仍需统一沉淀产物键形状。
 
 ### B5 记忆命名空间 + 清理 + 文档
 
-- [ ] B5-1 MemoryStore user_id 命名空间（data/users/{user_id}/）+ 存量迁移
+- [x] B5-1 MemoryStore user_id 命名空间（data/users/{user_id}/）+ 存量迁移（2026-09-15）
 - [ ] B5-2 semantic 层拆分（用户偏好留记忆 / 领域结论迁知识库种子）
 - [ ] B5-3 坐标改用 favorite_spots（消灭 _DEFAULT_LAT 双份）+ 预算显式化
 - [ ] B5-4 死代码清理 + requirements.txt 对齐 pyproject + shim 到期删除

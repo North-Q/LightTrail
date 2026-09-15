@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pytest
 
+from lighttrail.contracts.context import RequestContext
 from lighttrail.memory import MemoryManager, SemanticStore
 
 
@@ -58,7 +59,7 @@ def test_event_outcome_roundtrip_and_migration(workdir: Path) -> None:
     """带 outcome 写入可读回；旧库（无 outcome 列）迁移后不报错。"""
     manager = _manager(workdir)
     manager.add_event("2026-06-01T19:00:00+08:00", "临港", subject_type="火烧云", outcome="success")
-    hit = manager._events.search_events(subject_type="火烧云")
+    hit = manager._state(RequestContext()).events.search_events(subject_type="火烧云")
     assert hit[0].outcome == "success"
     # 模拟旧库：用 sqlite 直建无 outcome 表 → 新 EventStore 打开自动迁移
     import sqlite3
@@ -152,7 +153,9 @@ def test_sediment_favorite_spots(workdir: Path) -> None:
     # 重复调用不重复加
     assert manager.sediment_favorite_spots(min_count=2) == []
     # 档案落盘 + 注入段含坐标
-    saved = json.loads((workdir / "profile.json").read_text(encoding="utf-8"))
+    saved = json.loads(
+        (workdir / "users" / "_local" / "memory" / "profile.json").read_text(encoding="utf-8")
+    )
     assert len(saved["favorite_spots"]) == 1
     assert "常去机位：临港海边(30.9123,121.9123)" in manager.profile.to_prompt_section()
 
