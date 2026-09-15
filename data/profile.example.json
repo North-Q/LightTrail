@@ -3,5 +3,10 @@
   "lenses": ["24-105mm F4", "70-300mm", "契卡 14mm 定焦"],
   "preferences": ["风光", "火烧云", "星空"],
   "common_locations": ["临港海边", "外滩", "佘山"],
-  "skill_level": "进阶爱好者"
+  "skill_level": "进阶爱好者",
+  "favorite_spots": [
+    {"name": "临港海边", "latitude": 30.8856, "longitude": 121.9136, "subject": "风光/火烧云"},
+    {"name": "外滩", "latitude": 31.2397, "longitude": 121.4909, "subject": "城市风光"},
+    {"name": "佘山", "latitude": 31.0965, "longitude": 121.1964, "subject": "星空"}
+  ]
 }

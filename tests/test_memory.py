@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import shutil
 import tempfile
@@ -228,3 +229,37 @@ def test_agent_without_memory_omits_layer_four(memory_dir) -> None:
     runtime.run("你好")
     system = fake.calls[0]["messages"][0]["content"]
     assert "## 用户档案与语义记忆" not in system
+
+
+# ------ 模板/命名空间共识（B4 期发现 F10，为 B5 迁移铺路）------
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_EXAMPLE_PROFILE = _REPO_ROOT / "data" / "profile.example.json"
+
+
+def test_profile_example_covers_all_profile_fields() -> None:
+    """示例模板字段必须覆盖 UserProfile 全部字段（此前漏 `favorite_spots`，复制即缺位）。"""
+    example = json.loads(_EXAMPLE_PROFILE.read_text(encoding="utf-8"))
+    missing = [field.name for field in dataclasses.fields(UserProfile) if field.name not in example]
+    assert missing == [], f"data/profile.example.json 缺字段：{missing}"
+
+
+def test_profile_example_spot_shape_is_machine_readable() -> None:
+    """示例机位用机器可读键（name/latitude/longitude/subject），避免「名称/纬度」中文键喂不动工具。"""
+    example = json.loads(_EXAMPLE_PROFILE.read_text(encoding="utf-8"))
+    spots = example.get("favorite_spots") or []
+    assert spots, "示例模板应至少给一个机位样例"
+    for spot in spots:
+        assert {"name", "latitude", "longitude"} <= set(spot), spot
+        assert isinstance(spot["latitude"], (int, float)) and isinstance(spot["longitude"], (int, float))
+
+
+def test_user_id_namespace_is_not_implemented_yet(memory_dir: Path) -> None:
+    """现状共识（B5-1 改造点）：记忆仍写在 data_dir 根，尚未按 user_id 分层。
+
+    该用例是**有意的前置提示**：B5-1 落地后请翻转断言（改为断言写入
+    `data_dir/users/{user_id}/memory/`），否则会在改造完成后提醒不到人。
+    """
+    manager = MemoryManager(memory_dir)
+    manager.add_event("2026-09-15T19:00:00+08:00", "测试机位", outcome="success")
+    assert (memory_dir / "events.db").exists()
+    assert not (memory_dir / "users").exists()

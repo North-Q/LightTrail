@@ -206,6 +206,18 @@
   直接 ImportError（开源后的「装完就跑不起来」）。修法：三者进 `[project].dependencies`，dev extra 不再重复声明；
   并新增 `tests/test_packaging.py`（2 例）——扫描源码顶层 import、剔除标准库与本包、按发行名别名映射（PIL→Pillow、
   pydantic_ai→pydantic-ai-slim）后必须都在 dependencies 里；**实测会咬**（临时删掉 `httpx>=0.27` 即红，恢复即绿）。
+- **发现 F10（档案机位模板/键形状漂移，修一半）**：
+  - (a) **✅ 已修**：`data/profile.example.json` 缺 `favorite_spots`（`UserProfile` 有 6 字段、模板只 5）——
+    照模板建档案就丢了机位精确坐标（B5-3 要用的正是它）。已补 3 个样例机位（临港海边/外滩/佘山，带坐标与题材），
+    并加 2 例门禁：模板字段覆盖 `UserProfile` 全字段、机位形状机器可读（`name/latitude/longitude`）；
+    **实测删字段即红**（两例同时失败）。
+  - (b) **⏳ 待 B5-3**：键形状分裂——记忆层 `sediment_favorite_spots` 写中文键（名称/纬度/经度/题材），
+    前端读英文键（`name/latitude/longitude`）→ 语义提炼沉淀出来的机位在 D2「机位」列表里**静默不显示**。
+    建议 B5-3（坐标改用 favorite_spots）顺势统一为英文键。
+  - (c) **⏳ B5-1 前置提示**：新增 `tests/test_memory.py::test_user_id_namespace_is_not_implemented_yet`
+    断言「记忆仍写在 data_dir 根、无 users/ 目录」——B5-1 落地后请**翻转该断言**，否则改造完成也提醒不到人。
+- **顺带查证（结果正常）**：`npm` 之外的 `frontend/scripts/token-diff.mjs` 复跑 ✅ **32 项设计令牌与真源
+  `:root` 逐项 diff=0**（E7-10 的令牌门禁仍绿）。
 
 
 - **测试规模**：332 → **336**（+4：D4 竞态回归、D4 兜底门禁、CLI 编码容错 2 例）；ruff 0；`npm run build` 通过。

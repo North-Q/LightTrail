@@ -92,6 +92,12 @@
       （FRONTEND-SPEC §5 当时就把该行映射到 `photos/review`，属 E7 期占位）。方案待选：
       ① 新增 `/api/photos/reverse` 端点（复用 `Orchestrator.run_reverse`）+ D1 页按入口分流；
       ② 明确 D1 该入口就是「参考图复盘」，反推留 ReAct（模型可自行调 `reverse_engineer_photo`）。
+- [ ] F10 档案机位模板/键形状漂移：(a) ✅ 已修——`data/profile.example.json` 补 `favorite_spots`（3 个样例机位）
+      + 2 例模板门禁（字段覆盖 / 机位形状机器可读，删字段即红）；(b) ⏳ 键形状分裂——记忆层
+      `sediment_favorite_spots` 写中文键（名称/纬度/经度/题材），前端读英文键（name/latitude/longitude）
+      → 沉淀机位在 D2 列表静默不显示，建议 B5-3 统一为英文键；(c) ⏳ B5-1 前置提示——
+      `tests/test_memory.py::test_user_id_namespace_is_not_implemented_yet` 断言「记忆仍写在 data_dir 根」，
+      B5-1 落地后请翻转。
 
 ### B5 记忆命名空间 + 清理 + 文档
 
