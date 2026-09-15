@@ -14,6 +14,12 @@ dependencies = [
     "astral>=3.2",
     "Pillow>=10.0",
     "exifread>=3.0",
+    # 运行期直接 import（此前漏声明，只在 dev extra 里 → 干净安装会 ImportError）：
+    #   httpx / tenacity：infra/http.py（数据源）+ adapters/llm/client.py（LLM 重试）
+    #   pydantic：契约层与 API 层直接使用（v2 API）
+    "httpx>=0.27",
+    "tenacity>=9.0",
+    "pydantic>=2.6",
     "fastapi>=0.110",
     "uvicorn>=0.29",
     "python-multipart>=0.0.9",
@@ -26,9 +32,8 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "ruff>=0.5",
-    "httpx>=0.27",
-    "tenacity>=9.0",
     "import-linter>=2.0",
+    # httpx / tenacity 已是运行期依赖（见上），这里不再重复声明
 ]
 
 [project.scripts]

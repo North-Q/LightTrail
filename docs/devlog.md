@@ -200,6 +200,12 @@
   （1440×900 / 390×844，对应设计规范里遗留的「双视口自检」）。**实测有效**：正常 base → 7/7 通过；
   指向不存在的 base → 7/7 失败且退出码 1（不是摆设）。选择零依赖实现（不引入 Playwright）是为了
   不给项目加浏览器依赖，本机有 Chrome/Edge 即可跑；需要真实数据链路时仍走真实联调脚本。
+- **发现 F9（打包声明漏运行时依赖，已修 + 加门禁）**：`httpx` / `tenacity` / `pydantic` 在源码里是**运行期直接
+  import**（`infra/http.py` 数据源、`adapters/llm/client.py` LLM 重试、契约层与 API 层），但此前只在
+  `[project.optional-dependencies].dev` 里声明 → 干净的 `pip install .` 会让**核心链路**（LLM 重试 + 天气工具）
+  直接 ImportError（开源后的「装完就跑不起来」）。修法：三者进 `[project].dependencies`，dev extra 不再重复声明；
+  并新增 `tests/test_packaging.py`（2 例）——扫描源码顶层 import、剔除标准库与本包、按发行名别名映射（PIL→Pillow、
+  pydantic_ai→pydantic-ai-slim）后必须都在 dependencies 里；**实测会咬**（临时删掉 `httpx>=0.27` 即红，恢复即绿）。
 
 
 - **测试规模**：332 → **336**（+4：D4 竞态回归、D4 兜底门禁、CLI 编码容错 2 例）；ruff 0；`npm run build` 通过。
