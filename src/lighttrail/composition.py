@@ -40,9 +40,9 @@ from lighttrail.tools import TOOLS, photo_analysis
 __all__ = [
     "build_client",
     "build_context",
+    "build_knowledge",
     "build_ledger",
     "build_memory",
-    "build_knowledge",
     "build_orchestrator",
     "build_provider",
     "build_recorder",

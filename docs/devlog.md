@@ -1,5 +1,11 @@
 # LightTrail 开发日志
 
+## 2026-09-16（B6 收口，停闸门 6）
+
+- B6-1 至 B6-4：相机规格表、中文 FTS5 检索、命中按需注入、档案机型驱动的 NPF 参数链路全部完成。
+- 出口检查：pytest 348 passed、ruff 0、lint-imports 3 kept / 0 broken；L2 cassette 回放 pipeline 12/12、tool 10/10、E6 归档 8/8，LLM 调用 0。
+- 下一步需确认后进入 B7：规则优先意图路由与受控 Planner。
+
 ## 2026-09-16（B6-4 pixel_pitch 端到端 — 待提交）
 
 - `ToolContext` 增加全局只读 `knowledge` 端口，AgentRuntime 分发与 composition 装配均显式传递。

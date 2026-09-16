@@ -8,13 +8,12 @@ from __future__ import annotations
 
 import json
 
+from lighttrail.composition import build_registry
 from lighttrail.contracts.context import RequestContext
 from lighttrail.contracts.knowledge import KnowledgeChunk
 from lighttrail.contracts.tool import ToolContext
-
-from lighttrail.composition import build_registry
-from lighttrail.tools.exposure import StarShutterTool
 from lighttrail.tools import exposure  # noqa: F401
+from lighttrail.tools.exposure import StarShutterTool
 
 registry = build_registry()
 

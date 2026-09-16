@@ -21,8 +21,8 @@ from lighttrail.contracts.context import RequestContext
 
 if TYPE_CHECKING:  # 仅类型注解用：运行时不 import（B1-3 / B1-4 落地实现侧协议）
     from lighttrail.contracts.datasource import DataSource
-    from lighttrail.contracts.llm import LLMProvider
     from lighttrail.contracts.knowledge import KnowledgeProvider
+    from lighttrail.contracts.llm import LLMProvider
     from lighttrail.contracts.memory import MemoryStore
     from lighttrail.contracts.observability import TraceSink
 
