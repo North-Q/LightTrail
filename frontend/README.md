@@ -15,9 +15,9 @@ Trace 时间线与设置页为第二迭代（路线图 E7-5 裁剪原则：首�
 ## 运行
 ```bash
 # 1. 启动后端（项目根 .env 配好 API Key）
-python -m uvicorn lighttrail.api.app:app --host 127.0.0.1 --port 8765
+python -m uvicorn lighttrail.api.app:app --host 127.0.0.1 --port 8766
 
-# 2. 启动前端（/api 已代理到 8765）
+# 2. 启动前端（/api 已代理到 8766）
 cd frontend
 npm install
 npm run dev        # http://localhost:5173

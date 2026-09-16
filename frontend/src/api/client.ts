@@ -2,7 +2,7 @@
 
 import type { SessionDetail, SSEEvent } from "./events";
 
-/** 后端基址：默认走 Vite 代理（/api → 127.0.0.1:8765），可被环境变量覆盖。 */
+/** 后端基址：默认走 Vite 代理（/api → 127.0.0.1:8766），可被环境变量覆盖。 */
 const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
 
 /** 从一帧 SSE 文本解析事件。 */
