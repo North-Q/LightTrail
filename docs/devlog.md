@@ -1,5 +1,12 @@
 # LightTrail 开发日志
 
+## 2026-09-16（B7 收口 / B0–B7 架构重构总收口）
+
+- B7-1~B7-5：规则优先路由、可审计 LLM 兜底、受控 Planner、超工具集诚实告知、ReAct 护栏和评估 RequestContext 已全部落地。
+- 总验收：pytest 361 passed、ruff 0、lint-imports 3 kept / 0 broken、smoke 21/21；L2 pipeline 12/12、tool 10/10、E6 归档 8/8，LLM 调用 0；`npm run gen:api` 无漂移、`npm run build` 通过。
+- 平台中立性审计：业务路由未写模型品牌判断；模型调用仍经 Provider/ModelRouter，领域工具与评估分发经 ToolRegistry，未新增旁路。
+- 停在闸门 7，后续功能迭代需小北确认。
+
 ## 2026-09-16（B7-5 L2 RequestContext 评估适配 — 待提交）
 
 - L2 cassette 增加 `request_context.user_id`（历史 cassette 缺省 `_local`）；回放 runtime 和工具数值断言均显式传入同一请求上下文。

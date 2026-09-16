@@ -1,155 +1,175 @@
-# LightTrail（光迹）· Codex 长期开发目标 v7（架构重建期）
+# LightTrail（光迹）· Codex 长期开发目标
 
-> v7 更新（2026-09-12）：项目进入**架构重建期**。依据已拍板定稿的 `docs/architecture-v4-proposal.md`（D1–D14），本期重心 = **架构重构（B0–B7 批次）**，功能迭代全部让路。旧 E 系列路线（E1–E10）随 v2.5 路线图归档至 `docs/archive/DEVELOPMENT-ROADMAP-v2.5.md`，不再执行。
-> 本文档定位：**路线地图 + 批次闸门 + 硬约束**（现在在哪 / 下一步干什么 / 什么时候必须停下等确认）。任务细节看 **`docs/REFACTOR-ROADMAP.md`**（唯一任务清单），方案论证看 `docs/architecture-v4-proposal.md`，代码规范看 AGENTS.md，平台决策看 ADR-002/003——不在本文档重复。
+> 本文档是 Codex 进行长时间开发时的执行目标与工作协议。它只解决三件事：现在在哪里、接下来做什么、什么情况下必须停下来汇报。
+>
+> 方案权威：[`docs/architecture-v4-proposal.md`](architecture-v4-proposal.md)（D1–D14）。
+> 任务权威：[`docs/REFACTOR-ROADMAP.md`](REFACTOR-ROADMAP.md)（B0–B7）。
+> 当前待办：[`TODO.md`](../TODO.md)。
+> 归档目录中的文档只作历史记录，不得作为当前设计、任务或状态依据。
 
----
+## 📍 当前状态
 
-## 📍 当前位置（开工第一眼先看这里）
+截至 2026-09-16：
 
-```
-📍 当前位置：闸门 4 已到达（**B4 契约单一真源 + 前端重接完成**：OpenAPI→TS 生成流水线 + gen:api 漂移门禁、SSE 事件判别联合进契约、DecisionCard 增 verdict/confidence_detail、D3Page/HomePage 去常量表与正则猜结论、D2Page 改吃 tool_result.data 结构化字段；下一步 B5 记忆命名空间 + 清理 + ADR-004）
-  代码基线：main 分支 HEAD c3463e6（代码 HEAD：含 D4 竞态与 CLI 编码两处真 bug 修复）｜ pytest 336 全绿 ｜ ruff 0 ｜ lint-imports 3 kept / 0 broken ｜ smoke 21 项 ｜ npm run build 通过 ｜ gen:api 幂等（diff=0）
-  评估基线：L2 回放 12/12 + 工具 10/10 全绿（零成本）｜ L3 四维均值 4.17–4.83（diff +0.00）+ 1 次真实 LLM 判官通过
-  真实联调：`scripts/live_check.py` 全绿（CLI --pipeline + 五端点：decide/chat/photos.review/profile 往返；含端口与契约版本守卫）
-  实跑基线：CLI + Web 真实查询通过 ｜ 真实浏览器渲染自检覆盖六页（D1 轨迹面板/D2 天象时间线/D3 三态与置信度三层/D4 复盘卡/总览环图/M1 档案往返）｜ 15 工具声明式 ｜ AgentRuntime 已接管生产路径
-🎯 当前目标：B5 记忆命名空间 + 清理 + 文档（user_id 分层、shim 到期删除含 B4-1 加的 lint 豁免、ADR-004 落盘、architecture v3.0）→ 然后 B5 收口（闸门 5 汇报）
-🏁 本期终点：B0–B7 全部批次通过出口检查，目标架构（契约层+声明式注册+async-first+知识库+意图路由）落地，随时可演示
-```
-
-**每次完成一个任务，更新此块**，保证「打开文档 3 秒内定位自己」。
-
----
-
-## 路线地图（全景图）
-
-```mermaid
-graph TD
-    S([📍当前位置<br/>闸门 4 / B4 已完成<br/>329 测试全绿 / gen:api 无漂移]) --> B0
-
-    B0[B0 止血护栏<br/>B0-1~B0-4 修3 bug+tokens+假注释] --> G0{{闸门0 B0 出口<br/>pytest绿+淘汰/并发写用例过<br/>CLI/Web可跑 → 汇报}}
-    G0 --> B1[B1 契约层+配置<br/>B1-1~B1-5 contracts/+pydantic-settings]
-    B1 --> G1{{闸门1 B1 出口<br/>契约零依赖 lint-imports 过<br/>护栏配置项落地 → 汇报}}
-    G1 --> B2[B2 引擎重写<br/>B2-1~B2-7 声明式ToolSpec+PydanticAI]
-    G1 --> B4[B4 契约真源+前端<br/>B4-1~B4-5 可与 B2/B3 并行]
-    B2 --> G2{{闸门2 B2 出口<br/>15工具名不变+test_hotplug过<br/>lint-imports禁止边过 → 汇报}}
-    G2 --> B3[B3 适配层+并发<br/>B3-1~B3-5 async-first+Semaphore 4]
-    B4 --> G4{{闸门4 B4 出口<br/>gen:api diff=0+前端无假数据 → 汇报}}
-    B3 --> G3{{闸门3 B3 出口<br/>并发切换测试+采集延迟降≥40% → 汇报}}
-    G3 --> B5[B5 记忆+清理+文档<br/>B5-1~B5-5 user_id+ADR-004]
-    G4 --> B5
-    B5 --> G5{{闸门5 B5 出口<br/>shim到期删除+文档基线=HEAD → 汇报}}
-    G5 --> B6[B6 知识库链路<br/>B6-1~B6-5 FTS5+pixel_pitch]
-    G3 --> B7[B7 意图路由+规划通道<br/>B7-1~B7-6 可与 B6 并行]
-    B6 --> G6{{闸门6 B6 出口<br/>中文FTS5命中+规格表案例通 → 汇报}}
-    B7 --> G7{{闸门7 B7 出口<br/>路由分发+Planner+护栏全过 → 汇报}}
-    G6 --> Z([本期终点 目标架构落地<br/>随时可演示])
-    G7 --> Z
+```text
+当前位置：B7 已完成，停在闸门 7，等待确认后进入重构后的功能迭代
+代码：main / B7-1~B7-5 已独立提交 / 无未提交代码改动
+后端：pytest 361 passed / ruff 0 / smoke 21 项
+架构：lint-imports 3 kept / 0 broken
+前端：npm run build 通过；六页 + 未知路由 check:ui 7/7 通过
+契约：npm run gen:api 后 git diff --exit-code 通过
+产品资产：15 个声明式工具、AgentRuntime、四条管线、FastAPI + SSE、六页 SPA、L2/L3 evals
+已完成批次：B0、B1、B2、B3、B4、B5、B6、B7
+未完成批次：无（B0–B7 架构重构已收口）
 ```
 
-**批次顺序与依赖逻辑**：
-- **B0 最先**：三颗真 bug（会话死锁等）不除，重构基线不干净；
-- **B1 是一切的地基**：契约层不落地，后续批次无的放矢；
-- **B4 可提前并行**（只依赖 B1）：前端去假数据与引擎重写互不阻塞；
-- **B6 与 B7 相互独立**，可在 B5/B3 之后并行推进；
-- 功能需求（E9 被动提醒、E10 体验项等）**全部排在 B0–B7 之后**，本期不做。
+当前最重要的判断：v4 架构重构已完成；后续功能迭代必须建立在规则优先路由、受控 Planner、用户记忆和全局知识库的真实链路上，禁止把接口预留、测试 Fake 或设计稿误报为真实功能完成。
 
----
+## 🎯 长期目标
 
-## 主线任务（按批次执行，做完一个任务 commit 一个）
+把 LightTrail 建成一个可演示、可测试、可解释、平台中立的摄影拍摄决策引擎：
 
-### B0 止血护栏 ✅ 已完成（2026-09-13，停闸门 0）
+1. 已知摄影任务走确定性的四条决策管线；开放但可控的任务走受限 Plan-Execute；开放问答才使用 ReAct。
+2. 工具通过声明式 `ToolSpec` 接入，由装配根构造注册表；新增工具不复制修改 trace、置信度、提示词和前端协议。
+3. `contracts/` 是零依赖契约真源；前后端契约由 OpenAPI 生成 TypeScript，不维护第二份手抄模型。
+4. 记忆是按用户隔离的可写数据，知识库是全局只读数据；两者通过明确端口接入上下文，不互相污染。
+5. 所有外部数据、模型调用、配额、观测和密钥都位于适配层或端口之后；业务层不绑定具体平台品牌。
+6. 每个判断都能说明结论、依据、置信度、数据来源和降级原因；没有数据时诚实降级，不用假数据补齐。
+7. 任何一次改动都能通过离线测试、架构门禁和真实最小联调验证，项目始终保持随时可演示。
 
-| 任务 | 一句话目标 | 核心验收 |
-|---|---|---|
-| B0-1 | 修 SessionManager 死锁/共享态/锁外写 | 淘汰路径不死锁 + 并发写用例过 |
-| B0-2 | record_llm 接通 tokens 记账 | TraceReport tokens 非 None 且正确 |
-| B0-3 | 四处假注释清理（实现或删注释） | grep 复查无空头承诺 |
-| B0-4 | B0 收口，建立重构前基线 | pytest 绿 + CLI/Web 实跑一次 |
+## 🧭 执行路线
 
-### B1 契约层 + 配置 ✅ 已完成（2026-09-13，停闸门 1）
+严格按 [`REFACTOR-ROADMAP.md`](REFACTOR-ROADMAP.md) 执行，不另起路线：
 
-| 任务 | 一句话目标 | 核心验收 |
-|---|---|---|
-| B1-1 | 零依赖 contracts/ 骨架（ToolSpec / ToolContext / RequestContext） | 契约层仅 stdlib+pydantic，schema 转换与 frozen 用例过 |
-| B1-2 | 契约模型下沉（Intent / DecisionCard / TraceEvent / Plan） | 旧路径 shim 可用、tools 不再反向 import orchestrator |
-| B1-3 | 用户体系预留接口（LLMConfig / UserConfigProvider / KeyVault） | repr 掩码不泄 Key、优先级链用例过 |
-| B1-4 | 剩余 Protocol（MemoryStore / KnowledgeProvider / DataSource / TraceSink） | 知识库签名不含 user_id、记录器满足 TraceSink |
-| B1-5 | pydantic-settings + 统一护栏 + import-linter 门禁 | 护栏项默认值落地、lint-imports「契约零依赖」通过 |
+```text
+B0 ✅ 止血护栏
+  → B1 ✅ 契约层与配置
+  → B2 ✅ 声明式引擎与 AgentRuntime
+  → B3 ✅ 适配层与 async-first 并发
+  → B4 ✅ OpenAPI 单一真源与前端重接
+  → B5 ✅ 记忆命名空间、清理、文档
+  → B6 ✅ 知识库链路
+  → B7 ✅ 意图路由与受控规划通道
+```
 
-### B2 引擎重写 🔄 进行中（2026-09-13：B2-1 ~ B2-4 已完成）
+已完成 B5：
 
-| 任务 | 状态 | 一句话目标 |
-|---|---|---|
-| B2-1 | ✅ 72ebe68 | basic + exposure 声明式（ToolSpec + TOOLS、去 agent.tools import） |
-| B2-2 | ✅ e7f774b | astronomy + weather 声明式 + 动态置信度规则（confidence_rule） |
-| B2-3 | ✅ a6c6212 | site_match / memory_tool / photo_analysis 声明式 + 去模块级全局（构造注入） |
-| B2-4 | ✅ 6000683 | runtime/registry.py + composition.py + agent/tools 转 shim + 适配器契约开启 |
-| B2-5 | ✅ 230dbbc | PydanticAI 自定义 Model 桥（adapters/llm/pydantic_bridge.py + pin pydantic-ai-slim） |
-| B2-6 | ✅ f0c5060 | AgentRuntime（runtime/agent.py）+ ContextBuilder 迁 runtime（能力叙述自动生成） |
-| B2-7 | ✅ 5756583 / dc164fb / d704a55 / 529af8e / 53a093e / 5784120 | 热插拔 + 架构禁止边 + 生产路径全切 runtime + 9/9 用例换装 + 删旧 agent/ 包与 shim + 桥重复 system 修复 |
+1. B5-1：把记忆存储迁移到 `data/users/{user_id}/`，本期默认用户可使用 `_local`，完成存量迁移和隔离测试。
+2. B5-2：拆分用户语义记忆与领域知识种子，明确各自端口、来源和生命周期。
+3. B5-3：统一 `favorite_spots` 键形状，消除双份默认坐标；空档案必须诚实降级；同时显式化上下文预算。
+4. B5-4：删除到期 shim、死代码和失实依赖注释，令 `requirements.txt` 与 `pyproject.toml` 一致。
+5. B5-5：落盘 ADR-004，重写 `docs/architecture.md` 为当前目标架构，并同步 README、AGENTS、TODO、devlog 和本文件。
 
-### B4 契约单一真源 + 前端重接 ✅ 已完成（2026-09-14，停闸门 4）
+已完成 B6：全局只读知识库、FTS5 中文检索、命中按需注入，以及档案机型驱动 NPF 像素间距查询。
 
-| 任务 | 状态 | 一句话目标 |
-|---|---|---|
-| B4-1 | ✅ b8ccdca | OpenAPI→TS 生成流水线（gen:api）+ SSE 事件负载模型进契约 + lint 门禁修复（补 shim 豁免） |
-| B4-2 | ✅ e1a035d | 前端删手抄类型，全面接 generated.ts（events.ts 收敛为契约门面） |
-| B4-3 | ✅ 4c69860 | D3Page/HomePage 去伪造数据（置信度常量表 + 中文正则猜结论 → 卡片真实字段 + 规则推导明细） |
-| B4-4 | ✅ cc58c93 | tool_result 带结构化 data，D2Page 去正则解析工具 JSON |
-| B4-5 | ✅ 本批收口 | CI 漂移门禁写入本清单（gen:api && git diff --exit-code）+ 出口检查 |
+已完成 B7：规则优先 + 可审计 LLM 兜底路由、受控 Plan-Execute、超工具集诚实告知、ReAct 护栏和带 RequestContext 的零成本 L2 回放。
 
-### B5 ~ B7
+B7 已停在闸门 7；未经确认不得自动进入重构后的功能迭代。
 
-任务细节（目标/前置/输入上下文/交付物/验收标准/涉及文件）**全部见 `docs/REFACTOR-ROADMAP.md` 对应章节**，此处不重复。每批出口检查单见路线图 §1.3/§1.4 与各批次末任务。
+## 🔍 每次启动的工作协议
 
----
+### 1. 先确认真实状态
 
-## 批次闸门与无人值守平衡
+依次读取：
 
-- **批次内自治**：单批次内任务连续做完再汇报（每任务只 devlog 一行 + commit，不打断主理人）。
-- **批次间闸门**：每个批次出口（闸门0–7）强制停下汇报等确认——架构重建每一步都是方向性决策，必须人控。
-- **绝对红线**：任何对外动作（开源发布 / 对外宣传 / release）仍必须先经小北确认，与重构进度无关。
+- `AGENTS.md`
+- `docs/architecture-v4-proposal.md`
+- `docs/REFACTOR-ROADMAP.md` 的当前批次章节
+- `TODO.md`
+- `docs/devlog.md` 顶部最新记录
+- 与当前任务直接相关的源码和测试
 
-## 硬约束与红线（每次动手必过）
+随后执行只读检查：
 
-1. **v4 方案为唯一权威**：任务与 `docs/architecture-v4-proposal.md` 冲突时以 v4 为准，冲突点记 devlog 提示主理人。
-2. **平台中立（ADR-002/003，最高优先级）**：品牌字面量只允许在 `adapters/llm` 与 settings 默认值；LLM 调用一律过 LLMProvider/ModelRouter/适配层。**违反即失败。**
-3. **并发语义已变（ADR-004 前身）**：「ECNU 串行约束」不成立，并发为纯配置 `LLM_CONCURRENCY`（默认 4）；`LLM_SERIAL_LLM` 只作只读兼容别名过渡一版（B1 落地，B3 删除）。**不要再写「默认串行适配 ECNU」的旧逻辑。**
-4. **批次纪律**：每批结束 pytest 全绿 + ruff 0 + 系统可用（CLI/Web 可跑）；批间 re-export shim 保兼容，shim 豁免带 TODO + 删除批次，到期不删 = 批次不通过。
-5. **测试/build 门禁**：后端 `pytest tests/` 全绿 + ruff 0；前端 `npm run build` 通过；B1 起 `lint-imports` 逐步全开；B4 起 `gen:api && git diff --exit-code`。
-6. **LLM 配额克制**：默认 Fake/TestModel/cassette 回放，不烧真实 Key；真实调用走 QuotaLedger 预算门禁。
-7. **热插拔口径**：B2 起新增工具只改 `domain/tools/__init__.py` 一行；B6 起领域判据/规格一律进知识库，不写死在工具描述或代码常量。
-8. **不动文件**：LICENSE、`lighttrail-prototype.html`（只读真源）永不改。
-9. **禁忌**：LightTrail 是独立开源项目，与学位论文/学术研究**无关**，文档/代码/提交信息严禁此类关联。
+```powershell
+git status --short --branch
+git log -1 --oneline --decorate
+rg --files -g '!docs/archive/**'
+```
 
-## 项目基线（先读这些，不要凭猜测动手）
+若文档状态、Git 状态和代码不一致，以当前代码和测试为事实，并在本次任务中修正文档；不得依据归档文档恢复旧路线。
 
-1. 按顺序阅读关键文档：
-   - `AGENTS.md`（协作约定 + 代码规范，必须遵守）
-   - **`docs/architecture-v4-proposal.md`（唯一权威方案，D1–D14 定稿）**
-   - **`docs/REFACTOR-ROADMAP.md`（唯一任务清单，B0-1 ~ B7-6）**
-   - `docs/adr/ADR-002/003`（平台中立权威记录）
-   - `docs/PRD-v0.3.md`（产品需求 + v0.4 范围修订附录）
-   - `docs/architecture.md`（**重构前现状描述**，B5-5 重写为目标架构）
-   - `TODO.md` / `docs/devlog.md`（待办 + 进度）
-2. 当前代码状态：src 7482 行/41 文件，tests 4269 行/27 文件，frontend/src 2889 行；15 工具；223 用例全绿；ruff 0；**已知问题清单见 v4 §1（八组诊断全部成立，就是本期的修复对象）**。
-3. Python 环境：`.venv\Scripts\python.exe`；Node：`frontend/` 独立工程（npm run dev / build）。新增依赖一律装进 .venv。
-4. git：分支 main，HEAD `2129d62`，与 origin/main 同步。每完成任务 commit + push（日常 push 已授权）；对外发布仍须确认。
+### 2. 选择最小可交付任务
 
-## 每完成任务单元（统一节奏）
+- 一次只做一个路线图原子任务，任务编号必须明确。
+- 先读该任务的目标、前置依赖、涉及文件和验收标准。
+- 不为“顺手优化”扩大范围；发现非本批问题，记录到 `TODO.md` 或 devlog，不擅自插队。
+- 设计和接口存在歧义时，以 v4 方案为准；若会改变已确认的方向，停止并询问小北。
 
-1. 后端改动跑 `pytest tests/` 全绿 + ruff 0；前端改动跑 `npm run build` 通过
-2. 中文 commit（如「fix(B0-1): 修复 SessionManager 淘汰路径死锁…」）+ push（日常授权）
-3. `docs/devlog.md` 追加一行（任务编号 / 时间 / commit hash / 测试数量）
-4. 更新文首 📍 状态块
+### 3. 实现与验证
 
-## 收尾
+- Python 使用 py310+、完整类型注解、中文 Google 风格 docstring、ruff line-length 100。
+- 默认使用项目 `.venv`；禁止污染系统 Python，禁止全局安装 npm/pip 依赖。
+- 单元测试优先使用 Fake、TestModel、cassette，不因普通开发任务调用真实 LLM。
+- 新工具必须有计算/边界测试，并符合声明式注册和 ToolContext 约定。
+- 任何契约变更都必须重新生成 OpenAPI TypeScript。
+- 任何架构边界变更都必须运行 import-linter 和架构测试。
 
-批次完成或决定停止时：
-1. 最后一次 `pytest tests/` 全绿 + `ruff check src tests` 无新告警 + `npm run build` 通过（+ 对应批次额外的 lint-imports / gen:api 门禁）
-2. `git add -A && git commit && git push`
-3. `docs/devlog.md` 写批次总结：已完成 / 剩余 / 遗留 / 建议（含平台中立性审计）；并在文首 📍 状态块更新位置
-4. **停在批次闸门，等主理人确认后再进下一批**
+## 🚪 批次闸门
 
-> **文档自我定位**：本文档只回答「现在在哪 / 下一步干什么 / 什么时候必须停下等确认」。与 REFACTOR-ROADMAP / v4 方案冲突时，以 v4 方案为准并提示主理人同步。
+每个批次内部可以连续完成原子任务；到批次出口必须停下。闸门不是形式检查，而是方向性决策点。
+
+### 通用出口检查
+
+后端：
+
+```powershell
+.venv\Scripts\python.exe -m pytest -q
+.venv\Scripts\ruff.exe check src tests
+.venv\Scripts\lint-imports.exe
+```
+
+前端：
+
+```powershell
+cd frontend
+npm run build
+npm run gen:api
+git diff --exit-code -- src/api/generated.ts
+```
+
+必要时补充：
+
+```powershell
+.venv\Scripts\python.exe -m lighttrail.smoke
+.venv\Scripts\python.exe scripts/live_check.py
+```
+
+真实联调只在明确需要时执行，使用真实 Key 前必须确认预算和数据范围；浏览器自检必须先启动当前前端服务，不能把“服务未启动导致白屏”误判为代码回归。
+
+### 闸门报告必须包含
+
+- 已完成的任务编号和 commit
+- 测试、ruff、import-linter、前端 build、契约生成结果
+- 真实联调是否执行及结果
+- 尚未完成项、遗留问题和新增风险
+- 文档是否已同步到当前 HEAD
+- 下一批的第一项任务
+
+报告完成后停止，不自动进入下一批。
+
+## 🧱 不可违反的约束
+
+1. `docs/architecture.md` 是当前架构基线；v4 提案与路线图用于后续 B6/B7 决策。
+2. 归档文档不具备当前参考价值，不得用于决定任务、接口或完成状态。
+3. 不把“接口存在”说成“功能完成”，不把 Fake、示例数据或设计稿说成真实数据。
+4. 业务代码不能写死模型品牌判断；模型选择经过 `ModelRouter`，LLM 调用经过 Provider/适配层。
+5. 并发是配置，不是 ECNU 业务前提；`LLM_CONCURRENCY` 是唯一配置，设为 1 即串行。
+6. `contracts/` 保持零依赖；适配器不能被领域层反向依赖；架构边界必须由自动化门禁保护。
+7. 敏感信息不得进入日志、trace、测试输出、生成物或提交。
+8. 不修改 `LICENSE` 和 `docs/design/delivery/lighttrail-prototype.html`，它们是项目法律文件和只读设计真源。
+9. 不执行 `git reset --hard`、`git checkout --`、递归删除等破坏性操作，除非小北明确要求。
+10. commit 可以在任务完成后创建；push、PR、发布、开源、对外宣传、真实外部服务写入等动作必须先获得确认。
+11. LightTrail 是独立开源项目；正式文档、代码注释和提交信息不得引入与学位论文或学术研究的关联叙事。
+
+## 📝 文档与提交纪律
+
+每个原子任务完成后：
+
+1. 更新 `docs/devlog.md`，记录日期、任务编号、commit、验证结果和偏差。
+2. 若当前状态、下一步或基线变化，更新本文档顶部“当前状态”。
+3. 若路线图、架构或产品范围发生变化，只改权威文档，并同步受影响的 README/AGENTS/TODO。
+4. commit 信息使用简洁中文，格式示例：`fix(B5-3): 统一档案机位坐标来源`。
+5. 不为了凑提交拆出无意义 commit，也不把多个无关任务混入一个 commit。
+
+最终目标不是“把所有 TODO 勾完”，而是让 LightTrail 的架构边界、决策能力、数据来源和验证证据彼此一致，并且任何新接手的 Codex 都能从本文件继续推进而不依赖隐含记忆。
