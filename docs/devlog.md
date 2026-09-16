@@ -1,5 +1,10 @@
 # LightTrail 开发日志
 
+## 2026-09-16（B6-2 SQLite FTS5 中文检索 — 待提交）
+
+- 新增 `FtsKnowledgeProvider`，将 B5-2 迁出的全局种子幂等写入 SQLite 元数据表与 FTS5 `trigram` 索引；结果按 BM25 排序并保留 source/version。
+- SQLite trigram 对不足三字符的查询不建索引，因此「散射」等中文短词走受限 `LIKE` 兜底；三字符及以上仍走 FTS5 主路径，避免把引擎限制伪装成检索成功。
+
 ## 2026-09-16（B6-1 结构化相机规格知识表 — 待提交）
 
 - 新增 `domain/knowledge/CameraSpecsCatalog`：只读 YAML 精确查表，返回带 `source` 和 `version` 的 `KnowledgeChunk`；B6-2 前 `search()` 诚实返回空。
