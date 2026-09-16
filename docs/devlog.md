@@ -1,5 +1,10 @@
 # LightTrail 开发日志
 
+## 2026-09-16（B6-3 知识库按需注入 — 待提交）
+
+- `composition.build_knowledge()` 将全局 FTS 检索器装配到 `ContextBuilder`；AgentRuntime 每轮以当前用户请求作为查询词。
+- 新增第六个动态层「命中领域知识」：未命中或未设置查询时零注入，不破坏静态提示前缀缓存；命中片段携带 source/version。
+
 ## 2026-09-16（B6-2 SQLite FTS5 中文检索 — 待提交）
 
 - 新增 `FtsKnowledgeProvider`，将 B5-2 迁出的全局种子幂等写入 SQLite 元数据表与 FTS5 `trigram` 索引；结果按 BM25 排序并保留 source/version。

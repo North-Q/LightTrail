@@ -22,6 +22,7 @@ import math
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
+from lighttrail.contracts.knowledge import KnowledgeProvider
 from lighttrail.runtime.registry import ToolRegistry
 
 # ------ 层定义与常量 ------
@@ -30,8 +31,11 @@ LAYER_ROLE = "role"
 LAYER_CONDUCT = "conduct"
 LAYER_TOOLS = "tools"
 LAYER_PROFILE = "profile"
+LAYER_KNOWLEDGE = "knowledge"
 LAYER_TRACE = "trace"
-_LAYER_ORDER: tuple[str, ...] = (LAYER_ROLE, LAYER_CONDUCT, LAYER_TOOLS, LAYER_PROFILE, LAYER_TRACE)
+_LAYER_ORDER: tuple[str, ...] = (
+    LAYER_ROLE, LAYER_CONDUCT, LAYER_TOOLS, LAYER_PROFILE, LAYER_KNOWLEDGE, LAYER_TRACE
+)
 
 # 各层的中文标题（分层段落的 markdown 小标题，便于回归 diff）
 _SECTION_HEADINGS: dict[str, str] = {
@@ -39,6 +43,7 @@ _SECTION_HEADINGS: dict[str, str] = {
     LAYER_CONDUCT: "行为准则",
     LAYER_TOOLS: "可用工具",
     LAYER_PROFILE: "用户档案与语义记忆",
+    LAYER_KNOWLEDGE: "命中领域知识",
     LAYER_TRACE: "会话轨迹摘要",
 }
 
@@ -63,7 +68,8 @@ _DEFAULT_BUDGETS: dict[str, int] = {
     LAYER_ROLE: 220,
     LAYER_CONDUCT: 220,
     LAYER_TOOLS: 1200,
-    LAYER_PROFILE: 400,
+        LAYER_PROFILE: 400,
+        LAYER_KNOWLEDGE: 300,
     LAYER_TRACE: 300,
 }
 _TRUNCATE_MARKER = "…（超预算截断）"
@@ -116,6 +122,7 @@ class ContextBuilder:
         conduct_prompt: 第②层「行为准则」静态文本。
         registry: 工具注册表，用于生成第③层「可用工具」说明（半静态，变更自动刷新）。
         profile_provider: 第④层注入器，返回「用户档案+语义记忆」文本；未设置时省略该层。
+        knowledge_provider: 全局只读知识检索端口；仅当前请求命中时注入，绝不常驻。
         trace_provider: 第⑤层注入器，返回「会话轨迹摘要」文本；未设置时省略该层。
         budgets: 各层 token 预算覆盖（键为层名，默认见 _DEFAULT_BUDGETS）。
         layer_versions: 各层版本号覆盖（键为层名，如 {"profile": "3"} → layer:profile@3）。
@@ -128,6 +135,7 @@ class ContextBuilder:
         conduct_prompt: str = DEFAULT_CONDUCT_PROMPT,
         registry: ToolRegistry | None = None,
         profile_provider: Callable[[], str] | None = None,
+        knowledge_provider: KnowledgeProvider | None = None,
         trace_provider: Callable[[], str] | None = None,
         budgets: Mapping[str, int] | None = None,
         layer_versions: Mapping[str, str | int] | None = None,
@@ -141,6 +149,8 @@ class ContextBuilder:
             LAYER_PROFILE: profile_provider,
             LAYER_TRACE: trace_provider,
         }
+        self._knowledge_provider = knowledge_provider
+        self._knowledge_query = ""
         self._budgets: dict[str, int] = dict(_DEFAULT_BUDGETS)
         if budgets:
             self._budgets.update(budgets)
@@ -161,6 +171,10 @@ class ContextBuilder:
             可直接传给 ChatClient.chat 的消息列表（首条为 system）。
         """
         return [{"role": "system", "content": self.build_system_prompt()}, *history]
+
+    def set_knowledge_query(self, query: str) -> None:
+        """设置本轮知识检索查询词（空串意味着不注入）。"""
+        self._knowledge_query = query.strip()
 
     def build(self, system_prompt: str, history: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
         """兼容薄封装：不经分层，把传入的 system_prompt 原样作为系统提示。
@@ -200,6 +214,7 @@ class ContextBuilder:
         versions = dict(self._versions)
         versions[LAYER_TOOLS] = self._tools_version()
         versions.setdefault(LAYER_PROFILE, _NONE_VERSION)
+        versions.setdefault(LAYER_KNOWLEDGE, _NONE_VERSION)
         versions.setdefault(LAYER_TRACE, _NONE_VERSION)
         return {layer: versions.get(layer, _NONE_VERSION) for layer in _LAYER_ORDER}
 
@@ -210,10 +225,21 @@ class ContextBuilder:
             return self._sections[layer]
         if layer == LAYER_TOOLS:
             return self._tools_section()
+        if layer == LAYER_KNOWLEDGE:
+            return self._knowledge_section()
         provider = self._providers.get(layer)
         if provider is None:
             return ""
         return provider()
+
+    def _knowledge_section(self) -> str:
+        """按当前请求检索知识；未命中零注入，结果携带来源与版本。"""
+        if self._knowledge_provider is None or not self._knowledge_query:
+            return ""
+        chunks = self._knowledge_provider.search(self._knowledge_query)
+        return "\n".join(
+            f"- {chunk.text}\n  来源：{chunk.source}（版本 {chunk.version}）" for chunk in chunks
+        )
 
     def _tools_section(self) -> str:
         """生成第③层工具说明（注册表名集合变化时自动重建）。"""

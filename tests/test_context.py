@@ -19,6 +19,7 @@ from lighttrail.runtime.context import (
     DEFAULT_CONDUCT_PROMPT,
     DEFAULT_ROLE_PROMPT,
     LAYER_CONDUCT,
+    LAYER_KNOWLEDGE,
     LAYER_PROFILE,
     LAYER_ROLE,
     LAYER_TOOLS,
@@ -84,6 +85,28 @@ def test_five_layer_order_with_injectors() -> None:
         system.index(_HEADING_TRACE),
     ]
     assert order == sorted(order)
+
+
+def test_knowledge_is_injected_only_for_hit() -> None:
+    """知识层按请求命中才出现，并把来源与版本展示给模型。"""
+    from lighttrail.contracts.knowledge import KnowledgeChunk
+
+    class _Knowledge:
+        def lookup(self, key: str, *, table: str = "") -> KnowledgeChunk | None:
+            return None
+
+        def search(self, query: str, *, k: int = 3, scope: str = "") -> list[KnowledgeChunk]:
+            if query == "卷云":
+                return [KnowledgeChunk("cirrus", "卷云冰晶会散射", "摄影气象手册", "2026-09")]
+            return []
+
+    builder = _now_builder(knowledge_provider=_Knowledge())
+    assert "命中领域知识" not in builder.build_system_prompt()
+    builder.set_knowledge_query("卷云")
+    prompt = builder.build_system_prompt()
+    assert "命中领域知识" in prompt
+    assert "摄影气象手册（版本 2026-09）" in prompt
+    assert builder.layer_versions()[LAYER_KNOWLEDGE] == "0"
 
 
 # ------ 静态前缀字节稳定性 ------

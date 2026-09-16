@@ -12,12 +12,14 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 
 from lighttrail.adapters.llm.client import ChatClient
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.config import Settings, load_settings
 from lighttrail.contracts.context import RequestContext
+from lighttrail.domain.knowledge import FtsKnowledgeProvider
 from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.trace import Recorder, TraceRecorder
 from lighttrail.memory import MemoryManager
@@ -39,6 +41,7 @@ __all__ = [
     "build_context",
     "build_ledger",
     "build_memory",
+    "build_knowledge",
     "build_orchestrator",
     "build_provider",
     "build_recorder",
@@ -97,6 +100,7 @@ def build_runtime(
     *,
     recorder: Recorder | None = None,
     memory: MemoryManager | None = None,
+    knowledge: FtsKnowledgeProvider | None = None,
 ) -> AgentRuntime:
     """构造 PydanticAI Agent runtime（B2-6；工具 schema 真源为 ToolSpec）。
 
@@ -107,7 +111,13 @@ def build_runtime(
         LightTrailModel(provider, model_name=settings.model, recorder=recorder),
         registry,
         reason_model=LightTrailModel(provider, model_name=settings.model_reason, recorder=recorder),
-        context=build_context(registry, settings=settings, recorder=recorder, memory=memory),
+        context=build_context(
+            registry,
+            settings=settings,
+            recorder=recorder,
+            memory=memory,
+            knowledge=knowledge or build_knowledge(settings),
+        ),
         recorder=recorder,
         max_tool_rounds=getattr(settings, "react_max_rounds", DEFAULT_MAX_TOOL_ROUNDS),
         reason_thinking=settings.reason_thinking,
@@ -120,6 +130,7 @@ def build_context(
     settings: Settings | None = None,
     recorder: Recorder | None = None,
     memory: MemoryManager | None = None,
+    knowledge: FtsKnowledgeProvider | None = None,
 ) -> ContextBuilder:
     """构造五层上下文组装器（③工具层由注册表自动生成；④档案记忆；⑤会话轨迹）。"""
     profile_provider = None
@@ -139,6 +150,7 @@ def build_context(
     return ContextBuilder(
         registry=registry,
         profile_provider=profile_provider,
+        knowledge_provider=knowledge,
         trace_provider=(lambda: recorder.to_prompt_section()) if recorder is not None else None,
         budgets=budgets,
     )
@@ -147,6 +159,12 @@ def build_context(
 def build_memory(settings: Settings) -> MemoryManager:
     """构造记忆管理器（档案 / 事件 / 语义；B5 起按 user_id 命名空间隔离）。"""
     return MemoryManager(settings.data_dir)
+
+
+def build_knowledge(settings: Settings) -> FtsKnowledgeProvider:
+    """构造全局只读知识检索器（索引位于 data/knowledge/）。"""
+    root = Path(settings.data_dir) / "knowledge"
+    return FtsKnowledgeProvider(root / "knowledge.db", root / "seed" / "atmospheric-knowledge.json")
 
 
 def build_recorder() -> TraceRecorder:

@@ -110,7 +110,7 @@
 
 - [x] B6-1 knowledge/ 骨架 + camera_specs.yaml 机型规格表（含 source/version，2026-09-16）
 - [x] B6-2 SQLite FTS5 中文检索（trigram 分词，2026-09-16）
-- [ ] B6-3 KnowledgeProvider 装配 + 「命中才取」注入策略
+- [x] B6-3 KnowledgeProvider 装配 + 「命中才取」注入策略（2026-09-16）
 - [ ] B6-4 pixel_pitch 端到端案例（档案存机型 → 知识库查规格，去手填）
 - [ ] B6-5 B6 收口
 
