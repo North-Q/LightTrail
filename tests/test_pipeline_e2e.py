@@ -109,7 +109,6 @@ def test_e2e_galaxy_plan_and_followup_react() -> None:
     """黄金场景：一句话 → 卡片；追问 → ReAct 且携带卡片上下文。"""
     fake = FakeChatClient(
         [
-            {"role": "assistant", "content": _intent_json("银河")},
             {"role": "assistant", "content": _card_json()},
             {"role": "assistant", "content": "好，快门改 25s、ISO 提到 4000。"},
         ]
@@ -136,10 +135,7 @@ def test_e2e_fire_cloud_live_decision() -> None:
     """临场场景：火烧云 → live 管线 → 去/等/放弃决策卡。"""
     card = _card_json("建议 18:10 到机位蹲守，风险中等可接受。")
     fake = FakeChatClient(
-        [
-            {"role": "assistant", "content": _intent_json("火烧云", mode="live")},
-            {"role": "assistant", "content": card},
-        ]
+        [{"role": "assistant", "content": card}]
     )
     runtime = _runtime(fake)
     orc = Orchestrator(registry, runtime, memory=_MEMORY, dispatch=_fake_dispatch)
@@ -150,12 +146,13 @@ def test_e2e_fire_cloud_live_decision() -> None:
 
 def test_golden_cases_are_parsable() -> None:
     """黄金用例集雏形：全部请求可被意图解析（供 E8 展开）。"""
-    fake = FakeChatClient([{"role": "assistant", "content": _intent_json(c["subject"])} for c in GOLDEN_CASES])
+    fake = FakeChatClient([])
     runtime = _runtime(fake)
     orc = Orchestrator(registry, runtime, dispatch=_fake_dispatch)
     for case in GOLDEN_CASES:
         intent = orc.parse_intent(case["request"])
         assert intent.subject_type == case["subject"], case
+    assert fake.calls == []
     assert sum(1 for _ in GOLDEN_CASES) == 3
 
 

@@ -187,13 +187,10 @@ def test_review_pipeline_missing_image_returns_skeleton() -> None:
 
 # ------ Orchestrator 端到端与降级 ------
 def test_orchestrator_plan_full_flow() -> None:
-    """plan：意图理解（默认模型）→ 灵感管线（深推理）→ 卡片渲染。"""
+    """明确银河请求由规则直达灵感管线，不额外调用意图模型。"""
     recorder = TraceRecorder()
     fake = FakeChatClient(
-        [
-            {"role": "assistant", "content": _INTENT_JSON},
-            {"role": "assistant", "content": _CARD_JSON},
-        ]
+        [{"role": "assistant", "content": _CARD_JSON}]
     )
     runtime = _runtime(fake, recorder=recorder)
     orc = Orchestrator(registry, runtime, memory=_MEMORY, recorder=recorder, dispatch=_fake_dispatch)
@@ -202,18 +199,30 @@ def test_orchestrator_plan_full_flow() -> None:
     assert "## 拍摄方案" in text
     assert "周末银河可见" in text
     assert orc.last_card is not None
-    # 意图理解用默认模型；综合走深推理（reason 通道）
-    intent_call = fake.calls[0]
-    assert intent_call["model"] == "ecnu-plus"
-    assert intent_call["tools"] is None
-    reason_call = fake.calls[1]
+    # 规则命中不调用默认意图模型；只保留管线综合的深推理调用。
+    assert len(fake.calls) == 1
+    reason_call = fake.calls[0]
     assert reason_call["model"] == "ecnu-max"
     assert reason_call["tools"] is None
     # 默认不携带 thinking 扩展参数（真实 OpenAI 兼容接口可用）
     assert reason_call.get("thinking") is None
     # 管线启动/降级步骤记录
     step_names = [s.name for s in recorder.to_report().steps]
+    assert "意图路由_规则" in step_names
     assert "管线_inspiration" in step_names or "管线_live" in step_names
+
+
+def test_orchestrator_parse_intent_falls_back_to_default_model() -> None:
+    """规则未覆盖的请求仍走既有默认模型解析路径。"""
+    fake = FakeChatClient([{"role": "assistant", "content": _INTENT_JSON}])
+    runtime = _runtime(fake)
+    orc = Orchestrator(registry, runtime, dispatch=_fake_dispatch)
+
+    intent = orc.parse_intent("帮我看看本周适合练什么摄影题材")
+
+    assert intent.subject_type == "银河"
+    assert len(fake.calls) == 1
+    assert fake.calls[0]["model"] == "ecnu-plus"
 
 
 def test_orchestrator_plan_falls_back_to_react_on_bad_card() -> None:
@@ -221,7 +230,7 @@ def test_orchestrator_plan_falls_back_to_react_on_bad_card() -> None:
     recorder = TraceRecorder()
     bad_card = {"role": "assistant", "content": "这不是 JSON"}
     reply = {"role": "assistant", "content": "我建议先看云图再决定。"}
-    fake = FakeChatClient([{"role": "assistant", "content": _INTENT_JSON}, bad_card, bad_card, bad_card, reply])
+    fake = FakeChatClient([bad_card, bad_card, bad_card, reply])
     runtime = _runtime(fake, recorder=recorder)
     orc = Orchestrator(registry, runtime, memory=_MEMORY, recorder=recorder, dispatch=_fake_dispatch)
     text = orc.plan("今晚火烧云值得冲吗")
@@ -237,7 +246,6 @@ def test_fallback_carries_card_context() -> None:
     """降级对话携带最近卡片上下文（追问可在此基础上调整）。"""
     fake = FakeChatClient(
         [
-            {"role": "assistant", "content": _INTENT_JSON},
             {"role": "assistant", "content": _CARD_JSON},
             {"role": "assistant", "content": "好，参数改激进一些。"},
         ]

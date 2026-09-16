@@ -17,6 +17,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from lighttrail.application.router import RuleIntentRouter
 from lighttrail.contracts.models import DecisionCard, Intent
 from lighttrail.infra.trace import Recorder, null_trace
 from lighttrail.infra.validation import parse_with_retry
@@ -157,6 +158,7 @@ class Orchestrator:
         dispatch: Callable[[str, str], str] | None = None,
         photo_analyze: Callable[[str, str], dict] | None = None,
         photo_reverse: Callable[[str, str, str], dict] | None = None,
+        intent_router: RuleIntentRouter | None = None,
     ) -> None:
         """初始化编排器。
 
@@ -171,6 +173,7 @@ class Orchestrator:
                 直调并注入 recorder；测试可传 Fake 数据源（不触网、不依赖 API Key）。
             photo_analyze: 照片分析绑定（缺省经注册表调用已装配工具）。
             photo_reverse: 照片反推绑定（同上；测试可注入 Fake）。
+            intent_router: 规则优先意图路由器；缺省使用项目规则表。
         """
         self._registry = registry
         self._runtime = agent
@@ -186,6 +189,7 @@ class Orchestrator:
             photo_analyze=photo_analyze or _default_photo_analyze(self._registry, self._recorder),
         )
         self._photo_reverse = photo_reverse or _default_photo_reverse(self._registry, self._recorder)
+        self._intent_router = intent_router or RuleIntentRouter()
         self.last_card: DecisionCard | None = None
 
     # ------ 对外接口 ------
@@ -369,7 +373,7 @@ class Orchestrator:
         return date_iso, data
 
     def parse_intent(self, user_request: str) -> Intent:
-        """意图理解：默认模型强约束 JSON 解析（parse_with_retry 自愈）。
+        """意图理解：规则优先，未命中时才由默认模型强约束 JSON 解析。
 
         Args:
             user_request: 用户请求。
@@ -380,6 +384,15 @@ class Orchestrator:
         Raises:
             SchemaError: 重试后仍无法解析（由 plan 降级）。
         """
+        rule_intent = self._intent_router.route(user_request)
+        if rule_intent is not None:
+            self._recorder.record_step(
+                "意图路由_规则",
+                input_summary=user_request[:80],
+                output_summary=f"{rule_intent.mode}/{rule_intent.subject_type}",
+            )
+            return rule_intent
+
         prompt = _INTENT_INSTRUCTION.replace("__REQUEST__", user_request)
         self._recorder.record_step("意图理解", input_summary=user_request[:80], output_summary="")
 

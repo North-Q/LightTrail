@@ -1,5 +1,11 @@
 # LightTrail 开发日志
 
+## 2026-09-16（B7-1 规则优先意图路由 — 待提交）
+
+- 新增 `application.router.RuleIntentRouter` 与可注入的有序规则表；明确的复盘、规划、临场和灵感请求直接产生 `Intent` 并进入既有四管线，避免额外分类 LLM 调用。
+- `Orchestrator.parse_intent()` 先记录 `意图路由_规则` trace 步骤；规则未命中时保留默认模型的 JSON 解析，作为 B7-2 审计化轻量 LLM 兜底的接线基础。
+- 验证：pytest 355 passed、ruff 0、lint-imports 3 kept / 0 broken。
+
 ## 2026-09-16（B6 收口，停闸门 6）
 
 - B6-1 至 B6-4：相机规格表、中文 FTS5 检索、命中按需注入、档案机型驱动的 NPF 参数链路全部完成。
