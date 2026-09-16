@@ -26,6 +26,7 @@ from lighttrail.memory import MemoryManager
 from lighttrail.orchestrator.context import PipelineContext
 from lighttrail.orchestrator.pipelines import PIPELINES, PipelineEnv, default_mode, finalize_card
 from lighttrail.runtime.agent import AgentRuntime
+from lighttrail.runtime.planner import Planner
 from lighttrail.runtime.registry import ToolRegistry
 
 logger = logging.getLogger("lighttrail.orchestrator")
@@ -164,6 +165,7 @@ class Orchestrator:
         photo_reverse: Callable[[str, str, str], dict] | None = None,
         intent_router: RuleIntentRouter | None = None,
         routing_confidence_threshold: float = 0.6,
+        planner: Planner | None = None,
     ) -> None:
         """初始化编排器。
 
@@ -197,6 +199,12 @@ class Orchestrator:
         self._photo_reverse = photo_reverse or _default_photo_reverse(self._registry, self._recorder)
         self._intent_router = intent_router or RuleIntentRouter()
         self._routing_confidence_threshold = routing_confidence_threshold
+        self._planner = planner or Planner(
+            self._registry,
+            lambda prompt, system: self._runtime.complete(prompt, system=system),
+            self._reason_text,
+            recorder=self._recorder,
+        )
         self.last_card: DecisionCard | None = None
 
     # ------ 对外接口 ------
@@ -218,7 +226,11 @@ class Orchestrator:
             )
             return unsupported_reply
         try:
-            card = self.run_pipeline(user_request)
+            if self._intent_router.needs_controlled_plan(user_request):
+                self._recorder.record_step("意图路由_Planner", input_summary=user_request[:80], output_summary="受控规划")
+                card = self._planner.execute(self._planner.make_plan(user_request))
+            else:
+                card = self.run_pipeline(user_request)
             self.last_card = card
             return _render_card(card)
         except Exception as exc:  # noqa: BLE001 - 管线任何异常统一降级

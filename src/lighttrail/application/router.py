@@ -67,6 +67,7 @@ DEFAULT_INTENT_RULES: tuple[IntentRule, ...] = (
 
 _UNSUPPORTED_KEYWORDS: tuple[str, ...] = ("订机票", "订酒店", "叫车", "订餐", "下单购买")
 _UNSUPPORTED_REPLY = "暂不支持代替你完成交易或出行预订；我可以帮你规划拍摄时间、机位和参数。"
+_PLANNER_KEYWORDS: tuple[str, ...] = ("跨题材", "复合任务", "多步骤")
 
 
 class RuleIntentRouter:
@@ -86,6 +87,10 @@ class RuleIntentRouter:
         if any(keyword in user_request for keyword in _UNSUPPORTED_KEYWORDS):
             return _UNSUPPORTED_REPLY
         return None
+
+    def needs_controlled_plan(self, user_request: str) -> bool:
+        """判断是否为四条固定管线之外的明确复合规划任务。"""
+        return any(keyword in user_request for keyword in _PLANNER_KEYWORDS)
 
     def route(self, user_request: str) -> Intent | None:
         """尝试以规则解析请求，未命中时不猜测。

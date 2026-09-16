@@ -234,6 +234,34 @@ def test_orchestrator_honestly_rejects_out_of_tool_request() -> None:
     assert any(step.name == "意图路由_超工具集" for step in recorder.to_report().steps)
 
 
+def test_orchestrator_routes_compound_request_to_planner() -> None:
+    """明确复合任务绕开固定管线，进入受控 Planner。"""
+    class _FakePlanner:
+        def make_plan(self, goal: str) -> str:
+            assert "复合任务" in goal
+            return "plan"
+
+        def execute(self, plan: str) -> DecisionCard:
+            assert plan == "plan"
+            return DecisionCard(conclusion="已按受控计划执行", evidence=[], confidence="medium")
+
+    fake = FakeChatClient([])
+    recorder = TraceRecorder()
+    orc = Orchestrator(
+        registry,
+        _runtime(fake, recorder=recorder),
+        recorder=recorder,
+        dispatch=_fake_dispatch,
+        planner=_FakePlanner(),  # type: ignore[arg-type]
+    )
+
+    reply = orc.plan("这是一个跨题材复合任务，请做多步骤安排")
+
+    assert "已按受控计划执行" in reply
+    assert fake.calls == []
+    assert any(step.name == "意图路由_Planner" for step in recorder.to_report().steps)
+
+
 def test_orchestrator_parse_intent_falls_back_to_default_model() -> None:
     """规则未覆盖时由默认模型给出带置信度的路由判定并落 trace。"""
     fake = FakeChatClient([{"role": "assistant", "content": _INTENT_JSON}])
