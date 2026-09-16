@@ -30,7 +30,9 @@ from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.composition import build_registry
 from lighttrail.config import load_settings
+from lighttrail.contracts.context import RequestContext
 from lighttrail.contracts.models import DecisionCard
+from lighttrail.contracts.tool import ToolContext
 from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.trace import TraceRecorder
 from lighttrail.llm.router import ModelRouter, RouteIntent
@@ -124,10 +126,12 @@ def _walk_path(data: Any, path: list[str]) -> Any:
     return current
 
 
-def _check_tool_case(name: str, args: dict[str, Any], checks: list[dict[str, Any]]) -> list[str]:
+def _check_tool_case(
+    name: str, args: dict[str, Any], checks: list[dict[str, Any]], context: ToolContext
+) -> list[str]:
     """执行工具用例断言，返回违规清单。"""
 
-    raw = registry.dispatch(name, json.dumps(args, ensure_ascii=False))
+    raw = registry.dispatch(name, json.dumps(args, ensure_ascii=False), context)
     try:
         result = json.loads(raw)
     except ValueError:
@@ -191,6 +195,7 @@ def _load_cassettes() -> dict[str, dict[str, dict[str, str]]]:
         cassettes[group] = {
             "intent": {"content": data["intent"]["content"]},
             "card": {"content": data["card"]["content"]},
+            "request_context": data.get("request_context", {"user_id": "_local"}),
         }
     return cassettes
 
@@ -231,6 +236,7 @@ def _record_group(group: str, request: str, router: ModelRouter, settings: Any) 
         "card": {"content": recording.recorded["card"]},
         "recorded_at": _now_iso(),
         "model_hint": settings.model,
+        "request_context": {"user_id": "_local"},
     }
 
 
@@ -247,11 +253,13 @@ def _run_pipeline_case(case: dict[str, Any], cassettes: dict[str, Any]) -> tuple
         fake = FakeDispatcher(scenario=case.get("scenario", "normal"))
         dispatch = dispatch_with_trace(fake, recorder)
         provider = ChatClientProvider(client)
+        request_context = RequestContext(user_id=str(cassettes[group]["request_context"]["user_id"]))
         runtime = AgentRuntime(
             LightTrailModel(provider, model_name="ecnu-plus", recorder=recorder),
             registry,
             reason_model=LightTrailModel(provider, model_name="ecnu-max", recorder=recorder),
             recorder=recorder,
+            tool_context=ToolContext(request=request_context, llm=provider, datasource=None),  # type: ignore[arg-type]
         )
         orchestrator = Orchestrator(registry, runtime, memory=memory, recorder=recorder, dispatch=dispatch)
         card = orchestrator.run_pipeline(case["request"], mode=case.get("mode", ""))
@@ -319,9 +327,10 @@ def run_l2(*, record: bool = False, groups: set[str] | None = None) -> dict[str,
             }
         )
 
+    tool_context = ToolContext(request=RequestContext(user_id="_local"), llm=None, datasource=None)  # type: ignore[arg-type]
     tool_rows: list[dict[str, Any]] = []
     for case in cases["tool_cases"]:
-        problems = _check_tool_case(case["name"], case["args"], case["checks"])
+        problems = _check_tool_case(case["name"], case["args"], case["checks"], tool_context)
         tool_rows.append({"id": case["id"], "name": case["name"], "pass": not problems, "problems": problems})
 
     elapsed = round(time.perf_counter() - started, 2)

@@ -1,5 +1,10 @@
 # LightTrail 开发日志
 
+## 2026-09-16（B7-5 L2 RequestContext 评估适配 — 待提交）
+
+- L2 cassette 增加 `request_context.user_id`（历史 cassette 缺省 `_local`）；回放 runtime 和工具数值断言均显式传入同一请求上下文。
+- 验证：evals pytest 14 passed、ruff 0；L2 保持 cassette 回放，零真实 LLM 成本。
+
 ## 2026-09-16（B7-4 超工具集诚实告知与 ReAct 护栏 — 待提交）
 
 - 对订票、订酒店、叫车、订餐等明确代办任务返回“暂不支持”及摄影决策替代建议，不发起 LLM；trace 写入 `意图路由_超工具集`。

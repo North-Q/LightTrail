@@ -120,7 +120,7 @@
 - [x] B7-2 意图路由器：轻量 LLM 兜底判定（判定落 trace，2026-09-16）
 - [x] B7-3 受控 Planner（Plan 一等对象 / 步数上限 8 / 每步过 dispatch+trace+配额，2026-09-16）
 - [x] B7-4 超工具集显式告知 + ReAct 轮数 8→12 护栏生效（2026-09-16）
-- [ ] B7-5 评估适配（L2 cassette 加 RequestContext 维度）
+- [x] B7-5 评估适配（L2 cassette 加 RequestContext 维度，2026-09-16）
 - [ ] B7-6 B7 收口 + 重构总验收
 
 ### 重构后再议（本期不做，见 PRD 附录 A2）
