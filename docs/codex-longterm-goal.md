@@ -14,7 +14,7 @@
 ```text
 当前位置：B7 已完成，停在闸门 7，等待确认后进入重构后的功能迭代
 代码：main / B7-1~B7-5 已独立提交 / 无未提交代码改动
-后端：pytest 361 passed / ruff 0 / smoke 21 项
+后端：pytest 362 passed / ruff 0 / smoke 21 项
 架构：lint-imports 3 kept / 0 broken
 前端：npm run build 通过；六页 + 未知路由 check:ui 7/7 通过
 契约：npm run gen:api 后 git diff --exit-code 通过
