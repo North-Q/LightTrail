@@ -187,6 +187,14 @@ def build_orchestrator(
     *,
     memory: MemoryManager | None = None,
     recorder: Recorder | None = None,
+    settings: Settings | None = None,
 ) -> Orchestrator:
     """构造编排器（四管线 + 降级 ReAct 通道）。"""
-    return Orchestrator(registry, runtime, memory=memory, recorder=recorder)
+    threshold = settings.routing_confidence_threshold if settings is not None else 0.6
+    return Orchestrator(
+        registry,
+        runtime,
+        memory=memory,
+        recorder=recorder,
+        routing_confidence_threshold=threshold,
+    )

@@ -38,6 +38,19 @@ class Intent(BaseModel):
     mode: str = ""
 
 
+class RoutingDecision(BaseModel):
+    """一次意图路由的可审计判定结果。
+
+    规则命中无需构造本模型；规则未命中时由轻量 LLM 输出，并在编排层依据
+    ``confidence`` 与部署阈值决定是否接受。受控 Planner 在 B7-3 接入时将
+    扩展该契约的分发目标，不改变已有意图字段。
+    """
+
+    intent: Intent
+    confidence: float = Field(ge=0.0, le=1.0)
+    reason: str = ""
+
+
 class Source(BaseModel):
     """一条决策依据（M2）：哪个工具 / 哪个字段 / 置信度 / 说明。"""
 
@@ -161,5 +174,6 @@ __all__ = [
     "ParamSuggestion",
     "PhotoAnalysisReport",
     "PhotoReverseReport",
+    "RoutingDecision",
     "Source",
 ]

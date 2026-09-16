@@ -51,6 +51,7 @@ DEFAULT_CONTEXT_CONDUCT_BUDGET = 220
 DEFAULT_CONTEXT_TOOLS_BUDGET = 1200
 DEFAULT_CONTEXT_PROFILE_BUDGET = 400
 DEFAULT_CONTEXT_TRACE_BUDGET = 300
+DEFAULT_ROUTING_CONFIDENCE_THRESHOLD = 0.6
 
 # 资源上限与配额（QuotaLedger 默认持有）
 DEFAULT_QUOTA_WARN_THRESHOLD = 0.9
@@ -71,6 +72,7 @@ class Settings(BaseSettings):
         react_max_rounds: ReAct 轮数上限（REACT_MAX_ROUNDS）。
         pipeline_max_steps: 单条管线步骤上限（PIPELINE_MAX_STEPS）。
         plan_max_steps: 受控规划步数上限（PLAN_MAX_STEPS）。
+        routing_confidence_threshold: LLM 路由结果的最低接纳置信度（ROUTING_CONFIDENCE_THRESHOLD）。
         llm_timeout: (连接超时, 读取超时) 秒（LLM_TIMEOUT，支持 "30,120" 写法）。
     """
 
@@ -118,6 +120,12 @@ class Settings(BaseSettings):
     )
     plan_max_steps: int = Field(
         default=DEFAULT_PLAN_MAX_STEPS, ge=1, validation_alias="PLAN_MAX_STEPS"
+    )
+    routing_confidence_threshold: float = Field(
+        default=DEFAULT_ROUTING_CONFIDENCE_THRESHOLD,
+        ge=0.0,
+        le=1.0,
+        validation_alias="ROUTING_CONFIDENCE_THRESHOLD",
     )
     llm_timeout: Annotated[tuple[float, float], NoDecode] = DEFAULT_LLM_TIMEOUT
     context_role_budget: int = Field(default=DEFAULT_CONTEXT_ROLE_BUDGET, ge=1)

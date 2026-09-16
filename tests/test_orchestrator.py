@@ -14,6 +14,8 @@ import json
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.composition import build_registry
@@ -62,7 +64,14 @@ class FakeChatClient:
         return self.chat(messages, **kwargs)
 
 
-_INTENT_JSON = json.dumps({"subject_type": "银河", "location": "", "time_hint": "这周末", "mode": "inspiration"}, ensure_ascii=False)
+_INTENT_JSON = json.dumps(
+    {
+        "intent": {"subject_type": "银河", "location": "", "time_hint": "这周末", "mode": "inspiration"},
+        "confidence": 0.9,
+        "reason": "题材和时间明确",
+    },
+    ensure_ascii=False,
+)
 def _runtime(
     fake: FakeChatClient,
     *,
@@ -213,16 +222,32 @@ def test_orchestrator_plan_full_flow() -> None:
 
 
 def test_orchestrator_parse_intent_falls_back_to_default_model() -> None:
-    """规则未覆盖的请求仍走既有默认模型解析路径。"""
+    """规则未覆盖时由默认模型给出带置信度的路由判定并落 trace。"""
     fake = FakeChatClient([{"role": "assistant", "content": _INTENT_JSON}])
     runtime = _runtime(fake)
-    orc = Orchestrator(registry, runtime, dispatch=_fake_dispatch)
+    recorder = TraceRecorder()
+    orc = Orchestrator(registry, runtime, recorder=recorder, dispatch=_fake_dispatch)
 
     intent = orc.parse_intent("帮我看看本周适合练什么摄影题材")
 
     assert intent.subject_type == "银河"
     assert len(fake.calls) == 1
     assert fake.calls[0]["model"] == "ecnu-plus"
+    steps = recorder.to_report().steps
+    assert any(step.name == "意图路由_LLM" and "0.90" in step.output_summary for step in steps)
+
+
+def test_orchestrator_rejects_low_confidence_llm_route() -> None:
+    """低于部署阈值的 LLM 判定不应被静默接受。"""
+    low_confidence = json.dumps(
+        {"intent": {"subject_type": "其他", "mode": "inspiration"}, "confidence": 0.3, "reason": "模糊"},
+        ensure_ascii=False,
+    )
+    runtime = _runtime(FakeChatClient([{"role": "assistant", "content": low_confidence}]))
+    orc = Orchestrator(registry, runtime, dispatch=_fake_dispatch, routing_confidence_threshold=0.6)
+
+    with pytest.raises(ValueError, match="低于阈值"):
+        orc.parse_intent("帮我看看最近该练什么")
 
 
 def test_orchestrator_plan_falls_back_to_react_on_bad_card() -> None:

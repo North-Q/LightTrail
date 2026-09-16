@@ -33,6 +33,7 @@ _ENV_KEYS = (
     "REACT_MAX_ROUNDS",
     "PIPELINE_MAX_STEPS",
     "PLAN_MAX_STEPS",
+    "ROUTING_CONFIDENCE_THRESHOLD",
     "LIGHTTRAIL_DATA_DIR",
     "LIGHTTRAIL_QUOTA_WARN_THRESHOLD",
 )
@@ -57,6 +58,7 @@ def test_defaults(clean_env: None) -> None:
     assert settings.react_max_rounds == 12
     assert settings.pipeline_max_steps == 12
     assert settings.plan_max_steps == 8
+    assert settings.routing_confidence_threshold == pytest.approx(0.6)
     assert settings.llm_timeout == (30.0, 120.0)
     assert settings.data_dir == "data"
     assert settings.quota_warn_threshold == pytest.approx(0.9)
@@ -92,8 +94,10 @@ def test_guardrail_defaults_and_overrides(clean_env: None, monkeypatch: pytest.M
     monkeypatch.setenv("REACT_MAX_ROUNDS", "6")
     monkeypatch.setenv("PIPELINE_MAX_STEPS", "5")
     monkeypatch.setenv("PLAN_MAX_STEPS", "3")
+    monkeypatch.setenv("ROUTING_CONFIDENCE_THRESHOLD", "0.75")
     settings = _load()
     assert (settings.react_max_rounds, settings.pipeline_max_steps, settings.plan_max_steps) == (6, 5, 3)
+    assert settings.routing_confidence_threshold == pytest.approx(0.75)
 
 
 def test_context_budget_override(clean_env: None, monkeypatch: pytest.MonkeyPatch) -> None:

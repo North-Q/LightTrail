@@ -18,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from lighttrail.application.router import RuleIntentRouter
-from lighttrail.contracts.models import DecisionCard, Intent
+from lighttrail.contracts.models import DecisionCard, Intent, RoutingDecision
 from lighttrail.infra.trace import Recorder, null_trace
 from lighttrail.infra.validation import parse_with_retry
 from lighttrail.llm.router import ModelRouter
@@ -113,13 +113,17 @@ _REVERSE_CARD_INSTRUCTION = """请只输出如下 JSON 对象（不要任何其�
   "degraded": ""
 }"""
 
-_INTENT_INSTRUCTION = """请把用户的一句话请求解析为规范意图，只输出如下 JSON（不要任何其他文字）：
+_ROUTING_INSTRUCTION = """规则未命中，请把用户的一句话请求解析为规范意图并评估判定可信度，只输出如下 JSON（不要任何其他文字）：
 
 {
-  "subject_type": "题材：星空/银河/日出/日落/朝霞/晚霞/火烧云/蓝调/黄金时刻/夜景/城市风光/其他",
-  "location": "目标地点（用户明确给出时填写，否则空串）",
-  "time_hint": "时间提示原文（如：这周末 / 明天傍晚 / 今晚；未知空串）",
-  "mode": "inspiration(灵感出方案) | planning(计划编排) | live(临场决策) | review(照片复盘)"
+  "intent": {
+    "subject_type": "题材：星空/银河/日出/日落/朝霞/晚霞/火烧云/蓝调/黄金时刻/夜景/城市风光/其他",
+    "location": "目标地点（用户明确给出时填写，否则空串）",
+    "time_hint": "时间提示原文（如：这周末 / 明天傍晚 / 今晚；未知空串）",
+    "mode": "inspiration(灵感出方案) | planning(计划编排) | live(临场决策) | review(照片复盘)"
+  },
+  "confidence": 0.0,
+  "reason": "不超过 30 字的判定依据"
 }
 
 用户请求：__REQUEST__"""
@@ -159,6 +163,7 @@ class Orchestrator:
         photo_analyze: Callable[[str, str], dict] | None = None,
         photo_reverse: Callable[[str, str, str], dict] | None = None,
         intent_router: RuleIntentRouter | None = None,
+        routing_confidence_threshold: float = 0.6,
     ) -> None:
         """初始化编排器。
 
@@ -174,6 +179,7 @@ class Orchestrator:
             photo_analyze: 照片分析绑定（缺省经注册表调用已装配工具）。
             photo_reverse: 照片反推绑定（同上；测试可注入 Fake）。
             intent_router: 规则优先意图路由器；缺省使用项目规则表。
+            routing_confidence_threshold: LLM 路由结果的最低接纳置信度（0-1）。
         """
         self._registry = registry
         self._runtime = agent
@@ -190,6 +196,7 @@ class Orchestrator:
         )
         self._photo_reverse = photo_reverse or _default_photo_reverse(self._registry, self._recorder)
         self._intent_router = intent_router or RuleIntentRouter()
+        self._routing_confidence_threshold = routing_confidence_threshold
         self.last_card: DecisionCard | None = None
 
     # ------ 对外接口 ------
@@ -373,7 +380,7 @@ class Orchestrator:
         return date_iso, data
 
     def parse_intent(self, user_request: str) -> Intent:
-        """意图理解：规则优先，未命中时才由默认模型强约束 JSON 解析。
+        """意图理解：规则优先，未命中时由默认模型输出可审计判定。
 
         Args:
             user_request: 用户请求。
@@ -393,13 +400,27 @@ class Orchestrator:
             )
             return rule_intent
 
-        prompt = _INTENT_INSTRUCTION.replace("__REQUEST__", user_request)
-        self._recorder.record_step("意图理解", input_summary=user_request[:80], output_summary="")
+        prompt = _ROUTING_INSTRUCTION.replace("__REQUEST__", user_request)
+        self._recorder.record_step("意图路由_LLM", input_summary=user_request[:80], output_summary="")
 
         def _chat(prompt_text: str) -> str:
             return self._runtime.complete(prompt_text, system=_INTENT_SYSTEM)
 
-        return parse_with_retry(Intent, _chat, prompt)
+        decision = parse_with_retry(RoutingDecision, _chat, prompt)
+        self._recorder.record_step(
+            "意图路由_LLM",
+            input_summary=user_request[:80],
+            output_summary=(
+                f"{decision.intent.mode}/{decision.intent.subject_type}/"
+                f"{decision.confidence:.2f}"
+            ),
+        )
+        if decision.confidence < self._routing_confidence_threshold:
+            raise ValueError(
+                f"LLM 路由置信度 {decision.confidence:.2f} "
+                f"低于阈值 {self._routing_confidence_threshold:.2f}"
+            )
+        return decision.intent
 
     # ------ 内部实现 ------
     def _reason_text(self, prompt: str, system: str) -> str:

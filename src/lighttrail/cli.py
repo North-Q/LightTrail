@@ -105,7 +105,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.pipeline:
         request = " ".join(args.pipeline)
-        orchestrator = build_orchestrator(registry, runtime, memory=memory, recorder=recorder)
+        orchestrator = build_orchestrator(
+            registry,
+            runtime,
+            memory=memory,
+            recorder=recorder,
+            settings=settings,
+        )
         print(orchestrator.plan(request))
         return 0
 

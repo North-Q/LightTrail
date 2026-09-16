@@ -1,5 +1,11 @@
 # LightTrail 开发日志
 
+## 2026-09-16（B7-2 轻量 LLM 路由兜底 — 待提交）
+
+- 新增 `RoutingDecision` 契约：规则未命中时，默认模型输出 `Intent`、置信度与简短理由；判定结果以 `意图路由_LLM` 写入 trace。
+- 增加 `ROUTING_CONFIDENCE_THRESHOLD`（默认 0.6）；低于阈值的判定显式拒绝，不会静默进入错误管线。CLI 经装配根传入该配置。
+- 验证：pytest（路由/配置）25 passed、ruff 0、lint-imports 3 kept / 0 broken。
+
 ## 2026-09-16（B7-1 规则优先意图路由 — 待提交）
 
 - 新增 `application.router.RuleIntentRouter` 与可注入的有序规则表；明确的复盘、规划、临场和灵感请求直接产生 `Intent` 并进入既有四管线，避免额外分类 LLM 调用。

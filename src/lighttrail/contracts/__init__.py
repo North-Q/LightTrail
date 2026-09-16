@@ -44,6 +44,7 @@ from lighttrail.contracts.models import (
     ParamSuggestion,
     PhotoAnalysisReport,
     PhotoReverseReport,
+    RoutingDecision,
     Source,
 )
 from lighttrail.contracts.observability import TraceSink
@@ -76,6 +77,7 @@ __all__ = [
     "Plan",
     "PlanStep",
     "RequestContext",
+    "RoutingDecision",
     "SSEEvent",
     "SSEEventPayload",
     "Source",
