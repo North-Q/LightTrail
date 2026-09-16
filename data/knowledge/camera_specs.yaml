@@ -1,0 +1,22 @@
+version: "2026-09"
+cameras:
+  S5M2:
+    sensor: "35mm full-frame CMOS"
+    sensor_width_mm: 35.6
+    sensor_height_mm: 23.8
+    effective_megapixels: 24.2
+    horizontal_pixels: 6000
+    pixel_pitch_um: 5.93
+    source: "Panasonic DC-S5M2 specifications, https://www.panasonic.com/nz/consumer/cameras-camcorders/lumix-s-series/lumix-s-full-frame-cameras/dc-s5m2.html"
+  A7C2:
+    sensor: "35mm full-frame Exmor R CMOS"
+    sensor_width_mm: 35.9
+    sensor_height_mm: 23.9
+    effective_megapixels: 33.0
+    horizontal_pixels: 7008
+    pixel_pitch_um: 5.12
+    source: "Sony ILCE-7CM2 specifications, https://www.sony.com/electronics/support/e-mount-body-ilce-7-series/ilce-7cm2/specifications"
+  Nikon_FE:
+    sensor: "35mm film (24mm x 36mm frame)"
+    pixel_pitch_um: null
+    source: "Nikon FE instruction manual, https://www.cameramanuals.org/nikon_pdf/nikon_fe.pdf"

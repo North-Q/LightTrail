@@ -1,5 +1,11 @@
 # LightTrail 开发日志
 
+## 2026-09-16（B6-1 结构化相机规格知识表 — 待提交）
+
+- 新增 `domain/knowledge/CameraSpecsCatalog`：只读 YAML 精确查表，返回带 `source` 和 `version` 的 `KnowledgeChunk`；B6-2 前 `search()` 诚实返回空。
+- 新增 `data/knowledge/camera_specs.yaml`：S5M2、A7C2、Nikon FE 三类规格；数字机型记录由厂商规格页尺寸/像素推导的 pixel pitch，胶片机型明确不适用。
+- 新增 PyYAML 运行依赖及相机规格、依赖别名回归。
+
 ## 2026-09-15（B5-4/B5-5 清理与文档基线 — 已提交）
 
 - 删除 `lighttrail.llm.client` 与 `orchestrator.schemas` 到期 shim，移除 `LLM_SERIAL_LLM`；照片工具改由装配根注入 LLM 客户端并经注册表调用。

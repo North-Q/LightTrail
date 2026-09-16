@@ -25,6 +25,7 @@ _DIST_ALIAS = {
     "pil": "pillow",
     "pydantic_ai": "pydantic-ai-slim",
     "pydantic_settings": "pydantic-settings",
+    "yaml": "pyyaml",
 }
 
 

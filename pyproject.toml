@@ -25,6 +25,8 @@ dependencies = [
     "python-multipart>=0.0.9",
     "pydantic-settings>=2.2",
     "pydantic-ai-slim>=2.41,<3",
+    "PyYAML>=6.0",
+    "PyYAML>=6.0",
 ]
 
 [project.optional-dependencies]
