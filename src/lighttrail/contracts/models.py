@@ -18,7 +18,9 @@ B4 增量（前端去伪造数据的契约支撑）：
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from typing import Any
+
+from pydantic import BaseModel, Field, model_validator
 
 
 class Intent(BaseModel):
@@ -49,6 +51,14 @@ class RoutingDecision(BaseModel):
     intent: Intent
     confidence: float = Field(ge=0.0, le=1.0)
     reason: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _compat_old_intent(cls, value: Any) -> Any:
+        """兼容 B7-2 前录制的纯 Intent cassette，避免离线评估历史失效。"""
+        if isinstance(value, dict) and "intent" not in value and "subject_type" in value:
+            return {"intent": value, "confidence": 1.0, "reason": "legacy_intent_cassette"}
+        return value
 
 
 class Source(BaseModel):

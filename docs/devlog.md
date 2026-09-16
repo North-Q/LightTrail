@@ -1,5 +1,11 @@
 # LightTrail 开发日志
 
+## 2026-09-16（B7-3 受控 Planner — 待提交）
+
+- 新增 `runtime.planner.Planner`：LLM 只生成经 Pydantic 校验的 `Plan`，执行固定经 `ToolRegistry.dispatch`、trace 与配额放行；最终工具结果再综合为 `DecisionCard`。
+- 超步数由 `Plan` 契约拒绝，工具错误中止后续步骤并以 `plan_step_failed:<tool>` 标记卡片降级。
+- 兼容旧版纯 Intent cassette，保证 L2/L3 历史离线回放不失效；验证：pytest 359 passed、ruff 0、lint-imports 3 kept / 0 broken。
+
 ## 2026-09-16（B7-2 轻量 LLM 路由兜底 — 待提交）
 
 - 新增 `RoutingDecision` 契约：规则未命中时，默认模型输出 `Intent`、置信度与简短理由；判定结果以 `意图路由_LLM` 写入 trace。
