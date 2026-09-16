@@ -19,6 +19,7 @@ from functools import partial
 from typing import Any
 
 from pydantic_ai import Agent
+from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import ThinkingPart
 from pydantic_ai.models import Model, ModelSettings
 from pydantic_ai.tools import RunContext
@@ -98,11 +99,19 @@ class AgentRuntime:
             ModelAPIError: 供应商调用失败。
         """
         self._context.set_knowledge_query(user_input)
-        result = await self._agent.run(
-            user_input,
-            message_history=self._messages,
-            usage_limits=UsageLimits(request_limit=self._max_tool_rounds),
-        )
+        try:
+            result = await self._agent.run(
+                user_input,
+                message_history=self._messages,
+                usage_limits=UsageLimits(request_limit=self._max_tool_rounds),
+            )
+        except UsageLimitExceeded:
+            self._recorder.record_step(
+                "ReAct_护栏",
+                input_summary=user_input[:80],
+                output_summary=f"达到工具调用上限 {self._max_tool_rounds}",
+            )
+            return f"已达到本轮最多 {self._max_tool_rounds} 次工具调用上限，未继续执行。请缩小问题范围后重试。"
         self._messages = list(result.all_messages())
         return str(result.output)
 

@@ -14,7 +14,6 @@ import json
 from typing import Any
 
 import pytest
-from pydantic_ai.exceptions import UsageLimitExceeded
 
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.contracts.tool import Confidence, ToolSpec
@@ -216,10 +215,13 @@ def test_trace_layer_visible_to_next_run() -> None:
 
 
 def test_tool_round_limit_enforced_by_usage_limits() -> None:
-    """轮数护栏：模型持续调用工具时由框架用量上限拦截（REACT_MAX_ROUNDS → request_limit）。"""
+    """轮数护栏终止循环并返回说明，同时将原因写入 trace。"""
     provider = _FakeProvider([_tool_call("doubler", {"x": 1})])
     registry = _registry(PureTool(spec=_spec("doubler", "把整数翻倍"), func=_doubler))
-    runtime = AgentRuntime(_model(provider, "m"), registry, max_tool_rounds=3)
+    recorder = TraceRecorder()
+    runtime = AgentRuntime(_model(provider, "m"), registry, max_tool_rounds=3, recorder=recorder)
 
-    with pytest.raises(UsageLimitExceeded):
-        runtime.run("无限调用工具")
+    reply = runtime.run("无限调用工具")
+
+    assert "3 次工具调用上限" in reply
+    assert any(step.name == "ReAct_护栏" for step in recorder.to_report().steps)

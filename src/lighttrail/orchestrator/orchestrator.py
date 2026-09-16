@@ -209,6 +209,14 @@ class Orchestrator:
         Returns:
             方案卡片文本；管线失败时返回自由对话回复（原因标注管线降级）。
         """
+        unsupported_reply = self._intent_router.unsupported_reply(user_request)
+        if unsupported_reply is not None:
+            self._recorder.record_step(
+                "意图路由_超工具集",
+                input_summary=user_request[:80],
+                output_summary="显式诚实告知",
+            )
+            return unsupported_reply
         try:
             card = self.run_pipeline(user_request)
             self.last_card = card

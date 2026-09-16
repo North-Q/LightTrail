@@ -65,6 +65,9 @@ DEFAULT_INTENT_RULES: tuple[IntentRule, ...] = (
     ),
 )
 
+_UNSUPPORTED_KEYWORDS: tuple[str, ...] = ("订机票", "订酒店", "叫车", "订餐", "下单购买")
+_UNSUPPORTED_REPLY = "暂不支持代替你完成交易或出行预订；我可以帮你规划拍摄时间、机位和参数。"
+
 
 class RuleIntentRouter:
     """把明确摄影请求直接映射到既有四条确定性管线。"""
@@ -78,6 +81,12 @@ class RuleIntentRouter:
         self._rules = rules
 
     # ------ 对外接口 ------
+    def unsupported_reply(self, user_request: str) -> str | None:
+        """识别明确超出工具集的代办请求，并返回诚实替代建议。"""
+        if any(keyword in user_request for keyword in _UNSUPPORTED_KEYWORDS):
+            return _UNSUPPORTED_REPLY
+        return None
+
     def route(self, user_request: str) -> Intent | None:
         """尝试以规则解析请求，未命中时不猜测。
 

@@ -29,6 +29,13 @@ def test_rule_router_returns_none_for_ambiguous_request() -> None:
     assert RuleIntentRouter().route("最近有什么适合练习的摄影方向") is None
 
 
+def test_rule_router_honestly_rejects_out_of_tool_request() -> None:
+    """代办型任务明确超出摄影工具集时返回替代建议。"""
+    reply = RuleIntentRouter().unsupported_reply("帮我订机票去冰岛拍极光")
+    assert reply is not None
+    assert "暂不支持" in reply
+
+
 def test_rule_table_can_be_replaced() -> None:
     """部署可注入本地规则表，而不改动路由器实现。"""
     router = RuleIntentRouter((IntentRule("本地夜拍", "planning", ("夜游",)),))

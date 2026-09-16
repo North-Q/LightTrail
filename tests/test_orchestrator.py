@@ -221,6 +221,19 @@ def test_orchestrator_plan_full_flow() -> None:
     assert "管线_inspiration" in step_names or "管线_live" in step_names
 
 
+def test_orchestrator_honestly_rejects_out_of_tool_request() -> None:
+    """超出工具集的代办需求不调用 LLM，也不伪装成拍摄决策。"""
+    fake = FakeChatClient([])
+    recorder = TraceRecorder()
+    orc = Orchestrator(registry, _runtime(fake, recorder=recorder), recorder=recorder, dispatch=_fake_dispatch)
+
+    reply = orc.plan("帮我订机票去冰岛拍极光")
+
+    assert "暂不支持" in reply
+    assert fake.calls == []
+    assert any(step.name == "意图路由_超工具集" for step in recorder.to_report().steps)
+
+
 def test_orchestrator_parse_intent_falls_back_to_default_model() -> None:
     """规则未覆盖时由默认模型给出带置信度的路由判定并落 trace。"""
     fake = FakeChatClient([{"role": "assistant", "content": _INTENT_JSON}])

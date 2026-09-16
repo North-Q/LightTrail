@@ -1,5 +1,11 @@
 # LightTrail 开发日志
 
+## 2026-09-16（B7-4 超工具集诚实告知与 ReAct 护栏 — 待提交）
+
+- 对订票、订酒店、叫车、订餐等明确代办任务返回“暂不支持”及摄影决策替代建议，不发起 LLM；trace 写入 `意图路由_超工具集`。
+- ReAct 的框架请求上限继续由 `REACT_MAX_ROUNDS`（默认 12）控制；触顶时写入 `ReAct_护栏`，并终止循环、返回可理解说明。
+- 验证：pytest 361 passed、ruff 0、lint-imports 3 kept / 0 broken。
+
 ## 2026-09-16（B7-3 受控 Planner — 待提交）
 
 - 新增 `runtime.planner.Planner`：LLM 只生成经 Pydantic 校验的 `Plan`，执行固定经 `ToolRegistry.dispatch`、trace 与配额放行；最终工具结果再综合为 `DecisionCard`。
