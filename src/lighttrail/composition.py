@@ -19,6 +19,7 @@ from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.config import Settings, load_settings
 from lighttrail.contracts.context import RequestContext
+from lighttrail.contracts.tool import ToolContext
 from lighttrail.domain.knowledge import FtsKnowledgeProvider
 from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.trace import Recorder, TraceRecorder
@@ -107,6 +108,7 @@ def build_runtime(
     模型桥在本层构造（装配根可用 adapters），runtime 只接收 pydantic-ai Model，
     保持 `runtime → contracts` 的分层方向（lint-imports 强制）。
     """
+    active_knowledge = knowledge or build_knowledge(settings)
     return AgentRuntime(
         LightTrailModel(provider, model_name=settings.model, recorder=recorder),
         registry,
@@ -116,11 +118,18 @@ def build_runtime(
             settings=settings,
             recorder=recorder,
             memory=memory,
-            knowledge=knowledge or build_knowledge(settings),
+            knowledge=active_knowledge,
         ),
         recorder=recorder,
         max_tool_rounds=getattr(settings, "react_max_rounds", DEFAULT_MAX_TOOL_ROUNDS),
         reason_thinking=settings.reason_thinking,
+        tool_context=ToolContext(
+            request=RequestContext(),
+            llm=provider,
+            datasource=None,  # type: ignore[arg-type]
+            memory=memory,
+            knowledge=active_knowledge,
+        ),
     )
 
 

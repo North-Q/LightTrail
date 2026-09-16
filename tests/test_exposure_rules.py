@@ -8,7 +8,12 @@ from __future__ import annotations
 
 import json
 
+from lighttrail.contracts.context import RequestContext
+from lighttrail.contracts.knowledge import KnowledgeChunk
+from lighttrail.contracts.tool import ToolContext
+
 from lighttrail.composition import build_registry
+from lighttrail.tools.exposure import StarShutterTool
 from lighttrail.tools import exposure  # noqa: F401
 
 registry = build_registry()
@@ -37,6 +42,33 @@ def test_star_shutter_npf_tightens() -> None:
         {"focal_length": 14, "aperture": 2.8, "pixel_pitch": 6.0, "declination": -29.0},
     )
     assert result_dec["NPF 法则最大快门（秒）"] > npf
+
+
+def test_star_shutter_uses_profile_camera_knowledge() -> None:
+    """档案为 S5M2 且未手填时，工具从知识库取得像素间距。"""
+
+    class _Profile:
+        camera_body = "松下 S5M2"
+
+    class _Memory:
+        def profile_for(self, ctx: RequestContext) -> _Profile:
+            return _Profile()
+
+    class _Knowledge:
+        def lookup(self, key: str, *, table: str = "") -> KnowledgeChunk | None:
+            assert (key, table) == ("S5M2", "camera_specs")
+            return KnowledgeChunk("S5M2", '{"pixel_pitch_um": 6.0}', "规格页", "2026-09")
+
+        def search(self, query: str, *, k: int = 3, scope: str = "") -> list[KnowledgeChunk]:
+            return []
+
+    result = StarShutterTool()(
+        ToolContext(RequestContext(), llm=None, datasource=None, memory=_Memory(), knowledge=_Knowledge()),  # type: ignore[arg-type]
+        focal_length=14,
+        aperture=2.8,
+    ).data
+    assert result["NPF 法则最大快门（秒）"] == 19.9
+    assert "知识库：S5M2" in result["像素间距来源"]
 
 
 def test_star_shutter_aps_c_crop() -> None:

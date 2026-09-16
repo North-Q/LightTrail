@@ -1,5 +1,10 @@
 # LightTrail 开发日志
 
+## 2026-09-16（B6-4 pixel_pitch 端到端 — 待提交）
+
+- `ToolContext` 增加全局只读 `knowledge` 端口，AgentRuntime 分发与 composition 装配均显式传递。
+- `star_shutter_rule` 改为上下文工具：显式 `pixel_pitch` 优先；缺省从档案机型精确查 `camera_specs`，S5M2 自动得到 NPF 计算与来源标注；工具 schema 删除机型常量描述。
+
 ## 2026-09-16（B6-3 知识库按需注入 — 待提交）
 
 - `composition.build_knowledge()` 将全局 FTS 检索器装配到 `ContextBuilder`；AgentRuntime 每轮以当前用户请求作为查询词。

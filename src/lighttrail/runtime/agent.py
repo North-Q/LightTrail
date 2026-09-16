@@ -25,6 +25,7 @@ from pydantic_ai.tools import RunContext
 from pydantic_ai.tools import Tool as PydanticTool
 from pydantic_ai.usage import UsageLimits
 
+from lighttrail.contracts.tool import ToolContext
 from lighttrail.infra.trace import Recorder, TraceReport, null_trace
 from lighttrail.runtime.context import ContextBuilder
 from lighttrail.runtime.registry import ToolRegistry
@@ -62,6 +63,7 @@ class AgentRuntime:
         recorder: Recorder | None = None,
         max_tool_rounds: int = DEFAULT_MAX_TOOL_ROUNDS,
         reason_thinking: bool = False,
+        tool_context: ToolContext | None = None,
     ) -> None:
         self._registry = registry
         self._recorder: Recorder = recorder or null_trace
@@ -79,6 +81,7 @@ class AgentRuntime:
         self._chat_agent = Agent(self._model, instructions=self._instructions)
         self._reason_agent = Agent(self._model_reason, instructions=self._instructions)
         self._messages: list[Any] = []
+        self._tool_context = tool_context
 
     # ------ 对外接口：ReAct 对话 ------
     async def arun(self, user_input: str) -> str:
@@ -280,6 +283,7 @@ class AgentRuntime:
         return self._registry.dispatch(
             name,
             json.dumps(kwargs, ensure_ascii=False, default=str),
+            ctx=self._tool_context,
             recorder=self._recorder,
         )
 

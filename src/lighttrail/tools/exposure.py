@@ -8,9 +8,11 @@
 
 from __future__ import annotations
 
+import json
 import math
+from typing import Any
 
-from lighttrail.contracts.tool import Confidence, Tool, ToolSpec
+from lighttrail.contracts.tool import Confidence, Tool, ToolContext, ToolResult, ToolSpec
 from lighttrail.tools._base import PureTool
 
 # 常见快门速度档位（秒），供就近取值参考
@@ -140,8 +142,8 @@ _SPEC_STAR_SHUTTER_RULE = ToolSpec(
             },
             "pixel_pitch": {
                 "type": "number",
-                "description": "传感器像素间距（微米）。松下 S5M2（2400 万像素全画幅）约 6.0；"
-                "APS-C 2400 万像素约 3.9。不填则只给 500 法则结果",
+                "description": "传感器像素间距（微米）；显式填写时优先。不填时按档案机型查知识库，"
+                "未命中则只给 500 法则结果",
                 "default": None,
             },
             "declination": {
@@ -204,6 +206,40 @@ def star_shutter_rule(
             "实际使用请结合现场星点放大检查微调"
         ),
     }
+
+
+class StarShutterTool:
+    """星空快门工具：优先显式像素间距，否则从档案机型查全局知识库。"""
+
+    spec = _SPEC_STAR_SHUTTER_RULE
+
+    def __call__(self, ctx: ToolContext, **kwargs: Any) -> ToolResult:
+        """执行快门计算，并在可用时填充知识库像素间距。"""
+        source = ""
+        if kwargs.get("pixel_pitch") is None and ctx.memory is not None and ctx.knowledge is not None:
+            key = _camera_key(ctx.memory.profile_for(ctx.request).camera_body)
+            chunk = ctx.knowledge.lookup(key, table="camera_specs") if key else None
+            if chunk is not None:
+                pitch = json.loads(chunk.text).get("pixel_pitch_um")
+                if isinstance(pitch, (int, float)):
+                    kwargs["pixel_pitch"] = float(pitch)
+                    source = f"知识库：{key}（{chunk.source}）"
+        data = star_shutter_rule(**kwargs)
+        if source:
+            data["像素间距来源"] = source
+        return ToolResult(content=json.dumps(data, ensure_ascii=False), data=data)
+
+
+def _camera_key(camera_body: str) -> str:
+    """从档案机身文本提取知识表机型键。"""
+    normalized = camera_body.upper().replace(" ", "")
+    if "S5M2" in normalized:
+        return "S5M2"
+    if "A7C2" in normalized:
+        return "A7C2"
+    if "NIKONFE" in normalized or normalized == "FE":
+        return "Nikon_FE"
+    return ""
 
 
 _SPEC_ND_LONG_EXPOSURE = ToolSpec(
@@ -320,6 +356,6 @@ def nd_long_exposure(
 # ------ 声明式收集点（ToolSpec 真源；新增工具 = 加一行）------
 TOOLS: tuple[Tool, ...] = (
     PureTool(spec=_SPEC_EQUIVALENT_EXPOSURE, func=equivalent_exposure),
-    PureTool(spec=_SPEC_STAR_SHUTTER_RULE, func=star_shutter_rule),
+    StarShutterTool(),
     PureTool(spec=_SPEC_ND_LONG_EXPOSURE, func=nd_long_exposure),
 )
