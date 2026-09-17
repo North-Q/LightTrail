@@ -82,10 +82,12 @@ def _fake_dispatch(name: str, args: str) -> str:
     """Fake 数据源（不触网）。"""
     data = {
         "moon_phase": {"月相名称": "新月", "照亮比例（%）": 2, "月光影响建议": "低"},
+        "moon_events": {"月出": "19:30", "月落": "05:40"},
         "galaxy_visibility": {"可见窗口": [{"开始": "20:10", "结束": "23:50"}], "最高高度角": 55, "提示": "好"},
         "weather_forecast": {"每日预报": [{"日期": "2026-09-08", "平均云量（%）": 30}], "数据来源": "Open-Meteo（免费）"},
         "sun_times": {"日出": "05:42", "日落": "18:06"},
         "sunset_glow_score": {"评分（0-100）": 62, "等级": "中等（可看趋势再定）", "数据来源": "Open-Meteo（免费）"},
+        "match_sites": {"匹配结果": [{"名称": "测试机位", "匹配度": 4.5}]},
     }
     return json.dumps(data.get(name, {"error": f"未知工具 {name}"}), ensure_ascii=False)
 

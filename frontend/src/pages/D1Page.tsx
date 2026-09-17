@@ -1,4 +1,4 @@
-/** D1 灵感页（E7-8）：一句话→SSE→方案卡 A/B/C；参考图反推走 /api/photos/review 流式上传。 */
+/** D1 灵感页：一句话→SSE→方案卡 A/B/C；参考图走独立反推流。 */
 
 import { useCallback, useRef, useState } from "react";
 import { postFormSSE, sendChat, sendDecide } from "../api/client";
@@ -165,10 +165,10 @@ export function D1Page() {
     userMessageRef.current = `参考图反推：${file.name}`;
     const form = new FormData();
     form.append("file", file);
-    form.append("focus", "");
-    form.append("plan_reference", "");
+    form.append("note", "");
+    form.append("equipment", "");
     try {
-      await postFormSSE("/api/photos/review", form, handleEvent);
+      await postFormSSE("/api/photos/reverse", form, handleEvent);
     } catch (caught) {
       setUploadError(caught instanceof Error ? caught.message : String(caught));
     } finally {

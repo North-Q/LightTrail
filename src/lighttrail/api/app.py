@@ -68,6 +68,7 @@ class ApiDeps:
     reason_thinking: bool = True
     dispatch: Callable[[str, str], str] | None = None
     photo_analyze: Callable[[str, str], dict[str, Any]] | None = None
+    photo_reverse: Callable[[str, str, str], dict[str, Any]] | None = None
 
 
 def create_app(deps: ApiDeps | None = None) -> FastAPI:

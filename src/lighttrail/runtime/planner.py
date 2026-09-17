@@ -34,7 +34,7 @@ class _PlanPayload(BaseModel):
 _PLAN_SYSTEM = "你是 LightTrail 的受控拍摄任务规划器，只能使用给定工具。"
 _CARD_SYSTEM = "你是 LightTrail 拍摄决策引擎，根据已执行工具结果输出决策卡。"
 _CARD_INSTRUCTION = """只输出 JSON：
-{"conclusion":"结论","evidence":[],"confidence":"low|medium|high","verdict":"go|wait|risk","time_window":"","locations":[],"params":[],"alternatives":[],"degraded":""}"""
+{"conclusion":"结论","evidence":[],"confidence":"low|medium|high","verdict":"go|wait|risk","time_window":"","window_start":"","window_end":"","locations":[],"params":[],"alternatives":[],"degraded":""}"""
 
 
 class Planner:

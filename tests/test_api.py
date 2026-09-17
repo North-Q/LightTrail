@@ -114,6 +114,11 @@ def _fake_photo_analyze(image_path: str, focus: str) -> dict:
     }
 
 
+def _fake_photo_reverse(image_path: str, note: str, equipment: str) -> dict:
+    """Fake 参考图反推：让 API 测试不触发真实多模态调用。"""
+    return {"scene": "海边日落", "replication_plan": "日落前到西向机位", "confidence": "medium"}
+
+
 @pytest.fixture()
 def data_dir() -> Path:
     """自建临时数据目录（档案/会话落盘，退出清理）。"""
@@ -129,6 +134,7 @@ def make_app(data_dir: Path):
     def _build(
         responses: list[dict],
         photo_analyze: Callable[[str, str], dict] = _fake_photo_analyze,
+        photo_reverse: Callable[[str, str, str], dict] = _fake_photo_reverse,
     ) -> tuple[object, FakeChatClient]:
         fake = FakeChatClient(responses)
         memory = MemoryManager(data_dir)
@@ -141,6 +147,7 @@ def make_app(data_dir: Path):
             reason_thinking=False,
             dispatch=_fake_dispatch,
             photo_analyze=photo_analyze,
+            photo_reverse=photo_reverse,
         )
         return create_app(deps), fake
 
@@ -260,6 +267,23 @@ async def test_photos_review_sse(make_app) -> None:
     assert "复盘结论" in card_event["card"]["conclusion"]
 
 
+async def test_photos_reverse_sse(make_app) -> None:
+    """/api/photos/reverse：参考图进入复刻计划，而非复盘管线。"""
+    app, _ = make_app([{"role": "assistant", "content": _card_json("复刻计划：日落前到西向机位。")}])
+    transport = ASGITransport(app=app)
+    png_bytes = b"\x89PNG\r\n\x1a\n" + b"0" * 64
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        events = await _collect_sse(
+            client,
+            "POST",
+            "/api/photos/reverse",
+            files={"file": ("reference.png", png_bytes, "image/png")},
+            data={"note": "只能周末去", "equipment": "14mm f/2.8"},
+        )
+    card_event = next(event for event in events if event["type"] == "card")
+    assert "复刻计划" in card_event["card"]["conclusion"]
+
+
 async def test_photos_review_rejects_bad_type(make_app) -> None:
     """照片类型校验：非 jpg/png → 400。"""
     app, _ = make_app([])
@@ -290,6 +314,16 @@ async def test_profile_get_put(make_app) -> None:
 
         got2 = await client.get("/api/profile")
         assert got2.json()["lenses"] == ["24-105mm F4", "契卡 14mm"]
+
+
+async def test_event_write_requires_explicit_request(make_app) -> None:
+    """事件只由显式 API 请求写入，不随复盘端点自动创建。"""
+    app, _ = make_app([])
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/api/events", json={"location": "临港", "subject_type": "火烧云"})
+    assert response.status_code == 200
+    assert response.json()["event_id"] == 1
 
 
 async def test_sessions_unknown_404(make_app) -> None:

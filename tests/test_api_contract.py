@@ -29,7 +29,7 @@ from lighttrail.contracts.events import (
 from lighttrail.contracts.models import DecisionCard
 
 # 三个 SSE 端点共用同一份事件契约
-_SSE_PATHS = ("/api/chat", "/api/decide", "/api/photos/review")
+_SSE_PATHS = ("/api/chat", "/api/decide", "/api/photos/review", "/api/photos/reverse")
 # 生成物必须覆盖的契约模型（前端 generated.ts 的类型来源）
 _CONTRACT_SCHEMAS = (
     "QueuedEvent",
@@ -74,6 +74,19 @@ def test_card_event_serialises_decision_card() -> None:
     assert payload["card"]["verdict"] == "go"
     assert payload["card"]["conclusion"] == "去"
     assert json.loads(json.dumps(payload, ensure_ascii=False))["type"] == "card"
+
+
+def test_decision_card_exposes_structured_time_window() -> None:
+    """时间窗有结构化起止字段，展示文案仍保留兼容。"""
+    card = DecisionCard(
+        conclusion="去",
+        evidence=[],
+        confidence="low",
+        window_start="2026-09-17T18:00:00+08:00",
+        window_end="2026-09-17T18:40:00+08:00",
+    )
+    assert card.time_window == ""
+    assert card.window_end.endswith("+08:00")
 
 
 def test_sse_event_payload_is_discriminated_union() -> None:

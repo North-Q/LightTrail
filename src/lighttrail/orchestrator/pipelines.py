@@ -21,9 +21,10 @@ from typing import Any
 from lighttrail.contracts.context import RequestContext
 from lighttrail.contracts.models import DecisionCard, Intent
 from lighttrail.infra.confidence import confidence_detail
+from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.trace import Recorder, null_trace
 from lighttrail.infra.validation import parse_with_retry
-from lighttrail.llm.router import ModelRouter
+from lighttrail.llm.router import ModelRouter, RouteIntent
 from lighttrail.memory import MemoryManager
 from lighttrail.orchestrator.context import PipelineContext
 
@@ -43,6 +44,7 @@ class PipelineEnv:
     recorder: Recorder = field(default_factory=lambda: null_trace)
     router: ModelRouter | None = None
     photo_analyze: Callable[[str, str], dict[str, Any]] | None = None
+    quota: QuotaLedger | None = None
 
 
 # ------ 确定性工具 ------
@@ -83,6 +85,14 @@ def _collection_steps(subject_type: str, lat: float, lon: float, date_iso: str) 
         return [
             ("moon_phase", json.dumps({"date": date_iso}, ensure_ascii=False)),
             (
+                "moon_events",
+                json.dumps({"latitude": lat, "longitude": lon, "date": date_iso}, ensure_ascii=False),
+            ),
+            (
+                "moon_events",
+                json.dumps({"latitude": lat, "longitude": lon, "date": date_iso}, ensure_ascii=False),
+            ),
+            (
                 "galaxy_visibility",
                 json.dumps({"latitude": lat, "longitude": lon, "date": date_iso}, ensure_ascii=False),
             ),
@@ -112,6 +122,35 @@ def _collection_steps(subject_type: str, lat: float, lon: float, date_iso: str) 
             json.dumps({"latitude": lat, "longitude": lon, "days": 3, "tz_offset": "+08:00"}, ensure_ascii=False),
         )
     ]
+
+
+def _planning_steps(subject_type: str, lat: float, lon: float, date_iso: str) -> list[tuple[str, str]]:
+    """规划管线按题材采集，并把天气窗口扩至七天。"""
+    steps = _collection_steps(subject_type, lat, lon, date_iso)
+    return [
+        (
+            name,
+            json.dumps({**json.loads(args), "days": 7}, ensure_ascii=False)
+            if name == "weather_forecast"
+            else args,
+        )
+        for name, args in steps
+    ]
+
+
+def _match_candidate_sites(
+    env: PipelineEnv, sites: list[dict[str, Any]], date_iso: str
+) -> dict[str, Any]:
+    """调用确定性机位匹配，并把异常收敛为可解释的降级数据。"""
+    args = json.dumps({"sites": sites, "date": date_iso, "tz_offset": "+08:00"}, ensure_ascii=False)
+    env.recorder.record_step("机位匹配", input_summary=args[:80], output_summary="")
+    try:
+        raw = env.dispatch("match_sites", args)
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, dict) else {"error": "match_sites 返回格式非法"}
+    except Exception as exc:  # noqa: BLE001 - 匹配失败不阻断其他数据源
+        logger.warning("机位匹配失败：%s", exc)
+        return {"error": f"{type(exc).__name__}: {exc}"}
 
 
 async def _collect_async(
@@ -212,6 +251,8 @@ _DECISION_CARD_INSTRUCTION = """请基于以上数据输出一份决策卡片，
   "confidence": "high|medium|low",
   "verdict": "go|wait|risk（go=值得出门按窗口去；wait=先观察临近数据；risk=不建议专程）",
   "time_window": "建议时间窗口",
+  "window_start": "ISO 8601 含时区的窗口开始；无法确定则空字符串",
+  "window_end": "ISO 8601 含时区的窗口结束；无法确定则空字符串",
   "locations": [{"name": "机位", "reason": "理由"}],
   "params": [{"name": "参数", "value": "值", "reason": "理由"}],
   "alternatives": ["备选方案1", "备选方案2"],
@@ -264,6 +305,30 @@ class Pipeline:
 
     def run(self, ctx: PipelineContext, env: PipelineEnv) -> DecisionCard:
         """执行管线，并统一补全规则推导字段（置信度明细）。"""
+        if env.quota is not None and not env.quota.check():
+            env.recorder.record_step("配额_拒绝", input_summary=self.name, output_summary="quota_exhausted")
+            return finalize_card(
+                DecisionCard(
+                    conclusion="当前配额已达上限，本次未发起模型调用。",
+                    evidence=[],
+                    confidence="low",
+                    verdict="wait",
+                    degraded="quota_exhausted",
+                )
+            )
+        if env.quota is not None and env.router is not None:
+            warning = env.quota.degrade(RouteIntent.DEEP_REASONING, env.router)
+            if warning is not None:
+                env.recorder.record_step("配额_降级", input_summary=self.name, output_summary=warning[:120])
+                return finalize_card(
+                    DecisionCard(
+                        conclusion="当前配额水位较高，已降级为不发起深推理的保守建议。",
+                        evidence=[],
+                        confidence="low",
+                        verdict="wait",
+                        degraded="quota_high_water",
+                    )
+                )
         return finalize_card(self._run(ctx, env))
 
     def _run(self, ctx: PipelineContext, env: PipelineEnv) -> DecisionCard:
@@ -310,16 +375,11 @@ class PlanningPipeline(Pipeline):
             return _missing_site_card()
         site = sites[0]
         date_iso = _target_date(intent.time_hint)
-        steps = [
-            ("weather_forecast", json.dumps({"latitude": site["纬度"], "longitude": site["经度"], "days": 7, "tz_offset": "+08:00"}, ensure_ascii=False)),
-            ("moon_phase", json.dumps({"date": date_iso}, ensure_ascii=False)),
-            ("sun_times", json.dumps({"latitude": site["纬度"], "longitude": site["经度"], "date": date_iso}, ensure_ascii=False)),
-        ]
+        steps = _planning_steps(intent.subject_type, site["纬度"], site["经度"], date_iso)
         ctx.data = _collect(env, ctx, steps)
-        ctx.scores = _score(ctx.data)
-        # 机位匹配：用档案常去机位做候选（无精确坐标时兜底默认机位）
         ctx.data["候选机位"] = sites
-        env.recorder.record_step("机位匹配", input_summary=json.dumps(sites, ensure_ascii=False)[:80], output_summary="")
+        ctx.data["match_sites"] = _match_candidate_sites(env, sites, date_iso)
+        ctx.scores = _score(ctx.data)
         prompt = _build_synthesis_prompt(ctx, env)
         ctx.card = parse_with_retry(DecisionCard, lambda p: env.reason(p, ""), prompt)
         return ctx.card
@@ -339,12 +399,10 @@ class LiveDecisionPipeline(Pipeline):
         if not sites:
             return _missing_site_card()
         site = sites[0]
-        steps = [
-            ("sun_times", json.dumps({"latitude": site["纬度"], "longitude": site["经度"], "date": today}, ensure_ascii=False)),
-            ("sunset_glow_score", json.dumps({"latitude": site["纬度"], "longitude": site["经度"], "date": today}, ensure_ascii=False)),
-            ("weather_forecast", json.dumps({"latitude": site["纬度"], "longitude": site["经度"], "days": 1, "tz_offset": "+08:00"}, ensure_ascii=False)),
-        ]
+        steps = _collection_steps(ctx.intent.subject_type, site["纬度"], site["经度"], today)
         ctx.data = _collect(env, ctx, steps)
+        ctx.data["候选机位"] = sites
+        ctx.data["match_sites"] = _match_candidate_sites(env, sites, today)
         ctx.scores = _score(ctx.data)
         prompt = _build_synthesis_prompt(ctx, env)
         ctx.card = parse_with_retry(DecisionCard, lambda p: env.reason(p, ""), prompt)

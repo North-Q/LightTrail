@@ -17,6 +17,7 @@ import logging
 import tempfile
 from collections.abc import AsyncIterator, Callable
 from dataclasses import asdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -77,6 +78,16 @@ class ProfilePayload(BaseModel):
     common_locations: list[str] | None = None
     skill_level: str | None = None
     favorite_spots: list[dict[str, Any]] | None = None
+
+
+class EventCreatePayload(BaseModel):
+    """用户确认后写入的拍摄事件；服务端不从复盘结果自动推断或落库。"""
+
+    location: str = Field(..., min_length=1, max_length=120, description="拍摄地点名称")
+    subject_type: str = Field(default="", max_length=40, description="题材，如火烧云或银河")
+    summary: str = Field(default="", max_length=1000, description="用户确认的复盘摘要")
+    outcome: str = Field(default="", pattern="^(|success|fail)$", description="结果：success、fail 或空")
+    timestamp: str = Field(default="", description="ISO 8601 拍摄时间；空则以确认时刻写入")
 
 
 # ------ SSE 常量（事件类型定义见 api/events.py）------
@@ -186,6 +197,8 @@ def _run_setup(deps: Any, recorder: TraceRecorder) -> tuple[AgentRuntime, Orches
         recorder=recorder,
         dispatch=dispatch,
         photo_analyze=deps.photo_analyze,
+        photo_reverse=deps.photo_reverse,
+        quota=getattr(deps.client, "quota", None),
     )
     return runtime, orchestrator
 
@@ -325,6 +338,33 @@ async def photos_review(
     return await _review_stream(deps, content, suffix, display_name, focus, plan_reference, session_id)
 
 
+@router.post(
+    "/api/photos/reverse",
+    summary="参考图反推（D1.2），上传图片 → SSE 事件至复刻计划卡片",
+    responses=_SSE_RESPONSES,
+    response_class=SSEResponse,
+)
+async def photos_reverse(
+    request: Request,
+    file: UploadFile = File(..., description="参考图（jpg/png，≤10MB）"),  # noqa: B008
+    note: str = Form(default="", description="补充约束，如「只能周末去」"),
+    equipment: str = Form(default="", description="器材覆盖，如「14mm f/2.8」"),
+    session_id: str = Form(default="", description="会话标识；缺省自动新建"),
+) -> StreamingResponse:
+    """上传参考图 → 反推管线 → 复刻计划卡片 → done。"""
+    deps = request.app.state.deps
+    if file.content_type not in _ALLOWED_PHOTO_TYPES:
+        raise HTTPException(status_code=400, detail="仅支持 jpg/png 照片")
+    content = await file.read()
+    if len(content) > _MAX_PHOTO_BYTES:
+        raise HTTPException(status_code=413, detail="照片超过 10MB 上限")
+    if not content:
+        raise HTTPException(status_code=400, detail="照片内容为空")
+    suffix = Path(file.filename or "").suffix.lower() or (".png" if file.content_type == "image/png" else ".jpg")
+    display_name = Path(file.filename or "").name or f"reference{suffix}"
+    return await _reverse_stream(deps, content, suffix, display_name, note, equipment, session_id)
+
+
 async def _review_stream(
     deps: Any,
     content: bytes,
@@ -384,6 +424,63 @@ async def _review_stream(
     return _stream_response(stream())
 
 
+async def _reverse_stream(
+    deps: Any,
+    content: bytes,
+    suffix: str,
+    display_name: str,
+    note: str,
+    equipment: str,
+    session_id: str,
+) -> StreamingResponse:
+    """参考图反推 SSE 流：临时文件在 worker 生命周期内创建和销毁。"""
+    session = _load_or_create(deps, session_id)
+    queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+    loop = asyncio.get_running_loop()
+    recorder = TraceRecorder()
+    bridge = TraceBridge(recorder)
+    bridge.attach(queue, loop, session_id=session.session_id)
+
+    def run() -> tuple[DecisionCard, str, Any]:
+        """运行反推并保证临时文件不泄漏。"""
+        _, orchestrator = _run_setup(deps, recorder)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(content)
+            image_path = tmp.name
+        try:
+            card = orchestrator.run_reverse(image_path, note=note, equipment=equipment)
+            return card, _render_card(card), recorder.to_report()
+        finally:
+            Path(image_path).unlink(missing_ok=True)
+
+    async def worker() -> None:
+        try:
+            card, text, report = await asyncio.to_thread(run)
+        except Exception as exc:
+            logger.exception("会话 %s 参考图反推失败", session.session_id)
+            queue.put_nowait(to_payload(ErrorEvent(message=str(exc), session_id=session.session_id)))
+            queue.put_nowait(to_payload(DoneEvent(session_id=session.session_id)))
+            return
+        session.history.append({"role": "user", "content": f"参考图反推：{display_name}（{note}）"})
+        session.history.append({"role": "assistant", "content": text})
+        session.workspace["last_card"] = card.model_dump(mode="json")
+        session.workspace["last_trace"] = _report_to_dict(report)
+        deps.sessions.save(session)
+        queue.put_nowait(to_payload(CardEvent(card=card, text=text, session_id=session.session_id)))
+        queue.put_nowait(to_payload(DoneEvent(text=text, session_id=session.session_id)))
+
+    async def stream() -> AsyncIterator[str]:
+        queue.put_nowait(to_payload(QueuedEvent(position=_queue_position(deps.client), session_id=session.session_id)))
+        worker_task = asyncio.create_task(worker())
+        try:
+            async for frame in pump(queue, worker_task):
+                yield frame
+        finally:
+            bridge.detach()
+
+    return _stream_response(stream())
+
+
 @router.get("/api/profile", summary="读取用户档案（M1.1-01）", response_model=ProfilePayload)
 async def get_profile(request: Request) -> dict[str, Any]:
     """返回当前档案（camera_body/lenses/preferences/…）。"""
@@ -397,6 +494,21 @@ async def put_profile(payload: ProfilePayload, request: Request) -> dict[str, An
     fields = payload.model_dump(exclude_none=True)
     deps.memory.update_profile(RequestContext(), fields)
     return asdict(deps.memory.profile)
+
+
+@router.post("/api/events", summary="确认写入拍摄事件（M1），仅显式请求才落库")
+async def create_event(payload: EventCreatePayload, request: Request) -> dict[str, Any]:
+    """写入一条用户明确确认的事件记忆，不从照片复盘自动落盘。"""
+    timestamp = payload.timestamp or datetime.now(timezone.utc).isoformat()
+    event_id = request.app.state.deps.memory.add_event(
+        RequestContext(),
+        timestamp,
+        payload.location,
+        subject_type=payload.subject_type,
+        summary=payload.summary,
+        outcome=payload.outcome,
+    )
+    return {"event_id": event_id, "timestamp": timestamp}
 
 
 @router.get("/api/sessions/{session_id}", summary="会话历史与 TraceReport 回放")

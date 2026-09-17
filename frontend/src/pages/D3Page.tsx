@@ -41,6 +41,10 @@ function firstTime(text: string): string {
 }
 
 function countdownSeconds(targetTime: string): number {
+  if (targetTime.includes("T")) {
+    const targetMs = Date.parse(targetTime);
+    return Number.isNaN(targetMs) ? 0 : Math.max(0, Math.floor((targetMs - Date.now()) / 1000));
+  }
   const [hour, minute] = targetTime.split(":").map((part) => parseInt(part, 10));
   const now = new Date();
   let target = new Date(now);
@@ -81,7 +85,7 @@ export function D3Page() {
   const [reasons, setReasons] = useState<{ title: string; detail: string; src: string }[]>([]);
   const { addSource } = useSources();
 
-  // 倒计时：基于 card.time_window 首个时刻，每秒滴答
+  // 倒计时优先使用后端结构化窗口；旧卡才兼容解析展示文案。
   useEffect(() => {
     if (!targetTime) {
       setRemaining(0);
@@ -147,8 +151,7 @@ export function D3Page() {
           setCard(event.card);
           localStorage.setItem("lt.last_card", JSON.stringify({ card: event.card, ts: Date.now() }));
           setActiveVerdict(asVerdict(event.card.verdict));
-          const windowText = event.card.time_window ?? "";
-          const parsed = firstTime(windowText);
+          const parsed = event.card.window_start || firstTime(event.card.time_window ?? "");
           if (parsed) {
             setTargetTime(parsed);
           }

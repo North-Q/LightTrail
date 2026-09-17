@@ -232,6 +232,11 @@ class ChatClient:
         """当前在途（执行中）的 LLM 请求数（0 = 空闲；供 SSE queued 事件）。"""
         return self._limiter.in_flight()
 
+    @property
+    def quota(self) -> QuotaLedger | None:
+        """暴露已装配账本，供上层在调用前做准入和可解释降级。"""
+        return self._quota
+
     def chat(
         self,
         messages: list[dict[str, Any]],
@@ -301,6 +306,8 @@ class ChatClient:
             LLMError: 重试耗尽或参数错误。
         """
         payload: dict[str, Any] = {"model": model, "messages": messages, "temperature": temperature}
+        if self._quota is not None and not self._quota.check():
+            raise LLMError("配额窗口已达上限，本次请求未发送")
         if tools:
             payload["tools"] = tools
         self._attach_reason_params(payload, thinking, reasoning_effort)

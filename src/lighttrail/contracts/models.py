@@ -158,6 +158,8 @@ class DecisionCard(BaseModel):
             由模型按提示词给出，前端直接读字段，不做中文正则猜测（B4-3）。
         confidence_detail: 置信度明细（代码规则推导，B4-3 起随卡片下发；缺省为 None）。
         time_window: 建议时间窗口文案（如「05:10-05:40，黄金 05:20-06:10」）。
+        window_start: 建议窗口开始时间（ISO 8601，含时区；未知为空）。
+        window_end: 建议窗口结束时间（ISO 8601，含时区；未知为空）。
         locations: 推荐机位列表。
         params: 参数建议列表。
         alternatives: 备选方案文案列表。
@@ -170,6 +172,8 @@ class DecisionCard(BaseModel):
     verdict: str = ""
     confidence_detail: ConfidenceDetail | None = None
     time_window: str = ""
+    window_start: str = ""
+    window_end: str = ""
     locations: list[LocationSuggestion] = Field(default_factory=list)
     params: list[ParamSuggestion] = Field(default_factory=list)
     alternatives: list[str] = Field(default_factory=list)

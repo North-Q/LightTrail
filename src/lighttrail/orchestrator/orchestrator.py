@@ -19,6 +19,7 @@ from typing import Any
 
 from lighttrail.application.router import RuleIntentRouter
 from lighttrail.contracts.models import DecisionCard, Intent, RoutingDecision
+from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.trace import Recorder, null_trace
 from lighttrail.infra.validation import parse_with_retry
 from lighttrail.llm.router import ModelRouter
@@ -108,6 +109,8 @@ _REVERSE_CARD_INSTRUCTION = """请只输出如下 JSON 对象（不要任何其�
   "confidence": "high|medium|low",
   "verdict": "go|wait|risk（go=值得去；wait=先观察；risk=不建议专程）",
   "time_window": "建议到场时间窗口",
+  "window_start": "ISO 8601 含时区的窗口开始；无法确定则空字符串",
+  "window_end": "ISO 8601 含时区的窗口结束；无法确定则空字符串",
   "locations": [{"name": "机位", "reason": "为何符合参考图特征"}],
   "params": [{"name": "参数", "value": "值", "reason": "理由"}],
   "alternatives": ["备选方案"],
@@ -166,6 +169,7 @@ class Orchestrator:
         intent_router: RuleIntentRouter | None = None,
         routing_confidence_threshold: float = 0.6,
         planner: Planner | None = None,
+        quota: QuotaLedger | None = None,
     ) -> None:
         """初始化编排器。
 
@@ -195,6 +199,7 @@ class Orchestrator:
             recorder=self._recorder,
             router=self._router,
             photo_analyze=photo_analyze or _default_photo_analyze(self._registry, self._recorder),
+            quota=quota,
         )
         self._photo_reverse = photo_reverse or _default_photo_reverse(self._registry, self._recorder)
         self._intent_router = intent_router or RuleIntentRouter()
@@ -204,6 +209,7 @@ class Orchestrator:
             lambda prompt, system: self._runtime.complete(prompt, system=system),
             self._reason_text,
             recorder=self._recorder,
+            quota=quota,
         )
         self.last_card: DecisionCard | None = None
 

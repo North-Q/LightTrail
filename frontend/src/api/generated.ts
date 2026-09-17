@@ -44,6 +44,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 确认写入拍摄事件（M1），仅显式请求才落库
+         * @description 写入一条用户明确确认的事件记忆，不从照片复盘自动落盘。
+         */
+        post: operations["create_event_api_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/photos/reverse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 参考图反推（D1.2），上传图片 → SSE 事件至复刻计划卡片
+         * @description 上传参考图 → 反推管线 → 复刻计划卡片 → done。
+         */
+        post: operations["photos_reverse_api_photos_reverse_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/photos/review": {
         parameters: {
             query?: never;
@@ -116,6 +156,32 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Body_photos_reverse_api_photos_reverse_post */
+        Body_photos_reverse_api_photos_reverse_post: {
+            /**
+             * Equipment
+             * @description 器材覆盖，如「14mm f/2.8」
+             * @default
+             */
+            equipment: string;
+            /**
+             * File
+             * @description 参考图（jpg/png，≤10MB）
+             */
+            file: string;
+            /**
+             * Note
+             * @description 补充约束，如「只能周末去」
+             * @default
+             */
+            note: string;
+            /**
+             * Session Id
+             * @description 会话标识；缺省自动新建
+             * @default
+             */
+            session_id: string;
+        };
         /** Body_photos_review_api_photos_review_post */
         Body_photos_review_api_photos_review_post: {
             /**
@@ -269,6 +335,8 @@ export interface components {
          *             由模型按提示词给出，前端直接读字段，不做中文正则猜测（B4-3）。
          *         confidence_detail: 置信度明细（代码规则推导，B4-3 起随卡片下发；缺省为 None）。
          *         time_window: 建议时间窗口文案（如「05:10-05:40，黄金 05:20-06:10」）。
+         *         window_start: 建议窗口开始时间（ISO 8601，含时区；未知为空）。
+         *         window_end: 建议窗口结束时间（ISO 8601，含时区；未知为空）。
          *         locations: 推荐机位列表。
          *         params: 参数建议列表。
          *         alternatives: 备选方案文案列表。
@@ -303,6 +371,16 @@ export interface components {
              * @default
              */
             verdict: string;
+            /**
+             * Window End
+             * @default
+             */
+            window_end: string;
+            /**
+             * Window Start
+             * @default
+             */
+            window_start: string;
         };
         /**
          * DoneEvent
@@ -345,6 +423,41 @@ export interface components {
              * @enum {string}
              */
             type: "error";
+        };
+        /**
+         * EventCreatePayload
+         * @description 用户确认后写入的拍摄事件；服务端不从复盘结果自动推断或落库。
+         */
+        EventCreatePayload: {
+            /**
+             * Location
+             * @description 拍摄地点名称
+             */
+            location: string;
+            /**
+             * Outcome
+             * @description 结果：success、fail 或空
+             * @default
+             */
+            outcome: string;
+            /**
+             * Subject Type
+             * @description 题材，如火烧云或银河
+             * @default
+             */
+            subject_type: string;
+            /**
+             * Summary
+             * @description 用户确认的复盘摘要
+             * @default
+             */
+            summary: string;
+            /**
+             * Timestamp
+             * @description ISO 8601 拍摄时间；空则以确认时刻写入
+             * @default
+             */
+            timestamp: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -668,6 +781,74 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["DecideRequest"];
+            };
+        };
+        responses: {
+            /** @description SSE 事件流（event: <type> + data: JSON） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["QueuedEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["ToolCallEvent"] | components["schemas"]["ToolResultEvent"] | components["schemas"]["TokenEvent"] | components["schemas"]["CardEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["DoneEvent"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_event_api_events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventCreatePayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    photos_reverse_api_photos_reverse_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_photos_reverse_api_photos_reverse_post"];
             };
         };
         responses: {

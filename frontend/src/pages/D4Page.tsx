@@ -15,6 +15,10 @@ export function D4Page() {
   const [notice, setNotice] = useState("");
   const [card, setCard] = useState<DecisionCard | null>(null);
   const [uploaded, setUploaded] = useState<string[]>([]);
+  const [location, setLocation] = useState("");
+  const [subjectType, setSubjectType] = useState("");
+  const [savingEvent, setSavingEvent] = useState(false);
+  const [eventMessage, setEventMessage] = useState("");
   const { addSource } = useSources();
 
   async function uploadOne(file: File): Promise<void> {
@@ -65,6 +69,34 @@ export function D4Page() {
       }
     }
     setNotice(uploaded.length > 0 ? `已分析 ${uploaded.length} 张，下方展示最近一张的结果` : "");
+  }
+
+  async function saveEvent(): Promise<void> {
+    if (!card || !location.trim() || savingEvent) {
+      return;
+    }
+    setSavingEvent(true);
+    setEventMessage("");
+    try {
+      const response = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location: location.trim(),
+          subject_type: subjectType.trim(),
+          summary: card.conclusion,
+          outcome: "success",
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      setEventMessage("已确认写入事件记忆 ✓");
+    } catch (caught) {
+      setEventMessage(`写入失败：${caught instanceof Error ? caught.message : String(caught)}`);
+    } finally {
+      setSavingEvent(false);
+    }
   }
 
   const evidence = card?.evidence ?? [];
@@ -148,6 +180,40 @@ export function D4Page() {
           <section className="card" style={{ marginTop: 20 }}>
             <span className="card-kicker">复盘结论</span>
             <p className="card-conclusion">{card.conclusion}</p>
+          </section>
+
+          <section className="card" style={{ marginTop: 20 }}>
+            <span className="card-kicker">记录本次拍摄</span>
+            <p className="page-sub">仅在你点击确认后写入事件记忆；不会因上传或复盘自动保存。</p>
+            <div className="gear-field">
+              <label htmlFor="event-location">地点</label>
+              <input id="event-location" value={location} onChange={(event) => setLocation(event.target.value)} placeholder="如 临港海堤" />
+            </div>
+            <div className="gear-field">
+              <label htmlFor="event-subject">题材</label>
+              <input id="event-subject" value={subjectType} onChange={(event) => setSubjectType(event.target.value)} placeholder="如 火烧云" />
+            </div>
+            <button type="button" className="btn btn-primary" disabled={!location.trim() || savingEvent} onClick={() => void saveEvent()}>
+              {savingEvent ? "写入中…" : "确认写入事件记忆"}
+            </button>
+            {eventMessage ? <p className="page-sub">{eventMessage}</p> : null}
+          </section>
+
+          <section className="card" style={{ marginTop: 20 }}>
+            <span className="card-kicker">记录本次拍摄</span>
+            <p className="page-sub">仅在你点击确认后写入事件记忆；不会因上传或复盘自动保存。</p>
+            <div className="gear-field">
+              <label htmlFor="event-location">地点</label>
+              <input id="event-location" value={location} onChange={(event) => setLocation(event.target.value)} placeholder="如 临港海堤" />
+            </div>
+            <div className="gear-field">
+              <label htmlFor="event-subject">题材</label>
+              <input id="event-subject" value={subjectType} onChange={(event) => setSubjectType(event.target.value)} placeholder="如 火烧云" />
+            </div>
+            <button type="button" className="btn btn-primary" disabled={!location.trim() || savingEvent} onClick={() => void saveEvent()}>
+              {savingEvent ? "写入中…" : "确认写入事件记忆"}
+            </button>
+            {eventMessage ? <p className="page-sub">{eventMessage}</p> : null}
           </section>
         </>
       )}
