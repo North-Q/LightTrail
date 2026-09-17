@@ -89,10 +89,6 @@ def _collection_steps(subject_type: str, lat: float, lon: float, date_iso: str) 
                 json.dumps({"latitude": lat, "longitude": lon, "date": date_iso}, ensure_ascii=False),
             ),
             (
-                "moon_events",
-                json.dumps({"latitude": lat, "longitude": lon, "date": date_iso}, ensure_ascii=False),
-            ),
-            (
                 "galaxy_visibility",
                 json.dumps({"latitude": lat, "longitude": lon, "date": date_iso}, ensure_ascii=False),
             ),

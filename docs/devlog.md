@@ -5,7 +5,7 @@
 - C0-1：新增 `/api/photos/reverse` SSE 端点，D1 参考图反推不再误用 D4 复盘端点；上传、会话和临时文件生命周期与复盘端点同级保护。
 - C0-2：D4 仅在用户填写地点并点击“确认写入事件记忆”后调用 `/api/events` 落库，上传与复盘全程不自动写事件。
 - C0-3~C0-5：银河/星空补月升落与银心数据，D2/D3 接 `match_sites`；配额满额/高水位明确降级；决策卡新增 ISO 8601 时间窗字段，D3 兼容旧文案。
-- 离线验证：pytest 365 passed、ruff 0、smoke 21/21、`npm run gen:api` 与 `npm run build` 通过。真实最小联调须先确认 Key 配额。
+- 离线验证：pytest 366 passed、ruff 0、smoke 21/21、`npm run gen:api` 与 `npm run build` 通过；新增配额超额时不采集、不调用 reason 的回归。真实最小联调须先确认 Key 配额。
 
 ## 2026-09-17（文档进度审计与后重构路线图）
 

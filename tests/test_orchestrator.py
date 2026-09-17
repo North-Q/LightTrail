@@ -20,7 +20,9 @@ from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.composition import build_registry
 from lighttrail.contracts.models import DecisionCard, Intent
+from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.trace import TraceRecorder
+from lighttrail.llm.router import ModelRouter
 from lighttrail.memory import MemoryManager, UserProfile
 from lighttrail.orchestrator import Orchestrator
 from lighttrail.orchestrator.context import PipelineContext
@@ -158,10 +160,30 @@ def test_inspiration_pipeline_walks_steps_and_records_trace() -> None:
     assert ctx.scores["月相"] == "新月"
     step_names = [s.name for s in recorder.to_report().steps]
     assert "采集_moon_phase" in step_names
+    assert "采集_moon_events" in step_names
     assert "采集_galaxy_visibility" in step_names
     assert "采集_weather_forecast" in step_names
     assert "综合_reason" in step_names
     assert "卡片_产出" in step_names
+
+
+def test_pipeline_stops_before_llm_when_quota_exhausted() -> None:
+    """管线配额耗尽时不采集、不调用 reason，返回可解释降级卡。"""
+    ledger = QuotaLedger(windows=(("hours", 3600.0, 1.0),), now=1_800_000_000.0)
+    ledger._records.append((1_800_000_000.0, 1.1))
+    calls: list[str] = []
+    env = PipelineEnv(
+        dispatch=lambda name, args: calls.append(name) or "{}",
+        reason=lambda prompt, system: _CARD_JSON,
+        memory=_MEMORY,
+        quota=ledger,
+        router=ModelRouter(),
+    )
+    card = PIPELINES["inspiration"].run(
+        PipelineContext(user_request="这周末想去拍银河", intent=Intent(subject_type="银河")), env
+    )
+    assert card.degraded == "quota_exhausted"
+    assert calls == []
 
 
 def test_inspiration_pipeline_records_scores() -> None:
