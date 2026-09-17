@@ -13,15 +13,15 @@
 截至 2026-09-17：
 
 ```text
-当前位置：B0–B7 已完成；C0 已规划，等待小北确认后启动
-代码：main / B0–B7 均已独立提交；当前以 git status 为准
-后端：pytest 362 passed / ruff 0 / smoke 21 项
+当前位置：B0–B7、C0 已完成；等待小北确认后进入 C1
+代码：main / B0–B7、C0 均已独立提交；当前以 git status 为准
+后端：pytest 366 passed / ruff 0 / smoke 21 项
 架构：lint-imports 3 kept / 0 broken
 前端：npm run build 通过；六页 + 未知路由 check:ui 7/7 通过
 契约：npm run gen:api 后 git diff --exit-code 通过
 产品资产：15 个声明式工具、AgentRuntime、四条管线、FastAPI + SSE、六页 SPA、L2/L3 evals
-已完成批次：B0、B1、B2、B3、B4、B5、B6、B7
-未完成批次：无（B0–B7 架构重构已收口）
+已完成批次：B0、B1、B2、B3、B4、B5、B6、B7、C0
+未完成批次：C1、C2（后重构能力迭代，须逐批确认）
 ```
 
 当前最重要的判断：v4 架构重构已完成；后续功能迭代必须建立在规则优先路由、受控 Planner、用户记忆和全局知识库的真实链路上，禁止把接口预留、测试 Fake 或设计稿误报为真实功能完成。
@@ -65,7 +65,7 @@ B0 ✅ 止血护栏
 
 已完成 B7：规则优先 + 可审计 LLM 兜底路由、受控 Plan-Execute、超工具集诚实告知、ReAct 护栏和带 RequestContext 的零成本 L2 回放。
 
-B7 已通过闸门 7。后续从 C0 的最小原子任务开始；C0-2 涉及拍摄历史写入策略，必须先由小北确认隐私语义。
+C0 已通过闸门：真实 Key 下的银河规划（含 `match_sites`）与参考图反推均跑通，临时档案已还原。后续从 C1 的最小原子任务开始；涉及拍摄历史写入的改动仍须明确用户确认语义。
 
 ## 🔍 每次启动的工作协议
 

@@ -48,7 +48,7 @@ LightTrail/
 │                        #   壳层自检 npm run check:ui 六页路由逐一渲染校验）
 ├── evals/               # 三层评估：黄金用例 cassette + LLM-as-judge
 ├── scripts/             # 真实联调自检（scripts/live_check.py，真实 Key、配额克制）
-├── tests/               # 362 项 pytest 用例（离线 Fake 数据源，不触网）
+├── tests/               # 366 项 pytest 用例（离线 Fake 数据源，不触网）
 ├── data/                # 本地记忆数据（profile/events.db/semantic，不入库）
 └── README.md
 ```
@@ -68,7 +68,7 @@ LightTrail/
 - [x] 评估体系（E8：L2 黄金用例 cassette 回放零成本 + L3 LLM-as-judge「工具即裁判」）
 - [x] **B5 架构重建收口**：用户记忆命名空间、领域知识种子、真实机位坐标、到期 shim 清理、ADR-004 与架构文档同步
 - [x] **B6/B7 架构重建收口**：全局知识库与 FTS5 检索、机型规格案例、规则优先路由、受控 Planner 与 ReAct 护栏
-- [ ] **C0 决策闭环补齐**：照片反推入口、题材感知规划、配额降级与结构化时间窗——任务见 [docs/POST-REFACTOR-ROADMAP.md](docs/POST-REFACTOR-ROADMAP.md)
+- [x] **C0 决策闭环补齐**：照片反推入口、题材感知规划、配额降级与结构化时间窗；已完成真实最小联调——任务见 [docs/POST-REFACTOR-ROADMAP.md](docs/POST-REFACTOR-ROADMAP.md)
 - [ ] 开源发布（重构后）
 - [ ] 主动提醒服务（被动提醒 MVP，重构后迭代）
 
