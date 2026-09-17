@@ -17,9 +17,15 @@ from pathlib import Path
 from lighttrail.adapters.llm.client import ChatClient
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
+from lighttrail.adapters.maps import (
+    AMapRoutingAdapter,
+    BaiduRoutingAdapter,
+    FallbackTravelTimeProvider,
+)
 from lighttrail.config import Settings, load_settings
 from lighttrail.contracts.context import RequestContext
 from lighttrail.contracts.tool import ToolContext
+from lighttrail.domain.chase import ManualTravelTimeProvider, TravelTimeProvider
 from lighttrail.domain.knowledge import FtsKnowledgeProvider
 from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.trace import Recorder, TraceRecorder
@@ -48,6 +54,7 @@ __all__ = [
     "build_recorder",
     "build_registry",
     "build_runtime",
+    "build_travel_provider",
     "load_settings",
 ]
 
@@ -168,6 +175,20 @@ def build_context(
 def build_memory(settings: Settings) -> MemoryManager:
     """构造记忆管理器（档案 / 事件 / 语义；B5 起按 user_id 命名空间隔离）。"""
     return MemoryManager(settings.data_dir)
+
+
+def build_travel_provider(settings: Settings) -> TravelTimeProvider:
+    """构造地图路线服务；未配置高德 Key 时保持本地保守估算可用。"""
+    if settings.map_primary_provider == "amap" and settings.has_amap_web_service_key:
+        primary = AMapRoutingAdapter(settings.amap_web_service_key)
+        if settings.has_baidu_map_ak:
+            secondary: TravelTimeProvider = FallbackTravelTimeProvider(
+                BaiduRoutingAdapter(settings.baidu_map_ak), ManualTravelTimeProvider()
+            )
+        else:
+            secondary = ManualTravelTimeProvider()
+        return FallbackTravelTimeProvider(primary, secondary)
+    return ManualTravelTimeProvider()
 
 
 def build_knowledge(settings: Settings) -> FtsKnowledgeProvider:

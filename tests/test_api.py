@@ -316,6 +316,46 @@ async def test_profile_get_put(make_app) -> None:
         assert got2.json()["lenses"] == ["24-105mm F4", "契卡 14mm"]
 
 
+async def test_chase_plan_uses_profile_sites_and_manual_fallback(make_app) -> None:
+    """赶场接口从档案取坐标；无地图 Key 时返回可解释的本地估算。"""
+    app, _ = make_app([])
+    app.state.deps.memory.update_profile(
+        {
+            "favorite_spots": [
+                {"name": "机位 A", "latitude": 31.2304, "longitude": 121.4737},
+                {"name": "机位 B", "latitude": 31.2404, "longitude": 121.4837},
+            ]
+        }
+    )
+    body = {
+        "sites": [
+            {
+                "name": "机位 A",
+                "window_start": "2026-09-19T17:00:00+08:00",
+                "window_end": "2026-09-19T18:00:00+08:00",
+            },
+            {
+                "name": "机位 B",
+                "window_start": "2026-09-19T18:30:00+08:00",
+                "window_end": "2026-09-19T19:30:00+08:00",
+            },
+        ],
+        "transport_mode": "driving",
+        "depart_at": "2026-09-19T17:00:00+08:00",
+        "transition_buffer_minutes": 10,
+        "min_shoot_minutes": 15,
+    }
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post("/api/chase-plans", json=body)
+    assert response.status_code == 200, response.text
+    result = response.json()
+    assert result["feasible"] is True
+    assert result["ordered_site_names"] == ["机位 A", "机位 B"]
+    assert result["legs"][0]["route"]["provider"] == "manual"
+    assert "未配置可用地图服务" in result["legs"][0]["route"]["degraded_reason"]
+
+
 async def test_event_write_requires_explicit_request(make_app) -> None:
     """事件只由显式 API 请求写入，不随复盘端点自动创建。"""
     app, _ = make_app([])
@@ -343,7 +383,14 @@ async def test_openapi_contains_all_endpoints(make_app) -> None:
         spec = (await client.get("/openapi.json")).json()
         docs = await client.get("/docs")
     paths = spec["paths"]
-    for path in ("/api/chat", "/api/decide", "/api/photos/review", "/api/profile", "/api/sessions/{session_id}"):
+    for path in (
+        "/api/chat",
+        "/api/decide",
+        "/api/photos/review",
+        "/api/profile",
+        "/api/chase-plans",
+        "/api/sessions/{session_id}",
+    ):
         assert path in paths
     assert docs.status_code == 200
 

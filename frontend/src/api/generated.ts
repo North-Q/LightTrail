@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/chase-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 多机位赶场规划（C1-1）
+         * @description 按拍摄窗口和路线服务生成确定性赶场计划，不调用 LLM。
+         */
+        post: operations["create_chase_plan_api_chase_plans_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/chat": {
         parameters: {
             query?: never;
@@ -229,6 +249,71 @@ export interface components {
              * @enum {string}
              */
             type: "card";
+        };
+        /**
+         * ChasePlanRequest
+         * @description 多机位赶场规划请求（C1-1）。
+         */
+        ChasePlanRequest: {
+            /**
+             * Depart At
+             * Format: date-time
+             * @description 首次出发时间，ISO 8601 且必须含时区
+             */
+            depart_at: string;
+            /**
+             * Min Shoot Minutes
+             * @description 每个机位最少有效拍摄分钟数
+             * @default 15
+             */
+            min_shoot_minutes: number;
+            /**
+             * Sites
+             * @description 2 到 4 个机位
+             */
+            sites: components["schemas"]["ChaseSitePayload"][];
+            /**
+             * Transit City
+             * @description 公共交通路线所需城市名称
+             * @default
+             */
+            transit_city: string;
+            /**
+             * Transition Buffer Minutes
+             * @description 每次换机位附加缓冲分钟数
+             * @default 18
+             */
+            transition_buffer_minutes: number;
+            /**
+             * Transport Mode
+             * @description 交通方式：驾车、骑行、步行或公共交通
+             * @default driving
+             * @enum {string}
+             */
+            transport_mode: "driving" | "cycling" | "walking" | "transit";
+        };
+        /**
+         * ChaseSitePayload
+         * @description 赶场规划中一个已选机位的拍摄窗口。
+         */
+        ChaseSitePayload: {
+            /**
+             * Name
+             * @description 档案中已保存的机位名称
+             */
+            name: string;
+            /**
+             * Window End
+             * Format: date-time
+             * @description 拍摄窗口结束，ISO 8601 且必须含时区
+             */
+            window_end: string;
+            /**
+             * Window Start
+             * Format: date-time
+             * @description 拍摄窗口开始，ISO 8601 且必须含时区
+             */
+            window_start: string;
         };
         /**
          * ChatRequest
@@ -738,6 +823,41 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    create_chase_plan_api_chase_plans_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChasePlanRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     chat_api_chat_post: {
         parameters: {
             query?: never;

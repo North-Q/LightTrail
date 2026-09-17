@@ -19,7 +19,7 @@ from collections.abc import AsyncIterator, Callable
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
@@ -47,6 +47,7 @@ from lighttrail.contracts.events import (
     TokenEvent,
 )
 from lighttrail.contracts.models import DecisionCard
+from lighttrail.domain.chase import ChasePlanner, ChaseSite, GeoPoint
 from lighttrail.infra.trace import Recorder, TraceRecorder
 from lighttrail.orchestrator import Orchestrator
 from lighttrail.orchestrator.orchestrator import _render_card
@@ -88,6 +89,27 @@ class EventCreatePayload(BaseModel):
     summary: str = Field(default="", max_length=1000, description="用户确认的复盘摘要")
     outcome: str = Field(default="", pattern="^(|success|fail)$", description="结果：success、fail 或空")
     timestamp: str = Field(default="", description="ISO 8601 拍摄时间；空则以确认时刻写入")
+
+
+class ChaseSitePayload(BaseModel):
+    """赶场规划中一个已选机位的拍摄窗口。"""
+
+    name: str = Field(..., min_length=1, max_length=120, description="档案中已保存的机位名称")
+    window_start: datetime = Field(..., description="拍摄窗口开始，ISO 8601 且必须含时区")
+    window_end: datetime = Field(..., description="拍摄窗口结束，ISO 8601 且必须含时区")
+
+
+class ChasePlanRequest(BaseModel):
+    """多机位赶场规划请求（C1-1）。"""
+
+    sites: list[ChaseSitePayload] = Field(..., min_length=2, max_length=4, description="2 到 4 个机位")
+    transport_mode: Literal["driving", "cycling", "walking", "transit"] = Field(
+        default="driving", description="交通方式：驾车、骑行、步行或公共交通"
+    )
+    depart_at: datetime = Field(..., description="首次出发时间，ISO 8601 且必须含时区")
+    transition_buffer_minutes: int = Field(default=18, ge=0, le=180, description="每次换机位附加缓冲分钟数")
+    min_shoot_minutes: int = Field(default=15, ge=0, le=240, description="每个机位最少有效拍摄分钟数")
+    transit_city: str = Field(default="", max_length=80, description="公共交通路线所需城市名称")
 
 
 # ------ SSE 常量（事件类型定义见 api/events.py）------
@@ -511,6 +533,49 @@ async def create_event(payload: EventCreatePayload, request: Request) -> dict[st
     return {"event_id": event_id, "timestamp": timestamp}
 
 
+@router.post("/api/chase-plans", summary="多机位赶场规划（C1-1）")
+async def create_chase_plan(payload: ChasePlanRequest, request: Request) -> dict[str, Any]:
+    """按拍摄窗口和路线服务生成确定性赶场计划，不调用 LLM。"""
+    _require_timezone(payload.depart_at, "首次出发时间")
+    if len({site.name for site in payload.sites}) != len(payload.sites):
+        raise HTTPException(status_code=422, detail="机位名称不能重复")
+
+    profile_sites = {
+        item["name"]: item for item in request.app.state.deps.memory.profile.valid_favorite_spots()
+    }
+    sites: list[ChaseSite] = []
+    for item in payload.sites:
+        _require_timezone(item.window_start, f"{item.name} 的窗口开始")
+        _require_timezone(item.window_end, f"{item.name} 的窗口结束")
+        profile_site = profile_sites.get(item.name)
+        if profile_site is None:
+            raise HTTPException(status_code=422, detail=f"档案中不存在机位：{item.name}")
+        try:
+            sites.append(
+                ChaseSite(
+                    name=item.name,
+                    point=GeoPoint(float(profile_site["latitude"]), float(profile_site["longitude"])),
+                    window_start=item.window_start,
+                    window_end=item.window_end,
+                )
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    try:
+        plan = ChasePlanner(request.app.state.deps.travel_provider).plan(
+            sites,
+            payload.transport_mode,
+            payload.depart_at,
+            transition_buffer_s=payload.transition_buffer_minutes * 60,
+            min_shooting_s=payload.min_shoot_minutes * 60,
+            transit_city=payload.transit_city,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return _chase_plan_to_dict(plan)
+
+
 @router.get("/api/sessions/{session_id}", summary="会话历史与 TraceReport 回放")
 async def get_session(session_id: str, request: Request) -> dict[str, Any]:
     """返回会话记录（历史 + 工作区）与最近一次运行的 TraceReport。"""
@@ -531,4 +596,50 @@ def _load_or_create(deps: Any, session_id: str):
     return deps.sessions.create()
 
 
-__all__ = ["ChatRequest", "DecideRequest", "ProfilePayload", "router"]
+def _require_timezone(value: datetime, field: str) -> None:
+    """拒绝无时区时间，避免赶场计划混用本地时间和 UTC。"""
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise HTTPException(status_code=422, detail=f"{field}必须包含时区")
+
+
+def _chase_plan_to_dict(plan: Any) -> dict[str, Any]:
+    """把领域赶场计划转换为稳定的 JSON API 形态。"""
+    return {
+        "ordered_site_names": list(plan.ordered_site_names),
+        "feasible": plan.feasible,
+        "risk_level": plan.risk_level,
+        "total_effective_shooting_minutes": plan.total_effective_shooting_s // 60,
+        "explanation": plan.explanation,
+        "legs": [
+            {
+                "from_site": leg.from_site,
+                "to_site": leg.to_site,
+                "leave_at": leg.leave_at.isoformat(),
+                "arrive_at": leg.arrive_at.isoformat(),
+                "latest_leave_at": leg.latest_leave_at.isoformat(),
+                "effective_shooting_minutes": leg.effective_shooting_s // 60,
+                "margin_minutes": leg.margin_s // 60,
+                "transition_buffer_minutes": leg.buffer_s // 60,
+                "route": {
+                    "distance_m": leg.route.distance_m,
+                    "duration_minutes": leg.route.duration_s // 60,
+                    "transport_mode": leg.route.transport_mode,
+                    "traffic_level": leg.route.traffic_level,
+                    "traffic_summary": leg.route.traffic_summary,
+                    "provider": leg.route.provider,
+                    "confidence": leg.route.confidence,
+                    "queried_at": leg.route.queried_at.isoformat(),
+                    "is_future_prediction": leg.route.is_future_prediction,
+                    "degraded_reason": leg.route.degraded_reason,
+                },
+            }
+            for leg in plan.legs
+        ],
+        "rejected_options": [
+            {"ordered_site_names": list(item.ordered_site_names), "reason": item.reason}
+            for item in plan.rejected_options
+        ],
+    }
+
+
+__all__ = ["ChasePlanRequest", "ChatRequest", "DecideRequest", "ProfilePayload", "router"]

@@ -1,7 +1,7 @@
 /** 规划页：运行一次规划决策 → 解析结果更新天象时间线与月相；机位来自「我的记忆」档案。 */
 
 import { useEffect, useState } from "react";
-import { sendDecide } from "../api/client";
+import { postJson, sendDecide } from "../api/client";
 import type { DecisionCard, ProfilePayload, SSEEvent } from "../api/events";
 import { useSources } from "../context/SourceContext";
 
@@ -13,6 +13,34 @@ interface SunTimes {
 interface MoonInfo {
   name: string;
   advice: string;
+}
+
+interface ChasePlanResult {
+  ordered_site_names: string[];
+  feasible: boolean;
+  risk_level: string;
+  explanation: string;
+  legs: Array<{
+    from_site: string;
+    to_site: string;
+    leave_at: string;
+    arrive_at: string;
+    latest_leave_at: string;
+    margin_minutes: number;
+    route: { distance_m: number; duration_minutes: number; provider: string; degraded_reason: string };
+  }>;
+}
+
+interface ChaseWindow {
+  start: string;
+  end: string;
+}
+
+function defaultChaseWindow(index: number): ChaseWindow {
+  const start = new Date();
+  start.setHours(start.getHours() + 1 + index * 2, 0, 0, 0);
+  const end = new Date(start.getTime() + 60 * 60 * 1000);
+  return { start: start.toISOString().slice(0, 16), end: end.toISOString().slice(0, 16) };
 }
 
 /** 结构化结果的字符串字段读取（缺字段返回空串；不再对摘要文本做正则解析，B4-4）。 */
@@ -36,7 +64,16 @@ export function D2Page() {
   const [moon, setMoon] = useState<MoonInfo | null>(null);
   const [galaxy, setGalaxy] = useState("");
   const [spots, setSpots] = useState<string[]>([]);
+  const [routeSpots, setRouteSpots] = useState<string[]>([]);
   const [lastCard, setLastCard] = useState<DecisionCard | null>(null);
+  const [selectedSpots, setSelectedSpots] = useState<string[]>([]);
+  const [transportMode, setTransportMode] = useState("driving");
+  const [transitCity, setTransitCity] = useState("");
+  const [transitionBuffer, setTransitionBuffer] = useState(18);
+  const [siteWindows, setSiteWindows] = useState<Record<string, ChaseWindow>>({});
+  const [chaseRunning, setChaseRunning] = useState(false);
+  const [chaseResult, setChaseResult] = useState<ChasePlanResult | null>(null);
+  const [chaseNotice, setChaseNotice] = useState("");
   const { addSource } = useSources();
 
   useEffect(() => {
@@ -47,7 +84,11 @@ export function D2Page() {
           const profile = (await resp.json()) as ProfilePayload;
           const spotNames = (profile.favorite_spots ?? []).map((spot) => asText(spot["name"]));
           const names = [...(profile.common_locations ?? []), ...spotNames];
-          setSpots(Array.from(new Set(names)));
+          const uniqueNames = Array.from(new Set(names));
+          setSpots(uniqueNames);
+          setRouteSpots(spotNames);
+          setSelectedSpots(spotNames.slice(0, 2));
+          setSiteWindows(Object.fromEntries(spotNames.slice(0, 2).map((name, index) => [name, defaultChaseWindow(index)])));
         }
       } catch {
         setSpots([]);
@@ -108,6 +149,50 @@ export function D2Page() {
       setNotice(`查询失败：${caught instanceof Error ? caught.message : String(caught)}`);
     } finally {
       setRunning(false);
+    }
+  }
+
+  function toggleSpot(name: string): void {
+    setSelectedSpots((current) => {
+      if (current.includes(name)) return current.filter((item) => item !== name);
+      if (current.length >= 4) return current;
+      setSiteWindows((windows) => ({ ...windows, [name]: defaultChaseWindow(current.length) }));
+      return [...current, name];
+    });
+  }
+
+  async function runChasePlan(): Promise<void> {
+    if (selectedSpots.length < 2) {
+      setChaseNotice("请至少选择两个已保存坐标的机位。");
+      return;
+    }
+    if (transportMode === "transit" && !transitCity.trim()) {
+      setChaseNotice("公共交通规划需要填写所在城市，例如“上海”。");
+      return;
+    }
+    setChaseRunning(true);
+    setChaseNotice("正在计算机位间通勤与时间余量…");
+    try {
+      const sites = selectedSpots.map((name) => {
+        const window = siteWindows[name] ?? defaultChaseWindow(0);
+        return { name, window_start: new Date(window.start).toISOString(), window_end: new Date(window.end).toISOString() };
+      });
+      const firstStart = new Date(sites[0].window_start);
+      const result = await postJson<ChasePlanResult>("/api/chase-plans", {
+        sites,
+        transport_mode: transportMode,
+        depart_at: firstStart.toISOString(),
+        transition_buffer_minutes: transitionBuffer,
+        min_shoot_minutes: 15,
+        transit_city: transitCity.trim(),
+      });
+      setChaseResult(result);
+      setChaseNotice(result.feasible ? "赶场顺序已生成。" : "当前窗口下无法完成赶场，请减少机位或调整时间。");
+    } catch (caught) {
+      setChaseResult(null);
+      setChaseNotice(`赶场规划失败：${caught instanceof Error ? caught.message : String(caught)}`);
+    } finally {
+      setChaseRunning(false);
     }
   }
 
@@ -192,6 +277,66 @@ export function D2Page() {
           </div>
         </section>
       ) : null}
+
+      <section className="card" style={{ marginTop: 20 }}>
+        <span className="card-kicker">多机位赶场</span>
+        <p className="page-sub">选择 2–4 个机位，分别设定拍摄窗口；系统根据通勤时间计算可行顺序。</p>
+        <div className="chip-row" style={{ margin: "12px 0" }}>
+          {routeSpots.map((name) => (
+            <button key={name} type="button" className="chip" aria-pressed={selectedSpots.includes(name)} onClick={() => toggleSpot(name)}>
+              {selectedSpots.includes(name) ? "✓ " : ""}{name}
+            </button>
+          ))}
+        </div>
+        <label className="gear-field" style={{ maxWidth: 280 }}>
+          <span>交通方式</span>
+          <select value={transportMode} onChange={(event) => setTransportMode(event.target.value)}>
+            <option value="driving">驾车（自驾/打车）</option>
+            <option value="cycling">骑行</option>
+            <option value="walking">步行</option>
+            <option value="transit">公共交通</option>
+          </select>
+        </label>
+        {transportMode === "transit" ? (
+          <label className="gear-field" style={{ maxWidth: 280, marginTop: 10 }}>
+            <span>公共交通所在城市</span>
+            <input value={transitCity} onChange={(event) => setTransitCity(event.target.value)} placeholder="如 上海" />
+          </label>
+        ) : null}
+        <label className="gear-field" style={{ maxWidth: 280, marginTop: 10 }}>
+          <span>每次换机位缓冲（分钟）</span>
+          <input type="number" min={0} max={180} value={transitionBuffer} onChange={(event) => setTransitionBuffer(Number(event.target.value))} />
+        </label>
+        {selectedSpots.map((name) => {
+          const window = siteWindows[name] ?? defaultChaseWindow(0);
+          return (
+            <div className="spot-card" key={`window-${name}`} style={{ marginTop: 10 }}>
+              <strong>{name}</strong>
+              <label className="gear-field"><span>开始</span><input type="datetime-local" value={window.start} onChange={(event) => setSiteWindows((all) => ({ ...all, [name]: { ...window, start: event.target.value } }))} /></label>
+              <label className="gear-field"><span>结束</span><input type="datetime-local" value={window.end} onChange={(event) => setSiteWindows((all) => ({ ...all, [name]: { ...window, end: event.target.value } }))} /></label>
+            </div>
+          );
+        })}
+        <div className="chip-row" style={{ marginTop: 12 }}>
+          <button type="button" className="btn btn-primary" onClick={() => void runChasePlan()} disabled={chaseRunning || selectedSpots.length < 2}>
+            {chaseRunning ? "计算中…" : "生成赶场计划"}
+          </button>
+          <span className="page-sub">已选 {selectedSpots.length}/4 个机位</span>
+        </div>
+        {chaseNotice ? <p className="page-sub" style={{ marginTop: 12 }}>{chaseNotice}</p> : null}
+        {chaseResult ? (
+          <div className="event-list" style={{ marginTop: 12 }}>
+            <strong>{chaseResult.explanation}</strong>
+            {chaseResult.legs.map((leg) => (
+              <div key={`${leg.from_site}-${leg.to_site}`} className="spot-card">
+                <div><strong>{leg.from_site} → {leg.to_site}</strong><p className="page-sub">{Math.round(leg.route.distance_m / 100) / 10} km · 预计通勤 {leg.route.duration_minutes} 分钟 · 最晚离开 {new Date(leg.latest_leave_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p></div>
+                <span className="chip">余量 {leg.margin_minutes} 分钟</span>
+                <p className="page-sub">来源：{leg.route.provider}{leg.route.degraded_reason ? ` · ${leg.route.degraded_reason}` : ""}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
     </div>
   );
 }

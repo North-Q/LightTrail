@@ -74,6 +74,9 @@ class Settings(BaseSettings):
         plan_max_steps: 受控规划步数上限（PLAN_MAX_STEPS）。
         routing_confidence_threshold: LLM 路由结果的最低接纳置信度（ROUTING_CONFIDENCE_THRESHOLD）。
         llm_timeout: (连接超时, 读取超时) 秒（LLM_TIMEOUT，支持 "30,120" 写法）。
+        amap_web_service_key: 高德 Web 服务 Key（仅后端读取）。
+        baidu_map_ak: 百度地图服务端 AK（仅后端读取）。
+        map_primary_provider: 地图路线主服务标识；未配置 Key 时自动降级为本地估算。
     """
 
     model_config = SettingsConfigDict(
@@ -134,11 +137,26 @@ class Settings(BaseSettings):
     context_profile_budget: int = Field(default=DEFAULT_CONTEXT_PROFILE_BUDGET, ge=1)
     context_trace_budget: int = Field(default=DEFAULT_CONTEXT_TRACE_BUDGET, ge=1)
 
+    # ------ 地图路线服务（C1-1）------
+    amap_web_service_key: str = Field(default="", validation_alias="AMAP_WEB_SERVICE_KEY")
+    baidu_map_ak: str = Field(default="", validation_alias="BAIDU_MAP_AK")
+    map_primary_provider: str = Field(default="amap", validation_alias="MAP_PRIMARY_PROVIDER")
+
     # ------ 派生属性 ------
     @property
     def has_api_key(self) -> bool:
         """是否配置了可用 API Key（占位值视为未配置）。"""
         return bool(self.api_key) and not self.api_key.startswith("sk-your-")
+
+    @property
+    def has_amap_web_service_key(self) -> bool:
+        """是否配置了可用的高德 Web 服务 Key（占位值视为未配置）。"""
+        return bool(self.amap_web_service_key) and not self.amap_web_service_key.startswith("your-")
+
+    @property
+    def has_baidu_map_ak(self) -> bool:
+        """是否配置了可用的百度地图 AK。"""
+        return bool(self.baidu_map_ak) and not self.baidu_map_ak.startswith("your-")
 
     # ------ 校验 ------
     @field_validator("llm_timeout", mode="before")

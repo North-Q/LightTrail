@@ -143,3 +143,16 @@ export async function getSession(sessionId: string): Promise<SessionDetail> {
   }
   return (await resp.json()) as SessionDetail;
 }
+
+/** 发送普通 JSON 请求；用于不需要 SSE 的确定性领域接口。 */
+export async function postJson<T>(url: string, body: Record<string, unknown>): Promise<T> {
+  const resp = await fetch(BASE + url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    throw new Error(`请求失败（${resp.status}）：${(await resp.text()).slice(0, 200)}`);
+  }
+  return (await resp.json()) as T;
+}

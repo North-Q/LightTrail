@@ -27,9 +27,11 @@ from lighttrail.composition import (
     build_client,
     build_memory,
     build_registry,
+    build_travel_provider,
     load_settings,
 )
 from lighttrail.config import DEFAULT_MODEL
+from lighttrail.domain.chase import ManualTravelTimeProvider, TravelTimeProvider
 from lighttrail.memory import MemoryManager
 from lighttrail.runtime.registry import ToolRegistry
 from lighttrail.tools import (  # noqa: F401  触发全部工具注册
@@ -58,6 +60,7 @@ class ApiDeps:
         reason_thinking: 深推理扩展参数开关（平台中立，见 ADR-003）。
         dispatch: 数据采集函数覆盖（测试 Fake 数据源用；默认注册表直调）。
         photo_analyze: 照片分析覆盖（测试 Fake 用；默认 evaluate 真实链路）。
+        travel_provider: 赶场路线服务；缺省为离线保守估算，测试可注入 Fake。
     """
 
     client: ChatClient
@@ -69,6 +72,7 @@ class ApiDeps:
     dispatch: Callable[[str, str], str] | None = None
     photo_analyze: Callable[[str, str], dict[str, Any]] | None = None
     photo_reverse: Callable[[str, str, str], dict[str, Any]] | None = None
+    travel_provider: TravelTimeProvider = field(default_factory=ManualTravelTimeProvider)
 
 
 def create_app(deps: ApiDeps | None = None) -> FastAPI:
@@ -94,6 +98,7 @@ def create_app(deps: ApiDeps | None = None) -> FastAPI:
             registry=build_registry(photo_client_factory=lambda: client),
             model=settings.model,
             reason_thinking=settings.reason_thinking,
+            travel_provider=build_travel_provider(settings),
         )
     app = FastAPI(
         title="LightTrail · 光迹",
