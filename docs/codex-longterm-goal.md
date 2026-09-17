@@ -3,17 +3,18 @@
 > 本文档是 Codex 进行长时间开发时的执行目标与工作协议。它只解决三件事：现在在哪里、接下来做什么、什么情况下必须停下来汇报。
 >
 > 方案权威：[`docs/architecture-v4-proposal.md`](architecture-v4-proposal.md)（D1–D14）。
-> 任务权威：[`docs/REFACTOR-ROADMAP.md`](REFACTOR-ROADMAP.md)（B0–B7）。
+> 已完成的架构任务：[`docs/REFACTOR-ROADMAP.md`](REFACTOR-ROADMAP.md)（B0–B7）。
+> 后续任务权威：[`docs/POST-REFACTOR-ROADMAP.md`](POST-REFACTOR-ROADMAP.md)（C0–C2）。
 > 当前待办：[`TODO.md`](../TODO.md)。
 > 归档目录中的文档只作历史记录，不得作为当前设计、任务或状态依据。
 
 ## 📍 当前状态
 
-截至 2026-09-16：
+截至 2026-09-17：
 
 ```text
-当前位置：B7 已完成，停在闸门 7，等待确认后进入重构后的功能迭代
-代码：main / B7-1~B7-5 已独立提交 / 无未提交代码改动
+当前位置：B0–B7 已完成；C0 已规划，等待小北确认后启动
+代码：main / B0–B7 均已独立提交；当前以 git status 为准
 后端：pytest 362 passed / ruff 0 / smoke 21 项
 架构：lint-imports 3 kept / 0 broken
 前端：npm run build 通过；六页 + 未知路由 check:ui 7/7 通过
@@ -39,7 +40,7 @@
 
 ## 🧭 执行路线
 
-严格按 [`REFACTOR-ROADMAP.md`](REFACTOR-ROADMAP.md) 执行，不另起路线：
+架构重构已完成，历史路径如下：
 
 ```text
 B0 ✅ 止血护栏
@@ -64,7 +65,7 @@ B0 ✅ 止血护栏
 
 已完成 B7：规则优先 + 可审计 LLM 兜底路由、受控 Plan-Execute、超工具集诚实告知、ReAct 护栏和带 RequestContext 的零成本 L2 回放。
 
-B7 已停在闸门 7；未经确认不得自动进入重构后的功能迭代。
+B7 已通过闸门 7。后续从 C0 的最小原子任务开始；C0-2 涉及拍摄历史写入策略，必须先由小北确认隐私语义。
 
 ## 🔍 每次启动的工作协议
 
@@ -74,7 +75,7 @@ B7 已停在闸门 7；未经确认不得自动进入重构后的功能迭代。
 
 - `AGENTS.md`
 - `docs/architecture-v4-proposal.md`
-- `docs/REFACTOR-ROADMAP.md` 的当前批次章节
+- `docs/POST-REFACTOR-ROADMAP.md` 的当前批次章节（必要时查 B0–B7 历史记录）
 - `TODO.md`
 - `docs/devlog.md` 顶部最新记录
 - 与当前任务直接相关的源码和测试
@@ -150,7 +151,7 @@ git diff --exit-code -- src/api/generated.ts
 
 ## 🧱 不可违反的约束
 
-1. `docs/architecture.md` 是当前架构基线；v4 提案与路线图用于后续 B6/B7 决策。
+1. `docs/architecture.md` 是当前架构基线；v4 提案与 B0–B7 路线图是历史设计与验收依据，C0–C2 以新路线图为准。
 2. 归档文档不具备当前参考价值，不得用于决定任务、接口或完成状态。
 3. 不把“接口存在”说成“功能完成”，不把 Fake、示例数据或设计稿说成真实数据。
 4. 业务代码不能写死模型品牌判断；模型选择经过 `ModelRouter`，LLM 调用经过 Provider/适配层。

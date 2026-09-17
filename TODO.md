@@ -1,10 +1,10 @@
 # TODO · LightTrail（光迹）
 
-> 项目待办 + 灵感收集。更新日期：2026-09-15
-> **当前阶段：架构重建期**——任务编号见 `docs/REFACTOR-ROADMAP.md`（B0-1 … B7-6）；方案权威 `docs/architecture-v4-proposal.md`；codex 入口 `docs/codex-longterm-goal.md` v7。
+> 项目待办 + 灵感收集。更新日期：2026-09-17
+> **当前阶段：后重构闭环期**——B0–B7 已完成；后续任务见 `docs/POST-REFACTOR-ROADMAP.md`（C0–C2）；codex 入口 `docs/codex-longterm-goal.md`。
 > E1–E8 已完成（旧 E 系列路线图归档至 `docs/archive/DEVELOPMENT-ROADMAP-v2.5.md`）；E9/E10 等未做功能项的处置见 PRD 附录 A2（v0.4 范围修订）。
 
-## 待办（当前阶段：架构重构 B0–B7）
+## 已完成（架构重构 B0–B7）
 
 ### B0 止血护栏 ✅ 已完成（2026-09-13，停闸门 0）
 
@@ -121,7 +121,16 @@
 - [x] B7-3 受控 Planner（Plan 一等对象 / 步数上限 8 / 每步过 dispatch+trace+配额，2026-09-16）
 - [x] B7-4 超工具集显式告知 + ReAct 轮数 8→12 护栏生效（2026-09-16）
 - [x] B7-5 评估适配（L2 cassette 加 RequestContext 维度，2026-09-16）
-- [ ] B7-6 B7 收口 + 重构总验收
+- [x] B7-6 B7 收口 + 重构总验收（2026-09-16：pytest 362 / ruff 0 / smoke 21/21 / L2 零成本回放 / 前端契约与构建通过）
+
+## 待办（后重构闭环 C0–C2）
+
+- [ ] C0-1 D1 照片反推独立入口（与 D4 复盘分流）
+- [ ] C0-2 事件记忆显式确认写入（需先确认隐私语义）
+- [ ] C0-3 D2/D3 题材感知采集 + `match_sites` 确定性排序
+- [ ] C0-4 普通管线与自由对话的配额准入/降级接线
+- [ ] C0-5 DecisionCard 结构化时间窗与前端展示
+- [ ] C1 D2.2 赶场 MVP、知识库第二案例、可解释性体验收口
 
 ### 重构后再议（本期不做，见 PRD 附录 A2）
 

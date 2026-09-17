@@ -27,7 +27,7 @@
   - 结构化输出契约（pydantic 自愈重试）+ 三层评估体系（工具 pytest / 黄金用例集 / LLM-as-judge）
 - **语言**：Python（近期主用）
 - 探索大模型在垂直场景（摄影）中的应用方法
-- 架构基线详见 [`docs/architecture.md`](docs/architecture.md)（v3.0）；v4 提案保留为重构决策记录
+- 架构基线详见 [`docs/architecture.md`](docs/architecture.md)（v3.1）；后续功能任务见 [`docs/POST-REFACTOR-ROADMAP.md`](docs/POST-REFACTOR-ROADMAP.md)
 
 ## 目录结构
 
@@ -48,7 +48,7 @@ LightTrail/
 │                        #   壳层自检 npm run check:ui 六页路由逐一渲染校验）
 ├── evals/               # 三层评估：黄金用例 cassette + LLM-as-judge
 ├── scripts/             # 真实联调自检（scripts/live_check.py，真实 Key、配额克制）
-├── tests/               # 343 项 pytest 用例（离线 Fake 数据源，不触网）
+├── tests/               # 362 项 pytest 用例（离线 Fake 数据源，不触网）
 ├── data/                # 本地记忆数据（profile/events.db/semantic，不入库）
 └── README.md
 ```
@@ -67,8 +67,9 @@ LightTrail/
 - [x] Web 服务层（E7：FastAPI 五端点 SSE + trace→SSE 桥接 + SPA 六页旅程）
 - [x] 评估体系（E8：L2 黄金用例 cassette 回放零成本 + L3 LLM-as-judge「工具即裁判」）
 - [x] **B5 架构重建收口**：用户记忆命名空间、领域知识种子、真实机位坐标、到期 shim 清理、ADR-004 与架构文档同步
-- [ ] **B6/B7 后续重构**：知识库检索链路、意图路由与受控规划通道——任务见 [docs/REFACTOR-ROADMAP.md](docs/REFACTOR-ROADMAP.md)
+- [x] **B6/B7 架构重建收口**：全局知识库与 FTS5 检索、机型规格案例、规则优先路由、受控 Planner 与 ReAct 护栏
+- [ ] **C0 决策闭环补齐**：照片反推入口、题材感知规划、配额降级与结构化时间窗——任务见 [docs/POST-REFACTOR-ROADMAP.md](docs/POST-REFACTOR-ROADMAP.md)
 - [ ] 开源发布（重构后）
 - [ ] 主动提醒服务（被动提醒 MVP，重构后迭代）
 
-开发任务拆解见 [docs/REFACTOR-ROADMAP.md](docs/REFACTOR-ROADMAP.md)（v1.0，任务编号 B0-1 … B7-6）；E1–E8 时代的旧路线图已归档至 `docs/archive/`。
+已完成的架构重构任务见 [docs/REFACTOR-ROADMAP.md](docs/REFACTOR-ROADMAP.md)（B0-1 … B7-6）；后续开发见 [docs/POST-REFACTOR-ROADMAP.md](docs/POST-REFACTOR-ROADMAP.md)。E1–E8 时代的旧路线图已归档至 `docs/archive/`。
