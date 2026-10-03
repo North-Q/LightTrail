@@ -44,6 +44,10 @@ _CONTRACT_SCHEMAS = (
     "ConfidenceDetail",
     "Source",
     "ProfilePayload",
+    "EventCreatedPayload",
+    "ChasePlanPayload",
+    "SessionResponsePayload",
+    "DeletedSpotPayload",
 )
 
 
@@ -121,3 +125,26 @@ def test_openapi_profile_uses_contract_model() -> None:
     for method in ("get", "put"):
         schema = document["paths"]["/api/profile"][method]["responses"]["200"]["content"]
         assert schema["application/json"]["schema"]["$ref"].endswith("/ProfilePayload")
+
+
+def test_openapi_exposes_response_contracts_for_reviewed_endpoints() -> None:
+    """裸 dict 端点和机位删除端点都发布具名响应组件。"""
+    document = json.loads(render_openapi())
+    paths = document["paths"]
+    expected = {
+        ("/api/events", "post"): "EventCreatedPayload",
+        ("/api/chase-plans", "post"): "ChasePlanPayload",
+        ("/api/sessions/{session_id}", "get"): "SessionResponsePayload",
+        ("/api/favorite-spots/{spot_id}", "delete"): "DeletedSpotPayload",
+    }
+    for (path, method), model_name in expected.items():
+        schema = paths[path][method]["responses"]["200"]["content"]["application/json"]["schema"]
+        assert schema["$ref"].endswith(f"/{model_name}")
+
+    timestamp_schema = document["components"]["schemas"]["EventCreatePayload"]["properties"][
+        "timestamp"
+    ]
+    assert any(
+        option.get("format") == "date-time"
+        for option in timestamp_schema.get("anyOf", [timestamp_schema])
+    )

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getSession } from "../api/client";
-import type { DecisionCard, ProfilePayload, SessionMeta } from "../api/events";
+import type { DecisionCard, ProfilePayload, SessionDetail, SessionMeta } from "../api/events";
 import { DecisionCardView } from "../components/DecisionCard";
 import { Ring } from "../components/Ring";
 import { go } from "../components/AppShell";
@@ -38,7 +38,7 @@ const STAGES = [
 
 interface SelectedSession {
   sessionId: string;
-  history: { role: string; content: string }[];
+  history: SessionDetail["session"]["history"];
   card: DecisionCard | null;
 }
 
@@ -196,7 +196,7 @@ export function HomePage() {
             <h4 style={{ margin: "0 0 8px", color: "var(--text-secondary)" }}>会话回放 · {selected.sessionId.slice(0, 8)}</h4>
             {selected.history.slice(-4).map((message, index) => (
               <p className="page-sub" key={index} style={{ margin: "4px 0" }}>
-                <strong>{message.role === "user" ? "用户" : "光迹"}</strong>：{message.content.slice(0, 120)}
+                <strong>{message.role === "user" ? "用户" : "光迹"}</strong>：{typeof message.content === "string" ? message.content.slice(0, 120) : "（非文本消息）"}
               </p>
             ))}
             {selected.card ? <DecisionCardView card={selected.card} /> : null}

@@ -49,12 +49,5 @@ export interface SessionMeta {
   created: string;
 }
 
-/** 会话详情（GET /api/sessions/{id}）。 */
-export interface SessionDetail {
-  session: {
-    session_id: string;
-    history: { role: string; content: string }[];
-    workspace?: { last_card?: DecisionCard; last_trace?: unknown };
-  };
-  trace?: unknown;
-}
+/** 会话详情（GET /api/sessions/{id}），字段从 OpenAPI 生成。 */
+export type SessionDetail = components["schemas"]["SessionResponsePayload"];

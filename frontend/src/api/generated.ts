@@ -525,6 +525,58 @@ export interface components {
             type: "card";
         };
         /**
+         * ChaseLegPayload
+         * @description 一个机位窗口对应的行程段。
+         */
+        ChaseLegPayload: {
+            /**
+             * Arrive At
+             * Format: date-time
+             */
+            arrive_at: string;
+            /** Effective Shooting Minutes */
+            effective_shooting_minutes: number;
+            /** From Site */
+            from_site: string;
+            /**
+             * Latest Leave At
+             * Format: date-time
+             */
+            latest_leave_at: string;
+            /**
+             * Leave At
+             * Format: date-time
+             */
+            leave_at: string;
+            /** Margin Minutes */
+            margin_minutes: number;
+            route: components["schemas"]["ChaseRoutePayload"];
+            /** To Site */
+            to_site: string;
+            /** Transition Buffer Minutes */
+            transition_buffer_minutes: number;
+        };
+        /**
+         * ChasePlanPayload
+         * @description 多机位赶场规划的完整响应契约。
+         */
+        ChasePlanPayload: {
+            /** Explanation */
+            explanation: string;
+            /** Feasible */
+            feasible: boolean;
+            /** Legs */
+            legs: components["schemas"]["ChaseLegPayload"][];
+            /** Ordered Site Names */
+            ordered_site_names: string[];
+            /** Rejected Options */
+            rejected_options: components["schemas"]["ChaseRejectedOptionPayload"][];
+            /** Risk Level */
+            risk_level: string;
+            /** Total Effective Shooting Minutes */
+            total_effective_shooting_minutes: number;
+        };
+        /**
          * ChasePlanRequest
          * @description 多机位赶场规划请求（C1-1）。
          */
@@ -565,6 +617,45 @@ export interface components {
              * @enum {string}
              */
             transport_mode: "driving" | "cycling" | "walking" | "transit";
+        };
+        /**
+         * ChaseRejectedOptionPayload
+         * @description 被舍弃的机位顺序及原因。
+         */
+        ChaseRejectedOptionPayload: {
+            /** Ordered Site Names */
+            ordered_site_names: string[];
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * ChaseRoutePayload
+         * @description 一段赶场路线的来源、耗时和降级信息。
+         */
+        ChaseRoutePayload: {
+            /** Confidence */
+            confidence: string;
+            /** Degraded Reason */
+            degraded_reason: string;
+            /** Distance M */
+            distance_m: number | null;
+            /** Duration Minutes */
+            duration_minutes: number;
+            /** Is Future Prediction */
+            is_future_prediction: boolean;
+            /** Provider */
+            provider: string;
+            /**
+             * Queried At
+             * Format: date-time
+             */
+            queried_at: string;
+            /** Traffic Level */
+            traffic_level: string;
+            /** Traffic Summary */
+            traffic_summary: string;
+            /** Transport Mode */
+            transport_mode: string;
         };
         /**
          * ChaseSitePayload
@@ -772,6 +863,14 @@ export interface components {
             window_start: string;
         };
         /**
+         * DeletedSpotPayload
+         * @description 已删除收藏机位的标识。
+         */
+        DeletedSpotPayload: {
+            /** Deleted Id */
+            deleted_id: string;
+        };
+        /**
          * DoneEvent
          * @description 结束事件（事件流终止标记）。
          */
@@ -843,8 +942,20 @@ export interface components {
             summary: string;
             /**
              * Timestamp
-             * @description ISO 8601 拍摄时间；空则以确认时刻写入
-             * @default
+             * @description 带时区的 ISO 8601 拍摄时间；空则以确认时刻写入
+             */
+            timestamp?: string | null;
+        };
+        /**
+         * EventCreatedPayload
+         * @description 已确认写入的事件标识与规范时间。
+         */
+        EventCreatedPayload: {
+            /** Event Id */
+            event_id: number;
+            /**
+             * Timestamp
+             * Format: date-time
              */
             timestamp: string;
         };
@@ -1312,6 +1423,61 @@ export interface components {
             radius_km: number;
         };
         /**
+         * SessionMessagePayload
+         * @description 会话历史中一条 OpenAI 兼容消息。
+         */
+        SessionMessagePayload: {
+            /** Content */
+            content?: string | {
+                [key: string]: unknown;
+            }[] | null;
+            /** Name */
+            name?: string | null;
+            /** Role */
+            role: string;
+            /** Tool Call Id */
+            tool_call_id?: string | null;
+            /** Tool Calls */
+            tool_calls?: {
+                [key: string]: unknown;
+            }[] | null;
+        };
+        /**
+         * SessionPayload
+         * @description 会话详情中的可持久化记录字段。
+         */
+        SessionPayload: {
+            /** Created At */
+            created_at: string;
+            /** History */
+            history: components["schemas"]["SessionMessagePayload"][];
+            /** Pipeline */
+            pipeline: {
+                [key: string]: unknown;
+            };
+            /** Session Id */
+            session_id: string;
+            /** Updated At */
+            updated_at: string;
+            /** User Id */
+            user_id: string;
+            /** Workspace */
+            workspace: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * SessionResponsePayload
+         * @description 会话记录与最近一次 trace 回放。
+         */
+        SessionResponsePayload: {
+            session: components["schemas"]["SessionPayload"];
+            /** Trace */
+            trace: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
          * SkippedFavoriteSpotPayload
          * @description 旧档案中未能投影的条目序号及原因。
          */
@@ -1611,9 +1777,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ChasePlanPayload"];
                 };
             };
             /** @description Validation Error */
@@ -1712,9 +1876,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["EventCreatedPayload"];
                 };
             };
             /** @description Validation Error */
@@ -1833,9 +1995,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
+                    "application/json": components["schemas"]["DeletedSpotPayload"];
                 };
             };
             /** @description Validation Error */
@@ -2038,9 +2198,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SessionResponsePayload"];
                 };
             };
             /** @description Validation Error */

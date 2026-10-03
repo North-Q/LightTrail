@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { postJson } from "../api/client";
+import type { components } from "../api/generated";
 import { listFavoriteSpots, type FavoriteSpotRecord } from "../api/favoriteSpots";
 import {
   createSpotPlan, exportPlanArchive, replayPlanArchive,
@@ -12,21 +13,7 @@ import { parsePlanUrl, PLAN_SUBJECTS, replacePlanUrl } from "./planUrl";
 import { SpotMap } from "./SpotMap";
 import { SpotPlanView, type DisplayPlan } from "./SpotPlanView";
 
-interface ChasePlanResult {
-  ordered_site_names: string[];
-  feasible: boolean;
-  risk_level: string;
-  explanation: string;
-  legs: Array<{
-    from_site: string;
-    to_site: string;
-    leave_at: string;
-    arrive_at: string;
-    latest_leave_at: string;
-    margin_minutes: number;
-    route: { distance_m: number; duration_minutes: number; provider: string; degraded_reason: string };
-  }>;
-}
+type ChasePlanResult = components["schemas"]["ChasePlanPayload"];
 
 interface ChaseWindow {
   start: string;
@@ -360,7 +347,7 @@ export function D2Page() {
             <strong>{chaseResult.explanation}</strong>
             {chaseResult.legs.map((leg) => (
               <div key={`${leg.from_site}-${leg.to_site}`} className="spot-card">
-                <div><strong>{leg.from_site} → {leg.to_site}</strong><p className="page-sub">{Math.round(leg.route.distance_m / 100) / 10} km · 预计通勤 {leg.route.duration_minutes} 分钟 · 最晚离开 {new Date(leg.latest_leave_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p></div>
+                <div><strong>{leg.from_site} → {leg.to_site}</strong><p className="page-sub">{leg.route.distance_m == null ? "距离未知" : `${Math.round(leg.route.distance_m / 100) / 10} km`} · 预计通勤 {leg.route.duration_minutes} 分钟 · 最晚离开 {new Date(leg.latest_leave_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p></div>
                 <span className="chip">余量 {leg.margin_minutes} 分钟</span>
                 <p className="page-sub">来源：{leg.route.provider}{leg.route.degraded_reason ? ` · ${leg.route.degraded_reason}` : ""}</p>
               </div>

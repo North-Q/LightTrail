@@ -1,5 +1,11 @@
 # LightTrail 开发日志
 
+## 2026-10-04（T6 API 响应契约与事件时间校验）
+
+- 为 `/api/events`、`/api/chase-plans`、`/api/sessions/{session_id}` 和 DELETE 收藏机位补充具名响应模型及 `response_model`，使响应 schema 进入 OpenAPI components。前端会话详情、赶场结果和机位删除类型改用生成契约；赶场距离为空时明确显示“距离未知”。
+- `EventCreatePayload.timestamp` 改为可空 `datetime`，缺省仍由服务端采用确认时刻；输入必须是可解析且含时区的 ISO 8601 时间。非法格式与无时区值由 Pydantic 以 422 拒绝，事件库存规范化的 ISO 时间。
+- 验证：全量 pytest **458 passed**；`ruff check .`、`ruff format --check .` 通过；smoke **21/21**；`lint-imports` **3 kept / 0 broken**；`npm --prefix frontend run gen:api` 连续两次 SHA-256 稳定为 `6AB39AE922318ABF66A47D884722B4B0D92B5D4A5002A207C7934994AA88DDCB`；前端 build 通过。新增测试覆盖 OpenAPI 响应 refs、时间字段 schema、非法/无时区输入和有效带时区输入。
+
 ## 2026-10-03（T5 收敛配额决策唯一入口）
 
 - 删除 `Pipeline.run` 内与 `Orchestrator.plan` 重复的配额卡片构造；将拒绝/高水位判定收敛到 `Orchestrator._quota_card`。`plan` 在固定管线、受控 Planner 和异常回落之前统一检查；复盘与照片反推入口也调用同一策略，避免移除管线守卫后丢失保护。Planner 执行中的逐步额度检查保留，用于计划运行期间余额变化的中途止损。

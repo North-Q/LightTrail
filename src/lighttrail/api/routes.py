@@ -165,7 +165,30 @@ class EventCreatePayload(BaseModel):
     outcome: str = Field(
         default="", pattern="^(|success|fail)$", description="结果：success、fail 或空"
     )
-    timestamp: str = Field(default="", description="ISO 8601 拍摄时间；空则以确认时刻写入")
+    timestamp: datetime | None = Field(
+        default=None, description="带时区的 ISO 8601 拍摄时间；空则以确认时刻写入"
+    )
+
+    @field_validator("timestamp")
+    @classmethod
+    def _timestamp_requires_timezone(cls, value: datetime | None) -> datetime | None:
+        """事件时间必须带时区，避免写入含义不明的本地时间。"""
+        if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+            raise ValueError("timestamp 必须是包含时区的 ISO 8601 时间")
+        return value
+
+
+class EventCreatedPayload(BaseModel):
+    """已确认写入的事件标识与规范时间。"""
+
+    event_id: int
+    timestamp: datetime
+
+
+class DeletedSpotPayload(BaseModel):
+    """已删除收藏机位的标识。"""
+
+    deleted_id: str
 
 
 class ChaseSitePayload(BaseModel):
@@ -193,6 +216,83 @@ class ChasePlanRequest(BaseModel):
         default=15, ge=0, le=240, description="每个机位最少有效拍摄分钟数"
     )
     transit_city: str = Field(default="", max_length=80, description="公共交通路线所需城市名称")
+
+
+class ChaseRoutePayload(BaseModel):
+    """一段赶场路线的来源、耗时和降级信息。"""
+
+    distance_m: float | None
+    duration_minutes: float
+    transport_mode: str
+    traffic_level: str
+    traffic_summary: str
+    provider: str
+    confidence: str
+    queried_at: datetime
+    is_future_prediction: bool
+    degraded_reason: str
+
+
+class ChaseLegPayload(BaseModel):
+    """一个机位窗口对应的行程段。"""
+
+    from_site: str
+    to_site: str
+    leave_at: datetime
+    arrive_at: datetime
+    latest_leave_at: datetime
+    effective_shooting_minutes: int
+    margin_minutes: int
+    transition_buffer_minutes: int
+    route: ChaseRoutePayload
+
+
+class ChaseRejectedOptionPayload(BaseModel):
+    """被舍弃的机位顺序及原因。"""
+
+    ordered_site_names: list[str]
+    reason: str
+
+
+class ChasePlanPayload(BaseModel):
+    """多机位赶场规划的完整响应契约。"""
+
+    ordered_site_names: list[str]
+    feasible: bool
+    risk_level: str
+    total_effective_shooting_minutes: int
+    explanation: str
+    legs: list[ChaseLegPayload]
+    rejected_options: list[ChaseRejectedOptionPayload]
+
+
+class SessionMessagePayload(BaseModel):
+    """会话历史中一条 OpenAI 兼容消息。"""
+
+    role: str
+    content: str | list[dict[str, Any]] | None = None
+    name: str | None = None
+    tool_call_id: str | None = None
+    tool_calls: list[dict[str, Any]] | None = None
+
+
+class SessionPayload(BaseModel):
+    """会话详情中的可持久化记录字段。"""
+
+    session_id: str
+    history: list[SessionMessagePayload]
+    pipeline: dict[str, Any]
+    workspace: dict[str, Any]
+    user_id: str
+    created_at: str
+    updated_at: str
+
+
+class SessionResponsePayload(BaseModel):
+    """会话记录与最近一次 trace 回放。"""
+
+    session: SessionPayload
+    trace: dict[str, Any] | None
 
 
 # ------ SSE 常量（事件类型定义见 api/events.py）------
@@ -752,12 +852,14 @@ async def update_favorite_spot(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.delete("/api/favorite-spots/{spot_id}", summary="删除收藏机位")
+@router.delete(
+    "/api/favorite-spots/{spot_id}", summary="删除收藏机位", response_model=DeletedSpotPayload
+)
 async def delete_favorite_spot(
     spot_id: str,
     request: Request,
     context: RequestContext = Depends(get_request_context),  # noqa: B008
-) -> dict[str, str]:
+) -> DeletedSpotPayload:
     """删除用户明确指定的一条机位；旧档案先备份。
 
     Args:
@@ -775,7 +877,7 @@ async def delete_favorite_spot(
         request.app.state.deps.services.memory.delete_favorite_spot(context, spot_id)
     except FavoriteSpotNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return {"deleted_id": spot_id}
+    return DeletedSpotPayload(deleted_id=spot_id)
 
 
 @router.post("/api/spot-plans", summary="按已确认机位生成结构化单机位计划", response_model=SpotPlan)
@@ -911,31 +1013,35 @@ async def convert_map_coordinates(
     )
 
 
-@router.post("/api/events", summary="确认写入拍摄事件（M1），仅显式请求才落库")
+@router.post(
+    "/api/events",
+    summary="确认写入拍摄事件（M1），仅显式请求才落库",
+    response_model=EventCreatedPayload,
+)
 async def create_event(
     payload: EventCreatePayload,
     request: Request,
     context: RequestContext = Depends(get_request_context),  # noqa: B008
-) -> dict[str, Any]:
+) -> EventCreatedPayload:
     """写入一条用户明确确认的事件记忆，不从照片复盘自动落盘。"""
-    timestamp = payload.timestamp or datetime.now(timezone.utc).isoformat()
+    timestamp = payload.timestamp or datetime.now(timezone.utc)
     event_id = request.app.state.deps.services.memory.add_event(
         context,
-        timestamp,
+        timestamp.isoformat(),
         payload.location,
         subject_type=payload.subject_type,
         summary=payload.summary,
         outcome=payload.outcome,
     )
-    return {"event_id": event_id, "timestamp": timestamp}
+    return EventCreatedPayload(event_id=event_id, timestamp=timestamp)
 
 
-@router.post("/api/chase-plans", summary="多机位赶场规划（C1-1）")
+@router.post("/api/chase-plans", summary="多机位赶场规划（C1-1）", response_model=ChasePlanPayload)
 async def create_chase_plan(
     payload: ChasePlanRequest,
     request: Request,
     context: RequestContext = Depends(get_request_context),  # noqa: B008
-) -> dict[str, Any]:
+) -> ChasePlanPayload:
     """按拍摄窗口和路线服务生成确定性赶场计划，不调用 LLM。"""
     _require_timezone(payload.depart_at, "首次出发时间")
     if len({site.name for site in payload.sites}) != len(payload.sites):
@@ -979,21 +1085,27 @@ async def create_chase_plan(
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return _chase_plan_to_dict(plan)
+    return ChasePlanPayload.model_validate(_chase_plan_to_dict(plan))
 
 
-@router.get("/api/sessions/{session_id}", summary="会话历史与 TraceReport 回放")
+@router.get(
+    "/api/sessions/{session_id}",
+    summary="会话历史与 TraceReport 回放",
+    response_model=SessionResponsePayload,
+)
 async def get_session(
     session_id: str,
     request: Request,
     context: RequestContext = Depends(get_request_context),  # noqa: B008
-) -> dict[str, Any]:
+) -> SessionResponsePayload:
     """返回会话记录（历史 + 工作区）与最近一次运行的 TraceReport。"""
     deps = request.app.state.deps
     session = deps.sessions.get(session_id)
     if session is None or (session.user_id or LOCAL_USER_ID) != context.user_id:
         raise HTTPException(status_code=404, detail="会话不存在")
-    return {"session": session.to_dict(), "trace": session.workspace.get("last_trace")}
+    return SessionResponsePayload(
+        session=session.to_dict(), trace=session.workspace.get("last_trace")
+    )
 
 
 # ------ 内部实现 ------

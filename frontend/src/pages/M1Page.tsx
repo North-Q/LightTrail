@@ -58,7 +58,7 @@ export function M1Page() {
           const body = await getSession(meta.id);
           const assistant = (body.session.history ?? []).filter((m) => m.role === "assistant").pop();
           if (assistant) {
-            summary = assistant.content.slice(0, 60);
+            summary = typeof assistant.content === "string" ? assistant.content.slice(0, 60) : meta.title;
           }
         } catch {
           summary = `${meta.title}（详情暂不可读）`;

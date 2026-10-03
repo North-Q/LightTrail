@@ -566,6 +566,31 @@ async def test_event_write_requires_explicit_request(make_app) -> None:
     assert response.json()["event_id"] == 1
 
 
+@pytest.mark.parametrize("timestamp", ["not-a-time", "2026-10-03T19:00:00"])
+async def test_event_timestamp_rejects_invalid_or_timezone_free_values(make_app, timestamp) -> None:
+    """事件时间只接受可解析且含时区的 ISO 8601 值。"""
+    app, _ = make_app([])
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/api/events", json={"location": "临港", "timestamp": timestamp}
+        )
+    assert response.status_code == 422
+
+
+async def test_event_timestamp_accepts_timezone_and_returns_typed_value(make_app) -> None:
+    """带时区的 ISO 8601 时间经事件接口解析并按 datetime 响应。"""
+    app, _ = make_app([])
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/api/events",
+            json={"location": "临港", "timestamp": "2026-10-03T19:00:00+08:00"},
+        )
+    assert response.status_code == 200
+    assert response.json()["timestamp"] == "2026-10-03T19:00:00+08:00"
+
+
 async def test_sessions_unknown_404(make_app) -> None:
     """未知会话 → 404。"""
     app, _ = make_app([])

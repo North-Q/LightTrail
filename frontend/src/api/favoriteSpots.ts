@@ -5,6 +5,7 @@ import type { components } from "./generated";
 export type FavoriteSpotInput = components["schemas"]["FavoriteSpotInput"];
 export type FavoriteSpotRecord = components["schemas"]["FavoriteSpotRecord"];
 export type FavoriteSpotList = components["schemas"]["FavoriteSpotListPayload"];
+export type DeletedFavoriteSpot = components["schemas"]["DeletedSpotPayload"];
 
 const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
 
@@ -32,5 +33,5 @@ export function updateFavoriteSpot(id: string, input: FavoriteSpotInput): Promis
 }
 
 export async function deleteFavoriteSpot(id: string): Promise<void> {
-  await requestJson<{ deleted_id: string }>("DELETE", `/api/favorite-spots/${encodeURIComponent(id)}`);
+  await requestJson<DeletedFavoriteSpot>("DELETE", `/api/favorite-spots/${encodeURIComponent(id)}`);
 }
