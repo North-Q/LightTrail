@@ -215,7 +215,34 @@ _SSE_RESPONSES: dict[int | str, dict[str, Any]] = {
 
 # 照片上传护栏（D4 复盘端点）
 _MAX_PHOTO_BYTES = 10 * 1024 * 1024
+_PHOTO_READ_CHUNK_BYTES = 1024 * 1024
 _ALLOWED_PHOTO_TYPES = {"image/jpeg", "image/png"}
+
+
+async def _read_photo_upload(file: UploadFile) -> bytes:
+    """在上传内容进入内存前限制照片大小。
+
+    Args:
+        file: FastAPI 接收的照片上传对象。
+
+    Returns:
+        不超过 10 MB 的照片内容。
+
+    Raises:
+        HTTPException: 文件超过大小上限。
+    """
+    if file.size is not None and file.size > _MAX_PHOTO_BYTES:
+        raise HTTPException(status_code=413, detail="照片超过 10MB 上限")
+
+    content = bytearray()
+    while True:
+        remaining = _MAX_PHOTO_BYTES - len(content)
+        chunk = await file.read(min(_PHOTO_READ_CHUNK_BYTES, remaining + 1))
+        if not chunk:
+            return bytes(content)
+        content.extend(chunk)
+        if len(content) > _MAX_PHOTO_BYTES:
+            raise HTTPException(status_code=413, detail="照片超过 10MB 上限")
 
 
 def _report_to_dict(report: Any) -> dict[str, Any]:
@@ -441,9 +468,7 @@ async def photos_review(
     if file.content_type not in _ALLOWED_PHOTO_TYPES:
         raise HTTPException(status_code=400, detail="仅支持 jpg/png 照片")
 
-    content = await file.read()
-    if len(content) > _MAX_PHOTO_BYTES:
-        raise HTTPException(status_code=413, detail="照片超过 10MB 上限")
+    content = await _read_photo_upload(file)
     if not content:
         raise HTTPException(status_code=400, detail="照片内容为空")
 
@@ -474,9 +499,7 @@ async def photos_reverse(
     deps = request.app.state.deps
     if file.content_type not in _ALLOWED_PHOTO_TYPES:
         raise HTTPException(status_code=400, detail="仅支持 jpg/png 照片")
-    content = await file.read()
-    if len(content) > _MAX_PHOTO_BYTES:
-        raise HTTPException(status_code=413, detail="照片超过 10MB 上限")
+    content = await _read_photo_upload(file)
     if not content:
         raise HTTPException(status_code=400, detail="照片内容为空")
     suffix = Path(file.filename or "").suffix.lower() or (

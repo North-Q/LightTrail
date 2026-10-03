@@ -18,11 +18,14 @@ import shutil
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
 
 from lighttrail.adapters.llm.client import LLMError
+from lighttrail.api import routes
 from lighttrail.api.app import ApiDeps, create_app
 from lighttrail.api.routes import get_request_context
 from lighttrail.api.session import SessionManager, SessionRecord
@@ -325,6 +328,38 @@ async def test_photos_review_rejects_bad_type(make_app) -> None:
             files={"file": ("x.gif", b"GIF89a", "image/gif")},
         )
     assert resp.status_code == 400
+
+
+class _OversizedPhotoUpload:
+    """按请求块生成大文件的伪上传对象，记录实际读取字节数。"""
+
+    content_type = "image/jpeg"
+    filename = "oversized.jpg"
+    size = None
+
+    def __init__(self) -> None:
+        self.bytes_read = 0
+        self.total_bytes = routes._MAX_PHOTO_BYTES + 3 * 1024 * 1024
+
+    async def read(self, size: int = -1) -> bytes:
+        remaining = self.total_bytes - self.bytes_read
+        count = remaining if size < 0 else min(size, remaining)
+        self.bytes_read += count
+        return b"x" * count
+
+
+@pytest.mark.parametrize("endpoint", [routes.photos_review, routes.photos_reverse])
+async def test_photo_endpoints_stop_reading_oversized_upload(endpoint) -> None:
+    """两个照片端点遇到超限上传时只读到上限后一字节。"""
+    upload = _OversizedPhotoUpload()
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(deps=object())))
+
+    with pytest.raises(HTTPException) as exc_info:
+        await endpoint(request=request, context=RequestContext(), file=upload)
+
+    assert exc_info.value.status_code == 413
+    assert upload.bytes_read == routes._MAX_PHOTO_BYTES + 1
+    assert upload.bytes_read < upload.total_bytes
 
 
 async def test_profile_get_put(make_app) -> None:

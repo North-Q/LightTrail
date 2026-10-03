@@ -1,5 +1,11 @@
 # LightTrail 开发日志
 
+## 2026-10-03（T3 照片上传分块限额）
+
+- `/api/photos/review` 与 `/api/photos/reverse` 共用 `_read_photo_upload`：优先使用 `UploadFile.size` 拒绝明显超限文件；未知大小时按最多 1 MB 分块读取，累计超过 10 MB 即在读入完整内容前中断，内存缓冲最多达到上限后一字节。
+- 新增两个端点的超限回归，分别断言 HTTP 413 且只读取 10 MB + 1 字节，剩余上传内容未被读入应用内存。
+- 验证：全量 pytest **447 passed**；`ruff check .` 通过；smoke **21/21**；`lint-imports` **3 kept / 0 broken**。首轮全量测试中既有 R0-2 配额 trace 用例偶发缺少步骤事件，单项重跑与全量重跑均通过。私有读取 helper 不改变 OpenAPI 契约，未重跑 `gen:api`；当前生成物 SHA-256 为 `C260627ED05C56310157AB016227ADCF1804C5C1DD261DFA7C27F90159C9D854`。
+
 ## 2026-10-03（T2 MemoryManager 并发初始化收敛）
 
 - 为 `_users` 增加字典锁，并以按用户 ID 管理的初始化锁串行化同一用户首次构造；存储读取发生在全局字典锁外，不同用户仍可并行初始化。并发线程二次检查缓存后共享唯一 `_UserMemory`，避免同一 SQLite 文件被多个 `EventStore` 实例并行操作。
