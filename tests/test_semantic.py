@@ -169,7 +169,8 @@ def test_sediment_favorite_spots(workdir: Path) -> None:
         (workdir / "users" / "_local" / "memory" / "profile.json").read_text(encoding="utf-8")
     )
     assert len(saved["favorite_spots"]) == 1
-    assert "常去机位：临港海边(30.9123,121.9123)" in manager.profile.to_prompt_section()
+    assert "常去机位：临港海边" in manager.profile.to_prompt_section()
+    assert "30.9123" not in manager.profile.to_prompt_section()
 
 
 def test_sediment_skips_locations_without_coordinates(workdir: Path) -> None:

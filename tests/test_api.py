@@ -24,7 +24,11 @@ from httpx import ASGITransport, AsyncClient
 
 from lighttrail.adapters.llm.client import LLMError
 from lighttrail.api.app import ApiDeps, create_app
-from lighttrail.api.session import SessionManager
+from lighttrail.api.routes import get_request_context
+from lighttrail.api.session import SessionManager, SessionRecord
+from lighttrail.composition import build_application
+from lighttrail.config import Settings
+from lighttrail.contracts.context import RequestContext
 from lighttrail.memory import MemoryManager
 
 # 工具触发注册（conftest 已导入，此处双保险）
@@ -71,7 +75,7 @@ def _card_json(conclusion: str = "建议 18:10 到机位蹲守，风险中等可
             "evidence": [{"tool": "sunset_glow_score", "field": "评分", "confidence": "medium", "note": "62 分"}],
             "confidence": "medium",
             "time_window": "18:00-18:40",
-            "locations": [{"name": "崇明东滩", "reason": "朝西开阔"}],
+            "locations": [{"name": "测试机位", "reason": "朝西开阔"}],
             "params": [],
             "alternatives": ["南汇嘴"],
             "degraded": "",
@@ -131,6 +135,8 @@ def data_dir() -> Path:
 def make_app(data_dir: Path):
     """按 Fake 依赖构造应用（closure 允许每个用例注入不同响应脚本）。"""
 
+    applications = []
+
     def _build(
         responses: list[dict],
         photo_analyze: Callable[[str, str], dict] = _fake_photo_analyze,
@@ -138,20 +144,22 @@ def make_app(data_dir: Path):
     ) -> tuple[object, FakeChatClient]:
         fake = FakeChatClient(responses)
         memory = MemoryManager(data_dir)
-        memory.update_profile({"favorite_spots": [{"name": "测试机位", "latitude": 31.2, "longitude": 121.5}]})
-        deps = ApiDeps(
+        memory.update_profile({"favorite_spots": [{"name": "测试机位", "latitude": 31.2, "longitude": 121.5, "coordinate_system": "WGS84"}]})
+        services = build_application(
+            Settings(_env_file=None, data_dir=str(data_dir), reason_thinking=False),
             client=fake,
-            sessions=SessionManager(data_dir),
             memory=memory,
-            model="ecnu-plus",
-            reason_thinking=False,
             dispatch=_fake_dispatch,
             photo_analyze=photo_analyze,
             photo_reverse=photo_reverse,
         )
+        applications.append(services)
+        deps = ApiDeps(services=services, sessions=SessionManager(data_dir))
         return create_app(deps), fake
 
-    return _build
+    yield _build
+    for services in applications:
+        services.close()
 
 
 async def _collect_sse(client: AsyncClient, method: str, url: str, **kwargs) -> list[dict]:
@@ -216,7 +224,7 @@ async def test_chat_error_event(make_app) -> None:
             return 0
 
     app, _ = make_app([])
-    app.state.deps.client = _BrokenClient()  # 覆盖为必败客户端
+    app.state.deps.services.client.acall = _BrokenClient().acall  # 覆盖底层调用
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         events = await _collect_sse(client, "POST", "/api/chat", json={"message": "hi"})
@@ -231,7 +239,6 @@ async def test_decide_sse_card(make_app) -> None:
     """/api/decide：管线步骤事件 + 末端 card + done。"""
     app, _ = make_app(
         [
-            {"role": "assistant", "content": _intent_json("火烧云", mode="live")},
             {"role": "assistant", "content": _card_json()},
         ]
     )
@@ -265,6 +272,30 @@ async def test_photos_review_sse(make_app) -> None:
     assert types[-1] == "done"
     card_event = next(e for e in events if e["type"] == "card")
     assert "复盘结论" in card_event["card"]["conclusion"]
+
+
+async def test_photos_review_save_failure_still_finishes_sse(make_app, monkeypatch) -> None:
+    """复盘成功但会话落盘失败时须发 error + done，浏览器不能无限等待。"""
+    app, _ = make_app([{"role": "assistant", "content": _card_json("复盘已生成。")}])
+
+    def fail_save(_session: SessionRecord) -> None:
+        """模拟磁盘写入失败。"""
+        raise OSError("测试会话存储故障")
+
+    monkeypatch.setattr(app.state.deps.sessions, "save", fail_save)
+    transport = ASGITransport(app=app)
+    png_bytes = b"\x89PNG\r\n\x1a\n" + b"0" * 64
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        events = await _collect_sse(
+            client,
+            "POST",
+            "/api/photos/review",
+            files={"file": ("photo.png", png_bytes, "image/png")},
+        )
+    types = [event["type"] for event in events]
+    assert types[-2:] == ["error", "done"]
+    assert "card" not in types
+    assert "测试会话存储故障" in events[-2]["message"]
 
 
 async def test_photos_reverse_sse(make_app) -> None:
@@ -316,14 +347,90 @@ async def test_profile_get_put(make_app) -> None:
         assert got2.json()["lenses"] == ["24-105mm F4", "契卡 14mm"]
 
 
+async def test_favorite_spot_crud_and_profile_write_guard(make_app, data_dir: Path) -> None:
+    """机位 CRUD 落盘、保留精度规则，并关闭档案接口的未校验写入旁路。"""
+    app, _ = make_app([])
+    memory = app.state.deps.services.memory
+    profile_path = data_dir / "users" / "_local" / "memory" / "profile.json"
+    before = profile_path.read_bytes()
+    spot = {
+        "name": "东滩",
+        "latitude": 31.123456789,
+        "longitude": 121.987654321,
+        "coordinate_system": "WGS84",
+        "tz_offset": "+08:00",
+        "direction_deg": 95,
+        "subject_types": ["日出"],
+        "notes": "退潮后前往",
+        "source": "用户实测",
+    }
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        assert (await client.put("/api/profile", json={"favorite_spots": []})).status_code == 422
+        assert (await client.post("/api/favorite-spots", json={**spot, "latitude": 91})).status_code == 422
+        created = await client.post("/api/favorite-spots", json=spot)
+        assert created.status_code == 201, created.text
+        record = created.json()
+        assert record["coordinate_state"] == "ready"
+        assert record["latitude"] == 31.123457
+        assert record["longitude"] == 121.987654
+        assert profile_path.with_name("profile.pre-s1-2.json.bak").read_bytes() == before
+        assert len(memory.profile.valid_favorite_spots()) == 2
+
+        listed = await client.get("/api/favorite-spots")
+        assert {item["id"] for item in listed.json()["items"]} >= {record["id"]}
+        updated = await client.put(
+            f"/api/favorite-spots/{record['id']}", json={**spot, "name": "东滩新机位"}
+        )
+        assert updated.status_code == 200
+        assert updated.json()["id"] == record["id"]
+        deleted = await client.delete(f"/api/favorite-spots/{record['id']}")
+        assert deleted.status_code == 200
+        assert (await client.delete(f"/api/favorite-spots/{record['id']}")).status_code == 404
+
+
+async def test_legacy_spot_confirmation_and_user_isolation(make_app, data_dir: Path) -> None:
+    """旧坐标默认不可计算；显式确认后可用，其他用户不能读取或修改。"""
+    app, _ = make_app([])
+    memory = app.state.deps.services.memory
+    memory.update_profile({"favorite_spots": [{"name": "旧机位", "latitude": 0, "longitude": 0}]})
+    profile_path = data_dir / "users" / "_local" / "memory" / "profile.json"
+    original = profile_path.read_bytes()
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        listed = (await client.get("/api/favorite-spots")).json()["items"]
+        assert listed[0]["coordinate_state"] == "unknown_system"
+        assert memory.profile.valid_favorite_spots() == []
+        legacy_id = listed[0]["id"]
+        app.dependency_overrides[get_request_context] = lambda: RequestContext(user_id="other")
+        assert (await client.get("/api/favorite-spots")).json()["items"] == []
+        assert (await client.delete(f"/api/favorite-spots/{legacy_id}")).status_code == 404
+        app.dependency_overrides.clear()
+        confirmed = await client.put(
+            f"/api/favorite-spots/{legacy_id}",
+            json={
+                "name": "旧机位",
+                "latitude": 0,
+                "longitude": 0,
+                "coordinate_system": "WGS84",
+                "tz_offset": "+00:00",
+                "source": "用户确认原坐标",
+            },
+        )
+        assert confirmed.status_code == 200, confirmed.text
+        assert confirmed.json()["coordinate_state"] == "ready"
+        assert len(memory.profile.valid_favorite_spots()) == 1
+        assert profile_path.with_name("profile.pre-s1-2.json.bak").read_bytes() == original
+
+
 async def test_chase_plan_uses_profile_sites_and_manual_fallback(make_app) -> None:
     """赶场接口从档案取坐标；无地图 Key 时返回可解释的本地估算。"""
     app, _ = make_app([])
-    app.state.deps.memory.update_profile(
+    app.state.deps.services.memory.update_profile(
         {
             "favorite_spots": [
-                {"name": "机位 A", "latitude": 31.2304, "longitude": 121.4737},
-                {"name": "机位 B", "latitude": 31.2404, "longitude": 121.4837},
+                {"name": "机位 A", "latitude": 31.2304, "longitude": 121.4737, "coordinate_system": "WGS84"},
+                {"name": "机位 B", "latitude": 31.2404, "longitude": 121.4837, "coordinate_system": "WGS84"},
             ]
         }
     )

@@ -15,7 +15,8 @@ from pathlib import Path
 
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
-from lighttrail.composition import build_registry
+from lighttrail.composition import build_application, build_registry
+from lighttrail.config import Settings
 from lighttrail.memory import MemoryManager, UserProfile
 from lighttrail.orchestrator import Orchestrator
 from lighttrail.runtime.agent import AgentRuntime
@@ -31,7 +32,7 @@ from lighttrail.tools import (  # noqa: F401  触发注册
 registry = build_registry()
 _MEMORY = MemoryManager(
     Path(tempfile.mkdtemp(prefix="lt_e2e_memory_")),
-    profile=UserProfile(favorite_spots=[{"name": "测试机位", "latitude": 31.2, "longitude": 121.5}]),
+    profile=UserProfile(favorite_spots=[{"name": "测试机位", "latitude": 31.2, "longitude": 121.5, "coordinate_system": "WGS84"}]),
 )
 
 # E8 黄金用例集雏形：典型请求 + 预期题材 + 关键断言词
@@ -62,14 +63,14 @@ def _intent_json(subject: str, mode: str = "inspiration") -> str:
     return json.dumps({"subject_type": subject, "location": "", "time_hint": "这周末", "mode": mode}, ensure_ascii=False)
 
 
-def _card_json(conclusion: str = "周末银河可见，建议 20:30-23:00 前往崇明东滩。") -> str:
+def _card_json(conclusion: str = "周末银河可见，建议 20:30-23:00 前往测试机位。") -> str:
     return json.dumps(
         {
             "conclusion": conclusion,
             "evidence": [{"tool": "galaxy_visibility", "field": "可见窗口", "confidence": "high", "note": "20:10-23:50"}],
             "confidence": "medium",
             "time_window": "20:30-23:00",
-            "locations": [{"name": "崇明东滩", "reason": "光害低"}],
+            "locations": [{"name": "测试机位", "reason": "光害低"}],
             "params": [{"name": "快门", "value": "20s", "reason": "14mm 全画幅 NPF 上限"}],
             "alternatives": ["临港南汇嘴"],
             "degraded": "",
@@ -158,40 +159,23 @@ def test_golden_cases_are_parsable() -> None:
     assert sum(1 for _ in GOLDEN_CASES) == 3
 
 
-def test_cli_pipeline_entry_prints_card(monkeypatch, capsys) -> None:
-    """cli --pipeline：Fake 编排器打印结构化方案（不触网）。"""
+def test_cli_pipeline_entry_prints_card(monkeypatch, capsys, tmp_path: Path) -> None:
+    """CLI 默认入口采用生产装配，仅替换客户端和数据源。"""
     import lighttrail.cli as cli_mod
 
-    class _FakeSettings:
-        api_key = "sk-test"
-        base_url = "http://127.0.0.1:1"
-        model = "ecnu-plus"
-        model_reason = "ecnu-max"
-        concurrency = 4
-        react_max_rounds = 12
-        data_dir = "data"
-        quota_warn_threshold = 0.9
-        reason_thinking = False
-
-        @property
-        def has_api_key(self) -> bool:
-            return True
-
-    class _FakeOrchestrator:
-        def __init__(self, *args, **kwargs) -> None:
-            self.last_request = ""
-
-        def plan(self, request: str) -> str:
-            self.last_request = request
-            return "## 拍摄方案（Fake）\n- 结论：这周末银河可拍。"
-
-    monkeypatch.setattr(cli_mod, "load_settings", lambda: _FakeSettings())
-    # B2-4：入口改从装配根取实例，测试注入装配函数（不再 patch 全局单例/类）
-    monkeypatch.setattr(cli_mod, "build_orchestrator", lambda *args, **kwargs: _FakeOrchestrator())
+    settings = Settings(_env_file=None, api_key="offline", data_dir=str(tmp_path))
+    fake = FakeChatClient([{"role": "assistant", "content": _card_json()}])
+    services = build_application(settings, client=fake, dispatch=_fake_dispatch)
+    services.memory.update_profile(
+        {"favorite_spots": [{"name": "测试机位", "latitude": 31.2, "longitude": 121.5, "coordinate_system": "WGS84"}]}
+    )
+    monkeypatch.setattr(cli_mod, "load_settings", lambda: settings)
+    monkeypatch.setattr(cli_mod, "build_application", lambda config: services)
 
     code = cli_mod.main(["--pipeline", "这周末想去拍银河"])
     assert code == 0
-    assert "## 拍摄方案（Fake）" in capsys.readouterr().out
+    assert "## 拍摄方案（决策卡片）" in capsys.readouterr().out
+    assert fake.calls[-1]["model"] == settings.model_reason
 
 
 # ------ 复盘管线闭环（E6-4）------

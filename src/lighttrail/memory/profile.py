@@ -1,4 +1,4 @@
-"""用户档案记忆（M1.1）：data/profile.json 常驻精简注入。
+"""用户档案记忆（M1.1）：用户命名空间内的 profile.json 常驻精简注入。
 
 设计要点（架构 v2.0 §2.5，E3-1 落地）：
 - 档案决定所有建议的个性化基线，每轮都在 system prompt 第④层（常驻，≤300 字）；
@@ -10,9 +10,11 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 _PROFILE_FILE = "profile.json"
 
@@ -52,10 +54,10 @@ class UserProfile:
     # ------ 对外接口 ------
     @classmethod
     def load(cls, data_dir: str | Path) -> UserProfile:
-        """从 data_dir/profile.json 加载档案；文件缺失时返回空档案。
+        """从用户记忆目录加载 profile.json；文件缺失时返回空档案。
 
         Args:
-            data_dir: 数据目录（如 settings.data_dir）。
+            data_dir: 当前用户的 memory 目录。
 
         Returns:
             档案实例；缺失/非法 JSON 时为空档案（不抛错，保证系统可用）。
@@ -72,10 +74,10 @@ class UserProfile:
         return cls(**{key: raw[key] for key in _FIELDS if key in raw})
 
     def save(self, data_dir: str | Path) -> Path:
-        """把档案写入 data_dir/profile.json（自动建目录）。
+        """把档案写入当前用户的 memory/profile.json（自动建目录）。
 
         Args:
-            data_dir: 数据目录。
+            data_dir: 当前用户的 memory 目录。
 
         Returns:
             写入的文件路径。
@@ -83,7 +85,14 @@ class UserProfile:
         path = Path(data_dir) / _PROFILE_FILE
         path.parent.mkdir(parents=True, exist_ok=True)
         payload = {key: getattr(self, key) for key in _FIELDS}
-        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        temporary = path.with_name(f"{path.name}.{uuid4().hex}.tmp")
+        try:
+            temporary.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            temporary.replace(path)
+        finally:
+            temporary.unlink(missing_ok=True)
         return path
 
     def update(self, fields: dict[str, Any]) -> UserProfile:
@@ -121,40 +130,54 @@ class UserProfile:
             spots = []
             for spot in self.favorite_spots[:3]:
                 name = str(spot.get("名称") or spot.get("name") or "?")
-                latitude = spot.get("纬度") or spot.get("latitude")
-                longitude = spot.get("经度") or spot.get("longitude")
-                if latitude is not None and longitude is not None:
-                    spots.append(f"{name}({latitude},{longitude})")
-                else:
-                    spots.append(name)
+                spots.append(name)
             if spots:
                 parts.append("常去机位：" + "、".join(spots))
         return _truncate("；".join(parts), _MAX_SECTION_CHARS)
 
     def valid_favorite_spots(self) -> list[dict[str, Any]]:
-        """返回拥有有效坐标的常用机位，统一输出英文键形状。
+        """仅返回明确标为 WGS84 的有效机位，统一输出英文键形状。
 
-        读取旧档案时兼容中文键，但所有新写入应使用 name/latitude/longitude/subject。
+        未声明或使用其他坐标系的旧机位不得进入天象、天气或赶场计算。
         """
         normalized: list[dict[str, Any]] = []
         for spot in self.favorite_spots:
             if not isinstance(spot, dict):
                 continue
+            if (
+                spot.get("coordinate_system") != "WGS84"
+                or spot.get("coordinate_state", "ready") != "ready"
+            ):
+                continue
             name = str(spot.get("name") or spot.get("名称") or "").strip()
             latitude = spot.get("latitude", spot.get("纬度"))
             longitude = spot.get("longitude", spot.get("经度"))
+            if isinstance(latitude, bool) or isinstance(longitude, bool):
+                continue
             try:
                 latitude = float(latitude)
                 longitude = float(longitude)
             except (TypeError, ValueError):
                 continue
-            if name and -90 <= latitude <= 90 and -180 <= longitude <= 180:
+            if (
+                name
+                and math.isfinite(latitude)
+                and math.isfinite(longitude)
+                and -90 <= latitude <= 90
+                and -180 <= longitude <= 180
+            ):
+                subjects = spot.get("subject_types")
+                subject = (
+                    "、".join(subjects)
+                    if isinstance(subjects, list)
+                    else str(spot.get("subject") or spot.get("题材") or "")
+                )
                 normalized.append(
                     {
                         "name": name,
                         "latitude": latitude,
                         "longitude": longitude,
-                        "subject": str(spot.get("subject") or spot.get("题材") or ""),
+                        "subject": subject,
                     }
                 )
         return normalized

@@ -1,4 +1,4 @@
-"""FastAPI SSE 路由（E7-3/E7-4）：五端点 + 事件协议（架构 v2.0 §2.8）。
+"""FastAPI SSE、用户档案与收藏机位路由（架构 v2.0 §2.8）。
 
 设计要点：
 - 薄服务层：只做协议转换与会话管理，业务逻辑在 Agent/Orchestrator（§1 边界原则）；
@@ -15,29 +15,37 @@ from __future__ import annotations
 import asyncio
 import logging
 import tempfile
-from collections.abc import AsyncIterator, Callable
-from dataclasses import asdict
+from collections.abc import AsyncIterator
+from dataclasses import asdict, replace
 from datetime import datetime, timezone
+from ipaddress import ip_address
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import urlsplit
 
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import (
-    LightTrailModel,
     from_openai_history,
     to_openai_history,
+)
+from lighttrail.adapters.maps.js_service import (
+    MapProxyError,
+    convert_wgs84_points,
+    forward_js_service,
 )
 from lighttrail.api.events import (
     TraceBridge,
     pump,
     to_payload,
 )
-from lighttrail.composition import build_context
-from lighttrail.contracts.context import RequestContext
+from lighttrail.api.session import SessionRecord
+from lighttrail.application.plan_archive import archive_spot_plan
+from lighttrail.application.spot_planner import SpotPlanInputError, build_spot_plan
+from lighttrail.composition import RequestScope, build_recorder
+from lighttrail.contracts.context import LOCAL_USER_ID, RequestContext
 from lighttrail.contracts.events import (
     CardEvent,
     DoneEvent,
@@ -46,14 +54,17 @@ from lighttrail.contracts.events import (
     SSEEventPayload,
     TokenEvent,
 )
+from lighttrail.contracts.favorite_spot import FavoriteSpotInput, FavoriteSpotRecord
 from lighttrail.contracts.models import DecisionCard
-from lighttrail.domain.chase import ChasePlanner, ChaseSite, GeoPoint
-from lighttrail.infra.trace import Recorder, TraceRecorder
-from lighttrail.orchestrator import Orchestrator
+from lighttrail.contracts.plan_archive import PlanArchive
+from lighttrail.contracts.spot_plan import PlanningRequest, SpotPlan
+from lighttrail.domain.chase import ChaseSite, GeoPoint
+from lighttrail.infra.trace import TraceRecorder
+from lighttrail.memory.manager import FavoriteSpotNotFoundError
 from lighttrail.orchestrator.orchestrator import _render_card
-from lighttrail.runtime.agent import AgentRuntime
 
 logger = logging.getLogger("lighttrail.api.routes")
+
 
 # ------ 请求模型（复用 schemas.py 契约，白拿 OpenAPI）------
 class ChatRequest(BaseModel):
@@ -71,7 +82,7 @@ class DecideRequest(BaseModel):
 
 
 class ProfilePayload(BaseModel):
-    """档案编辑（M1.1-01）：全部字段可选，PUT 只更新出现的字段。"""
+    """档案编辑（M1.1-01）：机位列表只读，其他字段可经 PUT 更新。"""
 
     camera_body: str | None = None
     lenses: list[str] | None = None
@@ -81,13 +92,79 @@ class ProfilePayload(BaseModel):
     favorite_spots: list[dict[str, Any]] | None = None
 
 
+class SkippedFavoriteSpotPayload(BaseModel):
+    """旧档案中未能投影的条目序号及原因。"""
+
+    index: int
+    reason: Literal["policy", "invalid"]
+
+
+class FavoriteSpotListPayload(BaseModel):
+    """机位列表及无法投影的旧档案条目索引。"""
+
+    items: list[FavoriteSpotRecord]
+    skipped: list[SkippedFavoriteSpotPayload]
+
+
+class MapConfigPayload(BaseModel):
+    """地图手动加载配置；仅公开 JS API Web Key，不返回安全密钥。"""
+
+    available: bool
+    js_key: str | None
+
+
+class MapConvertPayload(BaseModel):
+    """用户主动打开地图后提交的当前用户收藏机位 ID。"""
+
+    spot_ids: list[str] = Field(..., min_length=1, max_length=40)
+
+    @field_validator("spot_ids")
+    @classmethod
+    def _unique_ids(cls, values: list[str]) -> list[str]:
+        """拒绝空白或重复 ID，避免无意义的第三方转换调用。"""
+        if any(not value or value.strip() != value for value in values):
+            raise ValueError("机位 ID 不能为空或带空白")
+        if len(set(values)) != len(values):
+            raise ValueError("机位 ID 不得重复")
+        return values
+
+
+class MapConvertedPoint(BaseModel):
+    """高德地图标记使用的 GCJ-02 经度、纬度。"""
+
+    longitude: float
+    latitude: float
+
+
+class MapConvertResult(BaseModel):
+    """按请求顺序返回转换结果，不持久化用户精确坐标。"""
+
+    positions: list[MapConvertedPoint]
+
+
+def _require_local_map_request(request: Request) -> None:
+    """地图试接线仅供本机使用，阻止跨站页面借本地代理消耗账户额度。"""
+    try:
+        local_client = request.client is not None and ip_address(request.client.host).is_loopback
+    except ValueError:
+        local_client = False
+    if not local_client or request.headers.get("sec-fetch-site") == "cross-site":
+        raise HTTPException(status_code=403, detail="地图代理仅支持本地同站点访问")
+    for header in ("origin", "referer"):
+        value = request.headers.get(header)
+        if value and urlsplit(value).hostname not in {"localhost", "127.0.0.1", "::1"}:
+            raise HTTPException(status_code=403, detail="地图代理仅支持本地同站点访问")
+
+
 class EventCreatePayload(BaseModel):
     """用户确认后写入的拍摄事件；服务端不从复盘结果自动推断或落库。"""
 
     location: str = Field(..., min_length=1, max_length=120, description="拍摄地点名称")
     subject_type: str = Field(default="", max_length=40, description="题材，如火烧云或银河")
     summary: str = Field(default="", max_length=1000, description="用户确认的复盘摘要")
-    outcome: str = Field(default="", pattern="^(|success|fail)$", description="结果：success、fail 或空")
+    outcome: str = Field(
+        default="", pattern="^(|success|fail)$", description="结果：success、fail 或空"
+    )
     timestamp: str = Field(default="", description="ISO 8601 拍摄时间；空则以确认时刻写入")
 
 
@@ -102,13 +179,19 @@ class ChaseSitePayload(BaseModel):
 class ChasePlanRequest(BaseModel):
     """多机位赶场规划请求（C1-1）。"""
 
-    sites: list[ChaseSitePayload] = Field(..., min_length=2, max_length=4, description="2 到 4 个机位")
+    sites: list[ChaseSitePayload] = Field(
+        ..., min_length=2, max_length=4, description="2 到 4 个机位"
+    )
     transport_mode: Literal["driving", "cycling", "walking", "transit"] = Field(
         default="driving", description="交通方式：驾车、骑行、步行或公共交通"
     )
     depart_at: datetime = Field(..., description="首次出发时间，ISO 8601 且必须含时区")
-    transition_buffer_minutes: int = Field(default=18, ge=0, le=180, description="每次换机位附加缓冲分钟数")
-    min_shoot_minutes: int = Field(default=15, ge=0, le=240, description="每个机位最少有效拍摄分钟数")
+    transition_buffer_minutes: int = Field(
+        default=18, ge=0, le=180, description="每次换机位附加缓冲分钟数"
+    )
+    min_shoot_minutes: int = Field(
+        default=15, ge=0, le=240, description="每个机位最少有效拍摄分钟数"
+    )
     transit_city: str = Field(default="", max_length=80, description="公共交通路线所需城市名称")
 
 
@@ -152,11 +235,20 @@ def _report_to_dict(report: Any) -> dict[str, Any]:
             for item in report.tool_calls
         ],
         "steps": [
-            {"name": item.name, "input_summary": item.input_summary, "output_summary": item.output_summary}
+            {
+                "name": item.name,
+                "input_summary": item.input_summary,
+                "output_summary": item.output_summary,
+            }
             for item in report.steps
         ],
         "sources": [
-            {"tool": item.tool, "field": item.field, "confidence": item.confidence, "data_source": item.data_source}
+            {
+                "tool": item.tool,
+                "field": item.field,
+                "confidence": item.confidence,
+                "data_source": item.data_source,
+            }
             for item in report.sources
         ],
     }
@@ -173,23 +265,6 @@ def _queue_position(client: Any) -> int:
     return 1
 
 
-def _traced_dispatch(
-    raw_dispatch: Callable[[str, str], str], recorder: Recorder
-) -> Callable[[str, str], str]:
-    """包一层注入型 dispatch：调用前后补记 tool trace（「trace 即 UI」一致化）。
-
-    生产默认路径（registry.dispatch）内部已带 recorder 记录；注入型 Fake
-    dispatch（测试）本身不记录，这里补记，保证 Web 事件流里工具调用可见。
-    """
-
-    def dispatch(name: str, args: str) -> str:
-        result = raw_dispatch(name, args)
-        recorder.record_tool(name, args, result)
-        return result
-
-    return dispatch
-
-
 def _stream_response(stream: AsyncIterator[str]) -> StreamingResponse:
     """以 SSE 帧输出事件流。"""
     return StreamingResponse(stream, media_type="text/event-stream", headers=_SSE_HEADERS)
@@ -199,30 +274,18 @@ def _stream_response(stream: AsyncIterator[str]) -> StreamingResponse:
 router = APIRouter()
 
 
-def _run_setup(deps: Any, recorder: TraceRecorder) -> tuple[AgentRuntime, Orchestrator]:
-    """组装本次请求的 runtime（自由对话）与 Orchestrator（管线），共享 per-request recorder。"""
-    provider = ChatClientProvider(deps.client)
-    runtime = AgentRuntime(
-        LightTrailModel(provider, model_name=deps.model, recorder=recorder),
-        deps.registry,
-        context=build_context(deps.registry, recorder=recorder, memory=deps.memory),
-        recorder=recorder,
-        reason_thinking=deps.reason_thinking,
+def get_request_context() -> RequestContext:
+    """返回本地单用户身份；未来认证可替换此依赖，不从请求体接受用户身份。"""
+    return RequestContext()
+
+
+def _run_setup(
+    deps: Any, recorder: TraceRecorder, context: RequestContext, session: SessionRecord
+) -> RequestScope:
+    """将入口身份与已解析会话交给统一装配根，不在路由内构造领域依赖。"""
+    return deps.services.create_scope(
+        replace(context, session_id=session.session_id), recorder=recorder
     )
-    dispatch = deps.dispatch
-    if dispatch is not None:
-        dispatch = _traced_dispatch(dispatch, recorder)
-    orchestrator = Orchestrator(
-        deps.registry,
-        runtime,
-        memory=deps.memory,
-        recorder=recorder,
-        dispatch=dispatch,
-        photo_analyze=deps.photo_analyze,
-        photo_reverse=deps.photo_reverse,
-        quota=getattr(deps.client, "quota", None),
-    )
-    return runtime, orchestrator
 
 
 @router.post(
@@ -231,18 +294,22 @@ def _run_setup(deps: Any, recorder: TraceRecorder) -> tuple[AgentRuntime, Orches
     responses=_SSE_RESPONSES,
     response_class=SSEResponse,
 )
-async def chat(payload: ChatRequest, request: Request) -> StreamingResponse:
+async def chat(
+    payload: ChatRequest,
+    request: Request,
+    context: RequestContext = Depends(get_request_context),  # noqa: B008
+) -> StreamingResponse:
     """接收消息 → queued → ReAct 过程事件（工具）→ token → done。"""
     deps = request.app.state.deps
-    session = _load_or_create(deps, payload.session_id)
+    session = _load_or_create(deps, payload.session_id, context)
     queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
     loop = asyncio.get_running_loop()
-    recorder = TraceRecorder()
+    recorder = build_recorder()
     bridge = TraceBridge(recorder)
     bridge.attach(queue, loop, session_id=session.session_id)
 
     def run() -> tuple[list[dict[str, Any]], str, Any]:
-        runtime, _ = _run_setup(deps, recorder)
+        runtime = _run_setup(deps, recorder, context, session).runtime
         runtime.load_messages(from_openai_history(session.history))
         text, report = runtime.run_with_trace(payload.message)
         return to_openai_history(runtime.messages), text, report
@@ -252,7 +319,9 @@ async def chat(payload: ChatRequest, request: Request) -> StreamingResponse:
             history, text, report = await asyncio.to_thread(run)
         except Exception as exc:
             logger.exception("会话 %s 对话失败", session.session_id)
-            queue.put_nowait(to_payload(ErrorEvent(message=str(exc), session_id=session.session_id)))
+            queue.put_nowait(
+                to_payload(ErrorEvent(message=str(exc), session_id=session.session_id))
+            )
             queue.put_nowait(to_payload(DoneEvent(session_id=session.session_id)))
             return
         session.history = history
@@ -263,7 +332,11 @@ async def chat(payload: ChatRequest, request: Request) -> StreamingResponse:
 
     async def stream() -> AsyncIterator[str]:
         queue.put_nowait(
-            to_payload(QueuedEvent(position=_queue_position(deps.client), session_id=session.session_id))
+            to_payload(
+                QueuedEvent(
+                    position=_queue_position(deps.services.client), session_id=session.session_id
+                )
+            )
         )
         worker_task = asyncio.create_task(worker())
         try:
@@ -277,44 +350,60 @@ async def chat(payload: ChatRequest, request: Request) -> StreamingResponse:
 
 @router.post(
     "/api/decide",
-    summary="决策管线（D1–D3），SSE 事件直至决策卡片",
+    summary="拍摄决策（D1–D3），SSE 返回卡片或文本边界",
     responses=_SSE_RESPONSES,
     response_class=SSEResponse,
 )
-async def decide(payload: DecideRequest, request: Request) -> StreamingResponse:
-    """一句话 → 管线步骤/工具事件逐条推 → 末端 card + done。"""
+async def decide(
+    payload: DecideRequest,
+    request: Request,
+    context: RequestContext = Depends(get_request_context),  # noqa: B008
+) -> StreamingResponse:
+    """一句话经统一规划入口，推送步骤及卡片或明确的文本边界。"""
     deps = request.app.state.deps
-    session = _load_or_create(deps, payload.session_id)
+    session = _load_or_create(deps, payload.session_id, context)
     queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
     loop = asyncio.get_running_loop()
-    recorder = TraceRecorder()
+    recorder = build_recorder()
     bridge = TraceBridge(recorder)
     bridge.attach(queue, loop, session_id=session.session_id)
 
-    def run() -> tuple[DecisionCard, str, Any]:
-        _, orchestrator = _run_setup(deps, recorder)
-        card = orchestrator.run_pipeline(payload.request)
-        return card, _render_card(card), recorder.to_report()
+    def run() -> tuple[DecisionCard | None, str, Any]:
+        orchestrator = _run_setup(deps, recorder, context, session).orchestrator
+        text = orchestrator.plan(payload.request)
+        return orchestrator.last_card, text, recorder.to_report()
 
     async def worker() -> None:
         try:
             card, text, report = await asyncio.to_thread(run)
         except Exception as exc:
             logger.exception("会话 %s 决策失败", session.session_id)
-            queue.put_nowait(to_payload(ErrorEvent(message=str(exc), session_id=session.session_id)))
+            queue.put_nowait(
+                to_payload(ErrorEvent(message=str(exc), session_id=session.session_id))
+            )
             queue.put_nowait(to_payload(DoneEvent(session_id=session.session_id)))
             return
         session.history.append({"role": "user", "content": payload.request})
         session.history.append({"role": "assistant", "content": text})
-        session.workspace["last_card"] = card.model_dump(mode="json")
+        if card is not None:
+            session.workspace["last_card"] = card.model_dump(mode="json")
         session.workspace["last_trace"] = _report_to_dict(report)
         deps.sessions.save(session)
-        queue.put_nowait(to_payload(CardEvent(card=card, text=text, session_id=session.session_id)))
+        if card is not None:
+            queue.put_nowait(
+                to_payload(CardEvent(card=card, text=text, session_id=session.session_id))
+            )
+        else:
+            queue.put_nowait(to_payload(TokenEvent(content=text, session_id=session.session_id)))
         queue.put_nowait(to_payload(DoneEvent(text=text, session_id=session.session_id)))
 
     async def stream() -> AsyncIterator[str]:
         queue.put_nowait(
-            to_payload(QueuedEvent(position=_queue_position(deps.client), session_id=session.session_id))
+            to_payload(
+                QueuedEvent(
+                    position=_queue_position(deps.services.client), session_id=session.session_id
+                )
+            )
         )
         worker_task = asyncio.create_task(worker())
         try:
@@ -334,9 +423,12 @@ async def decide(payload: DecideRequest, request: Request) -> StreamingResponse:
 )
 async def photos_review(
     request: Request,
+    context: RequestContext = Depends(get_request_context),  # noqa: B008
     file: UploadFile = File(..., description="照片（jpg/png，≤10MB）"),  # noqa: B008 - FastAPI 依赖注入惯例
     focus: str = Form(default="", description="分析重点，如「构图」"),
-    plan_reference: str = Form(default="", description="历史计划（DecisionCard JSON 或文本，可空）"),
+    plan_reference: str = Form(
+        default="", description="历史计划（DecisionCard JSON 或文本，可空）"
+    ),
     session_id: str = Form(default="", description="会话标识；缺省自动新建"),
 ) -> StreamingResponse:
     """上传照片 → 复盘管线（多模态分析）→ 复盘卡 → done。
@@ -355,9 +447,13 @@ async def photos_review(
     if not content:
         raise HTTPException(status_code=400, detail="照片内容为空")
 
-    suffix = Path(file.filename or "").suffix.lower() or (".png" if file.content_type == "image/png" else ".jpg")
+    suffix = Path(file.filename or "").suffix.lower() or (
+        ".png" if file.content_type == "image/png" else ".jpg"
+    )
     display_name = Path(file.filename or "").name or f"photo{suffix}"
-    return await _review_stream(deps, content, suffix, display_name, focus, plan_reference, session_id)
+    return await _review_stream(
+        deps, content, suffix, display_name, focus, plan_reference, session_id, context
+    )
 
 
 @router.post(
@@ -368,6 +464,7 @@ async def photos_review(
 )
 async def photos_reverse(
     request: Request,
+    context: RequestContext = Depends(get_request_context),  # noqa: B008
     file: UploadFile = File(..., description="参考图（jpg/png，≤10MB）"),  # noqa: B008
     note: str = Form(default="", description="补充约束，如「只能周末去」"),
     equipment: str = Form(default="", description="器材覆盖，如「14mm f/2.8」"),
@@ -382,9 +479,13 @@ async def photos_reverse(
         raise HTTPException(status_code=413, detail="照片超过 10MB 上限")
     if not content:
         raise HTTPException(status_code=400, detail="照片内容为空")
-    suffix = Path(file.filename or "").suffix.lower() or (".png" if file.content_type == "image/png" else ".jpg")
+    suffix = Path(file.filename or "").suffix.lower() or (
+        ".png" if file.content_type == "image/png" else ".jpg"
+    )
     display_name = Path(file.filename or "").name or f"reference{suffix}"
-    return await _reverse_stream(deps, content, suffix, display_name, note, equipment, session_id)
+    return await _reverse_stream(
+        deps, content, suffix, display_name, note, equipment, session_id, context
+    )
 
 
 async def _review_stream(
@@ -395,18 +496,19 @@ async def _review_stream(
     focus: str,
     plan_reference: str,
     session_id: str,
+    context: RequestContext,
 ) -> StreamingResponse:
     """复盘管线 SSE 流：临时文件在 worker 线程内建销（与图片读取同生命周期，杜绝竞态）。"""
-    session = _load_or_create(deps, session_id)
+    session = _load_or_create(deps, session_id, context)
     queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
     loop = asyncio.get_running_loop()
-    recorder = TraceRecorder()
+    recorder = build_recorder()
     bridge = TraceBridge(recorder)
     bridge.attach(queue, loop, session_id=session.session_id)
 
     def run() -> tuple[DecisionCard, str, Any]:
         """worker 线程内落临时文件 → 跑复盘管线 → 无论如何都清理（同线程，无竞态）。"""
-        _, orchestrator = _run_setup(deps, recorder)
+        orchestrator = _run_setup(deps, recorder, context, session).orchestrator
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp.write(content)
             image_path = tmp.name
@@ -417,24 +519,35 @@ async def _review_stream(
             Path(image_path).unlink(missing_ok=True)
 
     async def worker() -> None:
+        done_text = ""
         try:
             card, text, report = await asyncio.to_thread(run)
+            session.history.append(
+                {"role": "user", "content": f"复盘照片：{display_name}（{focus}）"}
+            )
+            session.history.append({"role": "assistant", "content": text})
+            session.workspace["last_card"] = card.model_dump(mode="json")
+            session.workspace["last_trace"] = _report_to_dict(report)
+            deps.sessions.save(session)
+            queue.put_nowait(
+                to_payload(CardEvent(card=card, text=text, session_id=session.session_id))
+            )
+            done_text = text
         except Exception as exc:
             logger.exception("会话 %s 复盘失败", session.session_id)
-            queue.put_nowait(to_payload(ErrorEvent(message=str(exc), session_id=session.session_id)))
-            queue.put_nowait(to_payload(DoneEvent(session_id=session.session_id)))
-            return
-        session.history.append({"role": "user", "content": f"复盘照片：{display_name}（{focus}）"})
-        session.history.append({"role": "assistant", "content": text})
-        session.workspace["last_card"] = card.model_dump(mode="json")
-        session.workspace["last_trace"] = _report_to_dict(report)
-        deps.sessions.save(session)
-        queue.put_nowait(to_payload(CardEvent(card=card, text=text, session_id=session.session_id)))
-        queue.put_nowait(to_payload(DoneEvent(text=text, session_id=session.session_id)))
+            queue.put_nowait(
+                to_payload(ErrorEvent(message=str(exc), session_id=session.session_id))
+            )
+        finally:
+            queue.put_nowait(to_payload(DoneEvent(text=done_text, session_id=session.session_id)))
 
     async def stream() -> AsyncIterator[str]:
         queue.put_nowait(
-            to_payload(QueuedEvent(position=_queue_position(deps.client), session_id=session.session_id))
+            to_payload(
+                QueuedEvent(
+                    position=_queue_position(deps.services.client), session_id=session.session_id
+                )
+            )
         )
         worker_task = asyncio.create_task(worker())
         try:
@@ -454,18 +567,19 @@ async def _reverse_stream(
     note: str,
     equipment: str,
     session_id: str,
+    context: RequestContext,
 ) -> StreamingResponse:
     """参考图反推 SSE 流：临时文件在 worker 生命周期内创建和销毁。"""
-    session = _load_or_create(deps, session_id)
+    session = _load_or_create(deps, session_id, context)
     queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
     loop = asyncio.get_running_loop()
-    recorder = TraceRecorder()
+    recorder = build_recorder()
     bridge = TraceBridge(recorder)
     bridge.attach(queue, loop, session_id=session.session_id)
 
     def run() -> tuple[DecisionCard, str, Any]:
         """运行反推并保证临时文件不泄漏。"""
-        _, orchestrator = _run_setup(deps, recorder)
+        orchestrator = _run_setup(deps, recorder, context, session).orchestrator
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp.write(content)
             image_path = tmp.name
@@ -480,7 +594,9 @@ async def _reverse_stream(
             card, text, report = await asyncio.to_thread(run)
         except Exception as exc:
             logger.exception("会话 %s 参考图反推失败", session.session_id)
-            queue.put_nowait(to_payload(ErrorEvent(message=str(exc), session_id=session.session_id)))
+            queue.put_nowait(
+                to_payload(ErrorEvent(message=str(exc), session_id=session.session_id))
+            )
             queue.put_nowait(to_payload(DoneEvent(session_id=session.session_id)))
             return
         session.history.append({"role": "user", "content": f"参考图反推：{display_name}（{note}）"})
@@ -492,7 +608,13 @@ async def _reverse_stream(
         queue.put_nowait(to_payload(DoneEvent(text=text, session_id=session.session_id)))
 
     async def stream() -> AsyncIterator[str]:
-        queue.put_nowait(to_payload(QueuedEvent(position=_queue_position(deps.client), session_id=session.session_id)))
+        queue.put_nowait(
+            to_payload(
+                QueuedEvent(
+                    position=_queue_position(deps.services.client), session_id=session.session_id
+                )
+            )
+        )
         worker_task = asyncio.create_task(worker())
         try:
             async for frame in pump(queue, worker_task):
@@ -504,26 +626,278 @@ async def _reverse_stream(
 
 
 @router.get("/api/profile", summary="读取用户档案（M1.1-01）", response_model=ProfilePayload)
-async def get_profile(request: Request) -> dict[str, Any]:
+async def get_profile(
+    request: Request,
+    context: RequestContext = Depends(get_request_context),  # noqa: B008
+) -> dict[str, Any]:
     """返回当前档案（camera_body/lenses/preferences/…）。"""
-    return asdict(request.app.state.deps.memory.profile)
+    return asdict(request.app.state.deps.services.memory.profile_for(context))
 
 
-@router.put("/api/profile", summary="更新用户档案（M1.1-01，显式写入）", response_model=ProfilePayload)
-async def put_profile(payload: ProfilePayload, request: Request) -> dict[str, Any]:
+@router.put(
+    "/api/profile", summary="更新用户档案（M1.1-01，显式写入）", response_model=ProfilePayload
+)
+async def put_profile(
+    payload: ProfilePayload,
+    request: Request,
+    context: RequestContext = Depends(get_request_context),  # noqa: B008
+) -> dict[str, Any]:
     """部分更新档案：只更新出现字段，未知字段忽略。"""
+    if "favorite_spots" in payload.model_fields_set:
+        raise HTTPException(status_code=422, detail="请通过 /api/favorite-spots 管理收藏机位")
     deps = request.app.state.deps
     fields = payload.model_dump(exclude_none=True)
-    deps.memory.update_profile(RequestContext(), fields)
-    return asdict(deps.memory.profile)
+    deps.services.memory.update_profile(context, fields)
+    return asdict(deps.services.memory.profile_for(context))
+
+
+@router.get(
+    "/api/favorite-spots", summary="列出当前用户收藏机位", response_model=FavoriteSpotListPayload
+)
+async def list_favorite_spots(
+    request: Request,
+    context: RequestContext = Depends(get_request_context),  # noqa: B008
+) -> dict[str, Any]:
+    """只读列出机位；旧档案未知坐标系或非法记录不会被视为可计算。
+
+    Args:
+        request: 当前 HTTP 请求。
+        context: 当前用户上下文。
+
+    Returns:
+        机位列表及无法投影的旧条目索引。
+    """
+    preview = request.app.state.deps.services.memory.list_favorite_spots(context)
+    return {
+        "items": list(preview.records),
+        "skipped": [{"index": item.index, "reason": item.reason} for item in preview.skipped],
+    }
+
+
+@router.post(
+    "/api/favorite-spots",
+    summary="新增收藏机位",
+    response_model=FavoriteSpotRecord,
+    status_code=201,
+)
+async def create_favorite_spot(
+    payload: FavoriteSpotInput,
+    request: Request,
+    context: RequestContext = Depends(get_request_context),  # noqa: B008
+) -> FavoriteSpotRecord:
+    """保存用户明确提交的新机位和坐标来源。
+
+    Args:
+        payload: 新机位输入。
+        request: 当前 HTTP 请求。
+        context: 当前用户上下文。
+
+    Returns:
+        已保存的机位记录。
+    """
+    return request.app.state.deps.services.memory.create_favorite_spot(context, payload)
+
+
+@router.put(
+    "/api/favorite-spots/{spot_id}", summary="确认或更新收藏机位", response_model=FavoriteSpotRecord
+)
+async def update_favorite_spot(
+    spot_id: str,
+    payload: FavoriteSpotInput,
+    request: Request,
+    context: RequestContext = Depends(get_request_context),  # noqa: B008
+) -> FavoriteSpotRecord:
+    """完整更新机位；旧记录须由用户显式确认坐标系。
+
+    Args:
+        spot_id: 机位稳定 ID。
+        payload: 完整替换输入。
+        request: 当前 HTTP 请求。
+        context: 当前用户上下文。
+
+    Returns:
+        更新后的机位记录。
+
+    Raises:
+        HTTPException: 当前用户没有该机位。
+    """
+    try:
+        return request.app.state.deps.services.memory.update_favorite_spot(
+            context, spot_id, payload
+        )
+    except FavoriteSpotNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.delete("/api/favorite-spots/{spot_id}", summary="删除收藏机位")
+async def delete_favorite_spot(
+    spot_id: str,
+    request: Request,
+    context: RequestContext = Depends(get_request_context),  # noqa: B008
+) -> dict[str, str]:
+    """删除用户明确指定的一条机位；旧档案先备份。
+
+    Args:
+        spot_id: 机位稳定 ID。
+        request: 当前 HTTP 请求。
+        context: 当前用户上下文。
+
+    Returns:
+        已删除的机位 ID。
+
+    Raises:
+        HTTPException: 当前用户没有该机位。
+    """
+    try:
+        request.app.state.deps.services.memory.delete_favorite_spot(context, spot_id)
+    except FavoriteSpotNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"deleted_id": spot_id}
+
+
+@router.post("/api/spot-plans", summary="按已确认机位生成结构化单机位计划", response_model=SpotPlan)
+async def create_spot_plan(
+    payload: PlanningRequest,
+    request: Request,
+    response: Response,
+    context: RequestContext = Depends(get_request_context),  # noqa: B008
+) -> SpotPlan:
+    """只按当前用户机位 ID 解析位置，保留缺事实时的 needs_data 状态。
+
+    Args:
+        payload: 本轮明确选择的日期、题材、时区与机位。
+        request: 当前 HTTP 请求。
+        response: 用于禁用坐标响应缓存。
+        context: 当前用户上下文。
+
+    Returns:
+        可执行的太阳题材计划，或含明确数据缺口的部分计划。
+
+    Raises:
+        HTTPException: 机位 ID、名称或时区与当前用户档案不一致。
+    """
+    response.headers["Cache-Control"] = "private, no-store"
+    services = request.app.state.deps.services
+    favorites = services.memory.list_favorite_spots(context).records
+    camera_body = services.memory.profile_for(context).camera_body
+    scope = services.create_scope(context)
+
+    def dispatch(name: str, args: str) -> str:
+        """让新计划和现有管线使用同一请求工具注册表及离线替身。"""
+        if services.dispatch is not None:
+            result = services.dispatch(name, args)
+            scope.recorder.record_tool(name, args, result)
+            return result
+        return services.registry.dispatch(name, args, scope.tool_context, recorder=scope.recorder)
+
+    try:
+        return await asyncio.to_thread(
+            build_spot_plan, payload, favorites, dispatch, camera_body=camera_body
+        )
+    except SpotPlanInputError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post(
+    "/api/spot-plans/archive", response_model=PlanArchive, summary="导出脱敏的冻结机位计划"
+)
+async def export_spot_plan_archive(plan: SpotPlan, response: Response) -> PlanArchive:
+    """从已验证计划移除经纬度，保留本轮请求和行动证据。"""
+    response.headers["Cache-Control"] = "private, no-store"
+    return archive_spot_plan(plan)
+
+
+@router.post("/api/spot-plans/replay", response_model=PlanArchive, summary="校验并回放冻结机位计划")
+async def replay_spot_plan_archive(archive: PlanArchive, response: Response) -> PlanArchive:
+    """只校验并返回快照，不重新访问用户档案或外部数据源。"""
+    response.headers["Cache-Control"] = "private, no-store"
+    return archive
+
+
+@router.get(
+    "/api/map/config", summary="读取手动加载地图所需的公开配置", response_model=MapConfigPayload
+)
+async def get_map_config(request: Request, response: Response) -> MapConfigPayload:
+    """只在前端主动加载地图时读取公开 Web Key，私密 jscode 不出服务端。"""
+    _require_local_map_request(request)
+    response.headers["Cache-Control"] = "private, no-store"
+    settings = request.app.state.deps.services.settings
+    return MapConfigPayload(
+        available=settings.has_amap_js_credentials,
+        js_key=settings.amap_js_api_key if settings.has_amap_js_credentials else None,
+    )
+
+
+@router.get("/_AMapService/{path:path}", include_in_schema=False)
+async def proxy_map_service(path: str, request: Request) -> Response:
+    """服务端代理高德 JS API 的有限路径，避免安全密钥进入浏览器包。"""
+    _require_local_map_request(request)
+    if path != "v4/map/styles":
+        raise HTTPException(status_code=404, detail="该地图服务路径未开放")
+    settings = request.app.state.deps.services.settings
+    try:
+        status, content, content_type = await forward_js_service(
+            path,
+            request.query_params.multi_items(),
+            public_key=settings.amap_js_api_key,
+            security_code=settings.amap_security_js_code,
+        )
+    except MapProxyError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return Response(
+        content=content,
+        status_code=status,
+        headers={"Content-Type": content_type, "Cache-Control": "private, no-store"},
+    )
+
+
+@router.post(
+    "/api/map/convert", response_model=MapConvertResult, summary="手动加载地图时转换已确认坐标"
+)
+async def convert_map_coordinates(
+    payload: MapConvertPayload,
+    request: Request,
+    response: Response,
+    context: RequestContext = Depends(get_request_context),  # noqa: B008
+) -> MapConvertResult:
+    """只转换当前用户已确认的 WGS84 机位，浏览器不提交精确坐标。"""
+    _require_local_map_request(request)
+    response.headers["Cache-Control"] = "private, no-store"
+    services = request.app.state.deps.services
+    records = {item.id: item for item in services.memory.list_favorite_spots(context).records}
+    selected = [records.get(spot_id) for spot_id in payload.spot_ids]
+    if any(
+        spot is None
+        or spot.coordinate_state != "ready"
+        or spot.coordinate_system != "WGS84"
+        or spot.latitude is None
+        or spot.longitude is None
+        for spot in selected
+    ):
+        raise HTTPException(status_code=422, detail="机位未找到或坐标不可用于地图")
+    settings = services.settings
+    try:
+        positions = await convert_wgs84_points(
+            [(spot.longitude, spot.latitude) for spot in selected if spot is not None],
+            web_key=settings.amap_web_service_key,
+        )
+    except MapProxyError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return MapConvertResult(
+        positions=[MapConvertedPoint(longitude=lng, latitude=lat) for lng, lat in positions]
+    )
 
 
 @router.post("/api/events", summary="确认写入拍摄事件（M1），仅显式请求才落库")
-async def create_event(payload: EventCreatePayload, request: Request) -> dict[str, Any]:
+async def create_event(
+    payload: EventCreatePayload,
+    request: Request,
+    context: RequestContext = Depends(get_request_context),  # noqa: B008
+) -> dict[str, Any]:
     """写入一条用户明确确认的事件记忆，不从照片复盘自动落盘。"""
     timestamp = payload.timestamp or datetime.now(timezone.utc).isoformat()
-    event_id = request.app.state.deps.memory.add_event(
-        RequestContext(),
+    event_id = request.app.state.deps.services.memory.add_event(
+        context,
         timestamp,
         payload.location,
         subject_type=payload.subject_type,
@@ -534,14 +908,21 @@ async def create_event(payload: EventCreatePayload, request: Request) -> dict[st
 
 
 @router.post("/api/chase-plans", summary="多机位赶场规划（C1-1）")
-async def create_chase_plan(payload: ChasePlanRequest, request: Request) -> dict[str, Any]:
+async def create_chase_plan(
+    payload: ChasePlanRequest,
+    request: Request,
+    context: RequestContext = Depends(get_request_context),  # noqa: B008
+) -> dict[str, Any]:
     """按拍摄窗口和路线服务生成确定性赶场计划，不调用 LLM。"""
     _require_timezone(payload.depart_at, "首次出发时间")
     if len({site.name for site in payload.sites}) != len(payload.sites):
         raise HTTPException(status_code=422, detail="机位名称不能重复")
 
     profile_sites = {
-        item["name"]: item for item in request.app.state.deps.memory.profile.valid_favorite_spots()
+        item["name"]: item
+        for item in request.app.state.deps.services.memory.profile_for(
+            context
+        ).valid_favorite_spots()
     }
     sites: list[ChaseSite] = []
     for item in payload.sites:
@@ -554,7 +935,9 @@ async def create_chase_plan(payload: ChasePlanRequest, request: Request) -> dict
             sites.append(
                 ChaseSite(
                     name=item.name,
-                    point=GeoPoint(float(profile_site["latitude"]), float(profile_site["longitude"])),
+                    point=GeoPoint(
+                        float(profile_site["latitude"]), float(profile_site["longitude"])
+                    ),
                     window_start=item.window_start,
                     window_end=item.window_end,
                 )
@@ -563,7 +946,7 @@ async def create_chase_plan(payload: ChasePlanRequest, request: Request) -> dict
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     try:
-        plan = ChasePlanner(request.app.state.deps.travel_provider).plan(
+        plan = request.app.state.deps.services.chase_planner.plan(
             sites,
             payload.transport_mode,
             payload.depart_at,
@@ -577,23 +960,29 @@ async def create_chase_plan(payload: ChasePlanRequest, request: Request) -> dict
 
 
 @router.get("/api/sessions/{session_id}", summary="会话历史与 TraceReport 回放")
-async def get_session(session_id: str, request: Request) -> dict[str, Any]:
+async def get_session(
+    session_id: str,
+    request: Request,
+    context: RequestContext = Depends(get_request_context),  # noqa: B008
+) -> dict[str, Any]:
     """返回会话记录（历史 + 工作区）与最近一次运行的 TraceReport。"""
     deps = request.app.state.deps
     session = deps.sessions.get(session_id)
-    if session is None:
+    if session is None or (session.user_id or LOCAL_USER_ID) != context.user_id:
         raise HTTPException(status_code=404, detail="会话不存在")
     return {"session": session.to_dict(), "trace": session.workspace.get("last_trace")}
 
 
 # ------ 内部实现 ------
-def _load_or_create(deps: Any, session_id: str):
+def _load_or_create(deps: Any, session_id: str, context: RequestContext) -> SessionRecord:
     """会话恢复或新建：提供 session_id 且存在则载入，否则新建。"""
     if session_id:
         existing = deps.sessions.get(session_id)
         if existing is not None:
+            if (existing.user_id or LOCAL_USER_ID) != context.user_id:
+                raise HTTPException(status_code=404, detail="会话不存在")
             return existing
-    return deps.sessions.create()
+    return deps.sessions.create(user_id=context.user_id)
 
 
 def _require_timezone(value: datetime, field: str) -> None:

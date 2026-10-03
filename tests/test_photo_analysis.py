@@ -15,12 +15,14 @@ import json
 import shutil
 import tempfile
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
 import lighttrail.tools.photo_analysis as photo
 from lighttrail.composition import build_registry
+from lighttrail.contracts.context import RequestContext
+from lighttrail.contracts.tool import ToolContext
+from lighttrail.memory import MemoryManager
 from lighttrail.tools.photo_analysis import PhotoError, analyze_photo
 
 registry = build_registry()
@@ -167,28 +169,35 @@ def test_analyze_photo_fails_after_exhausted_retries(workdir: Path, monkeypatch)
     assert len(fake.calls) == 3
 
 
-def test_analyze_photo_gear_from_profile(workdir: Path, monkeypatch) -> None:
+def test_analyze_photo_gear_from_profile(workdir: Path) -> None:
     """无显式 equipment 时读取档案器材注入处方 prompt。"""
+    memory = MemoryManager(workdir)
+    request = RequestContext(user_id="north")
+    memory.update_profile(request, {"camera_body": "松下 S5M2（全画幅）", "lenses": ["24-105mm F4", "契卡 14mm 定焦"]})
     (workdir / "profile.json").write_text(
-        json.dumps({"camera_body": "松下 S5M2（全画幅）", "lenses": ["24-105mm F4", "契卡 14mm 定焦"]}, ensure_ascii=False),
-        encoding="utf-8",
+        json.dumps({"camera_body": "旧路径相机"}, ensure_ascii=False), encoding="utf-8"
     )
-    monkeypatch.setattr(photo, "load_settings", lambda: SimpleNamespace(data_dir=str(workdir)))
+    ctx = ToolContext(request=request, memory=memory, llm=None, datasource=None)
     png = workdir / "shot.png"
     _make_png(png)
     fake = FakeChatClient([_OK_JSON])
-    analyze_photo(str(png), client=fake)
+    analyze_photo(str(png), client=fake, ctx=ctx)
     prompt_text = fake.calls[0]["messages"][-1]["content"][0]["text"]
     assert "松下 S5M2" in prompt_text
     assert "24-105mm F4" in prompt_text
+    assert "旧路径相机" not in prompt_text
 
 
-def test_analyze_photo_explicit_equipment_wins(workdir: Path, monkeypatch) -> None:
+def test_analyze_photo_explicit_equipment_wins(workdir: Path) -> None:
     """显式 equipment 覆盖档案器材。"""
+    memory = MemoryManager(workdir)
+    request = RequestContext(user_id="north")
+    memory.update_profile(request, {"camera_body": "松下 S5M2"})
+    ctx = ToolContext(request=request, memory=memory, llm=None, datasource=None)
     fake = FakeChatClient([_OK_JSON])
     png = workdir / "shot.png"
     _make_png(png)
-    analyze_photo(str(png), equipment="索尼 A7M4 + 16-35mm", client=fake)
+    analyze_photo(str(png), equipment="索尼 A7M4 + 16-35mm", client=fake, ctx=ctx)
     text = fake.calls[0]["messages"][-1]["content"][0]["text"]
     assert "索尼 A7M4" in text
     assert "松下" not in text

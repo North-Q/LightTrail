@@ -30,7 +30,7 @@ from lighttrail.contracts import (
 from lighttrail.contracts.datasource import DataSource
 from lighttrail.contracts.events import KIND_TOOL, SSEEvent, TraceEvent
 from lighttrail.contracts.knowledge import KnowledgeChunk, KnowledgeProvider
-from lighttrail.contracts.memory import MemoryBlock, MemoryStore, TokenBudget
+from lighttrail.contracts.memory import EventRecord, MemoryBlock, MemoryStore, TokenBudget
 from lighttrail.contracts.observability import TraceSink
 from lighttrail.contracts.plan import Plan, PlanStep
 
@@ -172,11 +172,20 @@ def test_sse_event_types_single_source() -> None:
 
 # ------ B1-4：端口契约（记忆 / 知识库 / 数据源 / 观测）------
 def test_memory_store_protocol_structural() -> None:
-    """MemoryStore：实现三个方法即满足端口（首参为 RequestContext）。"""
+    """MemoryStore：包含当前用户事件检索的端口满足结构约束。"""
 
     class _Store:
         def build_injections(self, ctx: RequestContext, intent: str = "", *, budget: TokenBudget | None = None) -> list[MemoryBlock]:
             return [MemoryBlock(name="profile", text="档案")]
+
+        def search_events(
+            self, ctx: RequestContext, query: str = "", *, location: str | None = None,
+            subject_type: str | None = None, limit: int = 5,
+        ) -> list[EventRecord]:
+            return []
+
+        def equipment_for(self, ctx: RequestContext) -> str:
+            return "测试相机"
 
         def write_event(self, ctx: RequestContext, event: object) -> int:
             return 7
@@ -194,6 +203,8 @@ def test_memory_port_takes_request_context_first() -> None:
     """记忆是 per-user 链路：端口方法首参必须是 RequestContext（§7.1 预留点①）。"""
     for method in (
         MemoryStore.build_injections,
+        MemoryStore.search_events,
+        MemoryStore.equipment_for,
         MemoryStore.write_event,
         MemoryStore.propose_semantic,
     ):

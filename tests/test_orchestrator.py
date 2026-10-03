@@ -46,7 +46,7 @@ from lighttrail.tools import (  # noqa: F401  触发注册
 registry = build_registry()
 _MEMORY = MemoryManager(
     Path(tempfile.mkdtemp(prefix="lt_pipeline_memory_")),
-    profile=UserProfile(favorite_spots=[{"name": "测试机位", "latitude": 31.2, "longitude": 121.5}]),
+    profile=UserProfile(favorite_spots=[{"name": "测试机位", "latitude": 31.2, "longitude": 121.5, "coordinate_system": "WGS84"}]),
 )
 
 
@@ -93,11 +93,11 @@ def _runtime(
 
 _CARD_JSON = json.dumps(
     {
-        "conclusion": "周末银河可见，建议 20:30-23:00 前往崇明东滩。",
+        "conclusion": "周末银河可见，建议 20:30-23:00 前往测试机位。",
         "evidence": [{"tool": "galaxy_visibility", "field": "可见窗口", "confidence": "high", "note": "窗口 20:10-23:50"}],
         "confidence": "medium",
         "time_window": "20:30-23:00",
-        "locations": [{"name": "崇明东滩", "reason": "光害低，银心朝向开阔"}],
+        "locations": [{"name": "测试机位", "reason": "光害低，银心朝向开阔"}],
         "params": [{"name": "快门", "value": "20s", "reason": "14mm 全画幅 NPF 上限"}],
         "alternatives": ["临港南汇嘴"],
         "degraded": "",
@@ -298,6 +298,7 @@ def test_orchestrator_parse_intent_falls_back_to_default_model() -> None:
     assert fake.calls[0]["model"] == "ecnu-plus"
     steps = recorder.to_report().steps
     assert any(step.name == "意图路由_LLM" and "0.90" in step.output_summary for step in steps)
+    assert any(step.name == "意图路由_LLM" and "依据：" in step.output_summary for step in steps)
 
 
 def test_orchestrator_rejects_low_confidence_llm_route() -> None:

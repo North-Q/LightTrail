@@ -18,7 +18,7 @@ from httpx import ASGITransport, AsyncClient
 
 from lighttrail.api.app import ApiDeps, create_app
 from lighttrail.api.session import SessionManager
-from lighttrail.composition import build_memory, build_registry
+from lighttrail.composition import build_application
 from lighttrail.config import Settings
 
 
@@ -55,16 +55,13 @@ async def _collect(client: AsyncClient, payload: dict) -> list[dict]:
 def app_with_fake(tmp_path):
     """构造指向临时目录 + 伪客户端的应用（离线、可并发）。"""
     settings = Settings(_env_file=None, api_key="sk-test", data_dir=str(tmp_path))
-    memory = build_memory(settings)
+    services = build_application(settings, client=_FakeChatClient())
     deps = ApiDeps(
-        client=_FakeChatClient(),  # type: ignore[arg-type]
+        services=services,
         sessions=SessionManager(settings.data_dir, max_sessions=2),  # 上限压小 → 触发淘汰路径
-        memory=memory,
-        registry=build_registry(),
-        model="ecnu-plus",
-        reason_thinking=False,
     )
-    return create_app(deps), tmp_path
+    yield create_app(deps), tmp_path
+    services.close()
 
 
 async def test_concurrent_chat_requests_complete_without_deadlock(app_with_fake) -> None:

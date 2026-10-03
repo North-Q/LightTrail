@@ -98,6 +98,7 @@ class AgentRuntime:
             UsageLimitExceeded: 工具轮数超过 max_tool_rounds。
             ModelAPIError: 供应商调用失败。
         """
+        self._context.set_memory_query(user_input)
         self._context.set_knowledge_query(user_input)
         try:
             result = await self._agent.run(

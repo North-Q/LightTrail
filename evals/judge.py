@@ -79,7 +79,10 @@ class LocalRubric:
         had_low = any(evidence.confidence in {"low", "medium"} for evidence in card.evidence)
         if had_low and card.confidence == "high":
             score = min(5, score + 1)
-        return {"score": score, "reason": "置信度透明度" if card.confidence != "high" else "置信度较高"}
+        return {
+            "score": score,
+            "reason": "置信度透明度" if card.confidence != "high" else "置信度较高",
+        }
 
 
 class ToolCrossCheck:
@@ -167,8 +170,9 @@ class LLMJudge:
 def _judge_prompt(card: DecisionCard) -> str:
     """构造 rubric 打分 prompt（要求 JSON 输出 4 维 1-5 分 + 一句理由）。"""
     return (
-        "你是 LightTrail 评估判官。按四条 rubic（决策合理性 / 依据完整性 / 个性化程度 / "
-        "不确定性坦白）对以下决策卡分别打 1-5 分，只输出 JSON："
+        "你是 LightTrail 表达质量评估判官。地点、日期、题材、工具和事实正确性已由独立"
+        "结构化断言核对；不要代替事实验收。只评价决策措辞、依据呈现、个性化表达和"
+        "不确定性表达。按四维分别打 1-5 分，只输出 JSON："
         '{"决策合理性": {"score": 1, "reason": "..."}, "依据完整性": {...}, '
         '"个性化程度": {...}, "不确定性坦白": {...}}\n\n决策卡：\n'
         f"{card.model_dump_json(indent=2)}"

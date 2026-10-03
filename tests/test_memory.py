@@ -250,13 +250,9 @@ def test_profile_example_covers_all_profile_fields() -> None:
 
 
 def test_profile_example_spot_shape_is_machine_readable() -> None:
-    """示例机位用机器可读键（name/latitude/longitude/subject），避免「名称/纬度」中文键喂不动工具。"""
+    """示例档案不预装来源与坐标系未核实的精确机位。"""
     example = json.loads(_EXAMPLE_PROFILE.read_text(encoding="utf-8"))
-    spots = example.get("favorite_spots") or []
-    assert spots, "示例模板应至少给一个机位样例"
-    for spot in spots:
-        assert {"name", "latitude", "longitude"} <= set(spot), spot
-        assert isinstance(spot["latitude"], (int, float)) and isinstance(spot["longitude"], (int, float))
+    assert example["favorite_spots"] == []
 
 
 def test_user_id_namespace_is_isolated(memory_dir: Path) -> None:

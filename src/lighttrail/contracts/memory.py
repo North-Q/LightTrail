@@ -99,6 +99,40 @@ class MemoryStore(Protocol):
         """
         ...
 
+    def search_events(
+        self,
+        ctx: RequestContext,
+        query: str = "",
+        *,
+        location: str | None = None,
+        subject_type: str | None = None,
+        limit: int = 5,
+    ) -> list[EventRecord]:
+        """只检索当前请求用户的事件记忆。
+
+        Args:
+            ctx: 请求上下文。
+            query: 地点、摘要或标签关键词。
+            location: 可选地点过滤。
+            subject_type: 可选题材过滤。
+            limit: 最多返回条数。
+
+        Returns:
+            当前用户命名空间中的命中事件。
+        """
+        ...
+
+    def equipment_for(self, ctx: RequestContext) -> str:
+        """读取当前用户档案中的相机和镜头摘要。
+
+        Args:
+            ctx: 请求上下文。
+
+        Returns:
+            器材摘要；未录入时为空字符串。
+        """
+        ...
+
     def write_event(self, ctx: RequestContext, event: EventRecord) -> int:
         """写入一条事件记忆。
 

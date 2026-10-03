@@ -1,0 +1,52 @@
+{
+  "case_id": "L2-010",
+  "kind": "offline_fixture",
+  "request": "2027-06-04去北极圈拍日落",
+  "responses": {
+    "card": {
+      "conclusion": "2027-06-04去北极圈拍日落，依据提示极昼期间无日出日落，建议谨慎评估。",
+      "evidence": [
+        {
+          "tool": "sun_times",
+          "field": "提示",
+          "confidence": "high",
+          "note": "离线合成：提示 极昼期间无日出日落"
+        }
+      ],
+      "confidence": "medium",
+      "verdict": "risk",
+      "time_window": "2027-06-04 17:30-18:30",
+      "locations": [
+        {
+          "name": "北极圈",
+          "reason": "用户档案中带坐标的机位"
+        }
+      ],
+      "params": [],
+      "alternatives": [],
+      "degraded": "",
+      "target_date": "2027-06-04",
+      "subject_type": "日落"
+    }
+  },
+  "tool_results": {
+    "weather_forecast": {
+      "每日预报": [
+        {
+          "日期": "2027-06-04",
+          "平均云量（%）": 18
+        }
+      ],
+      "数据来源": "离线合成"
+    },
+    "sun_times": {
+      "提示": "极昼期间无日出日落",
+      "数据来源": "离线合成"
+    },
+    "sunset_glow_score": {
+      "评分（0-100）": 0,
+      "提示": "极昼无日落窗口",
+      "数据来源": "离线合成"
+    }
+  }
+}

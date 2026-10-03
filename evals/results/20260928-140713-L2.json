@@ -1,0 +1,275 @@
+{
+  "level": "L2",
+  "ts": "20260928-140713",
+  "elapsed_s": 0.95,
+  "llm_calls": 0,
+  "pipeline_total": 12,
+  "pipeline_pass": 12,
+  "tool_total": 10,
+  "tool_pass": 10,
+  "e6_archived": 8,
+  "pipeline_details": [
+    {
+      "id": "L2-001",
+      "group": "galaxy",
+      "request": "这周末去天荒坪拍银河，制定拍摄计划",
+      "pass": true,
+      "problems": [],
+      "conclusion": "2026-10-03去天荒坪拍银河，依据月相名称新月，建议按计划出发。",
+      "confidence": "medium",
+      "evidence": 2,
+      "locations": 1,
+      "tools": [
+        "galaxy_visibility",
+        "match_sites",
+        "moon_events",
+        "moon_phase",
+        "weather_forecast"
+      ]
+    },
+    {
+      "id": "L2-002",
+      "group": "galaxy",
+      "request": "2026-10-03去天荒坪拍星空，制定拍摄计划",
+      "pass": true,
+      "problems": [],
+      "conclusion": "2026-10-03去天荒坪拍星空，依据月相名称新月，建议按计划出发。",
+      "confidence": "medium",
+      "evidence": 1,
+      "locations": 1,
+      "tools": [
+        "galaxy_visibility",
+        "match_sites",
+        "moon_events",
+        "moon_phase",
+        "weather_forecast"
+      ]
+    },
+    {
+      "id": "L2-003",
+      "group": "galaxy",
+      "request": "今晚去海堤拍银河现在走还来得及吗",
+      "pass": true,
+      "problems": [],
+      "conclusion": "2026-09-28去海堤拍银河，依据月相名称新月，建议按计划出发。",
+      "confidence": "medium",
+      "evidence": 1,
+      "locations": 1,
+      "tools": [
+        "galaxy_visibility",
+        "match_sites",
+        "moon_events",
+        "moon_phase",
+        "weather_forecast"
+      ]
+    },
+    {
+      "id": "L2-004",
+      "group": "live",
+      "request": "今晚去东岸拍火烧云值得冲吗",
+      "pass": true,
+      "problems": [],
+      "conclusion": "2026-09-28去东岸拍火烧云，依据日落18:05，建议按计划出发。",
+      "confidence": "medium",
+      "evidence": 1,
+      "locations": 1,
+      "tools": [
+        "match_sites",
+        "sun_times",
+        "sunset_glow_score",
+        "weather_forecast"
+      ]
+    },
+    {
+      "id": "L2-005",
+      "group": "live",
+      "request": "明天去崇明东滩拍晚霞值得冲吗",
+      "pass": true,
+      "problems": [],
+      "conclusion": "2026-09-29去崇明东滩拍晚霞，依据日落18:05，建议按计划出发。",
+      "confidence": "medium",
+      "evidence": 1,
+      "locations": 1,
+      "tools": [
+        "match_sites",
+        "sun_times",
+        "sunset_glow_score",
+        "weather_forecast"
+      ]
+    },
+    {
+      "id": "L2-006",
+      "group": "planning",
+      "request": "2026-09-30去西岸拍日落，制定拍摄计划",
+      "pass": true,
+      "problems": [],
+      "conclusion": "2026-09-30去西岸拍日落，依据日落18:05，建议按计划出发。",
+      "confidence": "medium",
+      "evidence": 1,
+      "locations": 1,
+      "tools": [
+        "match_sites",
+        "sun_times",
+        "sunset_glow_score",
+        "weather_forecast"
+      ]
+    },
+    {
+      "id": "L2-007",
+      "group": "sun",
+      "request": "2026-10-01去西岸拍日出",
+      "pass": true,
+      "problems": [],
+      "conclusion": "2026-10-01去西岸拍日出，依据日出05:45，建议按计划出发。",
+      "confidence": "medium",
+      "evidence": 1,
+      "locations": 1,
+      "tools": [
+        "sun_times",
+        "sunset_glow_score",
+        "weather_forecast"
+      ]
+    },
+    {
+      "id": "L2-008",
+      "group": "planning",
+      "request": "2026-10-02去西岸拍蓝调，制定拍摄计划",
+      "pass": true,
+      "problems": [],
+      "conclusion": "2026-10-02去西岸拍蓝调，依据日落18:05，建议按计划出发。",
+      "confidence": "medium",
+      "evidence": 1,
+      "locations": 1,
+      "tools": [
+        "match_sites",
+        "sun_times",
+        "sunset_glow_score",
+        "weather_forecast"
+      ]
+    },
+    {
+      "id": "L2-009",
+      "group": "galaxy",
+      "request": "2026-10-03去海堤拍银河",
+      "pass": true,
+      "problems": [],
+      "conclusion": "2026-10-03去海堤拍银河，依据月相名称新月，建议按计划出发。",
+      "confidence": "medium",
+      "evidence": 1,
+      "locations": 1,
+      "tools": [
+        "galaxy_visibility",
+        "moon_events",
+        "moon_phase",
+        "weather_forecast"
+      ]
+    },
+    {
+      "id": "L2-010",
+      "group": "polar",
+      "request": "2027-06-04去北极圈拍日落",
+      "pass": true,
+      "problems": [],
+      "conclusion": "2027-06-04去北极圈拍日落，依据提示极昼期间无日出日落，建议谨慎评估。",
+      "confidence": "medium",
+      "evidence": 1,
+      "locations": 1,
+      "tools": [
+        "sun_times",
+        "sunset_glow_score",
+        "weather_forecast"
+      ]
+    },
+    {
+      "id": "L2-011",
+      "group": "galaxy",
+      "request": "2026-10-05想拍银河",
+      "pass": true,
+      "problems": [],
+      "conclusion": "请先在档案中录入至少一个带经纬度的常用机位，再生成拍摄决策。",
+      "confidence": "low",
+      "evidence": 0,
+      "locations": 0,
+      "tools": []
+    },
+    {
+      "id": "L2-012",
+      "group": "live",
+      "request": "今晚去东岸拍火烧云值得冲吗",
+      "pass": true,
+      "problems": [],
+      "conclusion": "2026-09-28去东岸拍火烧云，依据日落18:05，建议暂缓并补查天气。",
+      "confidence": "low",
+      "evidence": 1,
+      "locations": 1,
+      "tools": [
+        "match_sites",
+        "sun_times",
+        "sunset_glow_score",
+        "weather_forecast"
+      ]
+    }
+  ],
+  "tool_details": [
+    {
+      "id": "T-001",
+      "name": "equivalent_exposure",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "T-002",
+      "name": "star_shutter_rule",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "T-003",
+      "name": "star_shutter_rule",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "T-004",
+      "name": "nd_long_exposure",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "T-005",
+      "name": "nd_long_exposure",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "T-006",
+      "name": "sun_times",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "T-007",
+      "name": "moon_phase",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "T-008",
+      "name": "galaxy_visibility",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "T-009",
+      "name": "moon_events",
+      "pass": true,
+      "problems": []
+    },
+    {
+      "id": "T-010",
+      "name": "equivalent_exposure",
+      "pass": true,
+      "problems": []
+    }
+  ]
+}

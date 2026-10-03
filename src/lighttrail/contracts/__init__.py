@@ -26,6 +26,7 @@ from lighttrail.contracts.events import (
     SSEEventPayload,
     TraceEvent,
 )
+from lighttrail.contracts.favorite_spot import FavoriteSpotInput, FavoriteSpotRecord
 from lighttrail.contracts.knowledge import KnowledgeChunk, KnowledgeProvider
 from lighttrail.contracts.llm import (
     DEFAULT_CONCURRENCY,
@@ -49,6 +50,20 @@ from lighttrail.contracts.models import (
 )
 from lighttrail.contracts.observability import TraceSink
 from lighttrail.contracts.plan import DEFAULT_PLAN_MAX_STEPS, Plan, PlanStep
+from lighttrail.contracts.spot_plan import (
+    DateRange,
+    GeoPoint,
+    PlanDirection,
+    PlanEvidenceRef,
+    PlanningRequest,
+    PlanParameter,
+    PlanRisk,
+    PlanSite,
+    PlanWindow,
+    SearchArea,
+    SpotPlan,
+    SpotSelector,
+)
 from lighttrail.contracts.tool import Confidence, Tool, ToolContext, ToolResult, ToolSpec
 
 __all__ = [
@@ -60,8 +75,12 @@ __all__ = [
     "Confidence",
     "ConfidenceDetail",
     "DataSource",
+    "DateRange",
     "DecisionCard",
     "EventRecord",
+    "FavoriteSpotInput",
+    "FavoriteSpotRecord",
+    "GeoPoint",
     "Intent",
     "KeyVault",
     "KnowledgeChunk",
@@ -75,12 +94,22 @@ __all__ = [
     "PhotoAnalysisReport",
     "PhotoReverseReport",
     "Plan",
+    "PlanDirection",
+    "PlanEvidenceRef",
+    "PlanParameter",
+    "PlanRisk",
+    "PlanSite",
     "PlanStep",
+    "PlanWindow",
+    "PlanningRequest",
     "RequestContext",
     "RoutingDecision",
     "SSEEvent",
     "SSEEventPayload",
+    "SearchArea",
     "Source",
+    "SpotPlan",
+    "SpotSelector",
     "SyncLLMClient",
     "TokenBudget",
     "Tool",

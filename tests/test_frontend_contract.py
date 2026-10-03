@@ -89,10 +89,15 @@ def test_d3page_uses_real_card_fields() -> None:
     assert offenders == []
 
 
-def test_d2page_consumes_structured_tool_data() -> None:
-    """D2Page 读 tool_result.data；不再对工具摘要做正则解析。"""
+def test_d2page_consumes_spot_plan_contract() -> None:
+    """D2Page 使用结构化计划端点与展示组件，不再解析 SSE 摘要。"""
     text = (FRONTEND_SRC / "pages" / "D2Page.tsx").read_text(encoding="utf-8")
-    assert "event.data" in text and "data[" in text
+    view = (FRONTEND_SRC / "pages" / "SpotPlanView.tsx").read_text(encoding="utf-8")
+    assert "createSpotPlan(input)" in text
+    assert "<SpotPlanView plan={plan}" in text
+    assert "WINDOW_LABELS" in view
+    assert "plan.evidence_refs" in view
+    assert "sendDecide(" not in text
     assert ".match(" not in text
     assert "new RegExp(" not in text
 
@@ -106,3 +111,14 @@ def test_d4page_does_not_fake_unmatched_dimensions() -> None:
     text = (FRONTEND_SRC / "pages" / "D4Page.tsx").read_text(encoding="utf-8")
     assert "evidence[0]" not in text
     assert "?? null" in text
+
+
+def test_d4page_has_one_event_form_and_requires_selected_outcome() -> None:
+    """复盘页只呈现一个事件入口，未选择结果时按钮和写入函数均受门禁保护。"""
+    text = (FRONTEND_SRC / "pages" / "D4Page.tsx").read_text(encoding="utf-8")
+    assert text.count('id="event-location"') == 1
+    assert text.count('id="event-subject"') == 1
+    assert text.count('id="event-outcome"') == 1
+    assert text.count("记录本次拍摄</span>") == 1
+    assert text.count("canWriteReviewEvent(") == 2
+    assert 'outcome: "success"' not in text

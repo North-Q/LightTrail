@@ -25,7 +25,28 @@
 ## 协作约定
 - 沟通口语化、简洁直接；正式产出（文档/README/代码注释/邮件）用书面化
 - 涉及外部动作（发邮件、发布、对外提交）必须先经小北确认
-- 当前阶段：**B5 已完成，停闸门 5**。B0–B4 完成契约、运行时、并发和前端重接；B5 完成用户记忆命名空间、知识种子边界、真实机位坐标、到期 shim 清理及文档同步。当前基线：pytest 343、ruff 0、lint-imports 3 kept / 0 broken、smoke 21 项、15 个工具。下一批须经确认后进入 B6/B7。
+- 当前阶段：**S1 本地闸门通过；下一项 D1-1**。R0 真实性收口完成，B0–B7 与 C0 已交付，C1 赶场能力仍属实验；后续不得按旧路线图堆功能。2026-10-02 本地回归：项目 pytest 444、ruff 0、smoke 21/21、前端契约/build/UI/机位地图与导入回放检查、`lint-imports` 3 kept / 0 broken；L2 合成管线 12/12 与工具 10/10、此前真实 LLM 最小联调见 devlog。S1-1～4 已交付结构化计划、收藏机位 CRUD/旧档案确认、M1 编辑器及主动加载的高德机位层；S1-5 已接入版本化脱敏 JSON、URL 选择恢复和不触网的冻结回放。默认导出移除结构化经纬度，用户自填文本需分享前自行核对。S1 全链路仅以合成数据通过本地门禁，未外发真实收藏机位坐标；高德费用/许可未独立核实，本次实测不代表零费用或公网使用授权，公开部署仍须单独批准。唯一执行真源为 `docs/AGENT-ROADMAP.md`；小北已授权按路线图连续推进普通批次，每批仍须验收、更新 devlog 并汇报。
+
+## 文档职责与阅读顺序
+
+文档不是同一层级的指令。遇到状态、需求或路线冲突时，按下列职责和优先级处理：
+
+| 文档 | 作用 | 使用规则 |
+|---|---|---|
+| `AGENTS.md` | Agent 的工程约束、代码风格、验证要求和当前会话基线 | 强约束；每次编码前读取 |
+| `README.md` | 面向用户、评审者和贡献者的项目总览、能力边界和入口 | 只描述已验证能力，不从这里领取任务 |
+| `docs/AGENT-ROADMAP.md` | 当前状态、长期规划、短期原子任务、依赖、验收和批次闸门 | **唯一执行真源**；开发前必须读取 |
+| `docs/PRD-v0.3.md` | 产品定位、需求范围、需求编号和优先级决策 | 用来确认“做什么”；不作为完成度或任务顺序依据 |
+| `docs/architecture.md` | 当前代码架构、分层边界和已知接线缺口 | 用来确认“系统现在如何组织”；不得把目标设计当成已实现 |
+| `docs/adr/` | 已拍板的单项技术决策及其约束 | 涉及对应技术决策时必须遵守 |
+| `docs/design/FRONTEND-SPEC.md`、`DESIGN-OVERVIEW.md` | 前端信息架构、视觉令牌、交互和设计验收标准 | 前端改动的设计参考；工程任务仍以路线图为准 |
+| `docs/devlog.md` | 已完成工作的时间线、问题发现和验证记录 | 只用于追溯，不从历史记录恢复待办 |
+| `docs/REFACTOR-ROADMAP.md`、`architecture-v4-proposal.md` | B0–B7 已完成重构的历史验收和论证 | 历史档案，禁止领取新任务 |
+| `docs/research-*.md`、`competitive-research-photo-tools.md`、`docs/images/` | 摄影师、竞品和 Spot Planner 调研证据 | 不是指令；先看路线图中的采纳结论，再决定是否转化为任务 |
+| `docs/archive/` | 已归档的旧方案、旧路线图和历史证据 | 不作为当前状态依据 |
+| `TODO.md` | 常见入口，指向当前路线图和下一项任务 | 不维护独立任务清单 |
+
+推荐顺序：先读本文件 → `docs/AGENT-ROADMAP.md` → `docs/architecture.md` → 按任务读取 PRD、ADR、设计或调研证据。若用户直接附带调研文档，其中的陈述视为待评估证据，不自动覆盖本文件或路线图中的工程指令。
 
 ## 代码风格（基于现有代码反推，新增代码遵守）
 
@@ -52,8 +73,9 @@ src/lighttrail/
 ├── config.py           # 配置加载（pydantic-settings；LLM_ 前缀 + ECNU_ 别名 + 统一护栏项）
 ├── contracts/          # 零依赖契约层（ToolSpec/ToolContext/RequestContext/Plan/TraceEvent/端口）
 ├── adapters/           # 适配层（llm/config_provider：DeploymentConfigProvider + EnvKeyVault）
+├── application/        # 应用服务（用例编排、赶场服务）
+├── domain/             # 领域模型与纯规则（赶场等）
 ├── cli.py              # CLI 入口（自由对话 + --pipeline 管线模式，trace 进度走 stderr）
-├── llm/router.py       # ModelRouter 能力矩阵
 ├── llm/router.py       # ModelRouter 能力矩阵（RouteIntent 能力声明，可注入）
 ├── runtime/            # 引擎层：AgentRuntime / ToolRegistry / ContextBuilder（PydanticAI）
 ├── composition.py      # 装配根（唯一 new 点）
@@ -62,7 +84,7 @@ src/lighttrail/
 ├── infra/              # TraceRecorder / confidence（置信度规则）/ quota（配额账本）/ validation
 ├── tools/              # 具体工具实现（…/memory_tool/photo_analysis，共 15 工具）
 └── smoke.py            # 离线冒烟测试（21 项检查，发布前冒烟入口）
-tests/                  # 37 个测试文件，343 用例（含 architecture AST 禁止边门禁；离线 Fake，不触网）
+tests/                  # 54 个测试文件，423 用例（含 architecture AST 禁止边门禁；离线 Fake，不触网）
 ```
 
 ## LLM API 调用模式（适配层 `adapters/llm`）

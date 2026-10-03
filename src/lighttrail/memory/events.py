@@ -14,6 +14,8 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -80,7 +82,7 @@ class EventStore:
         """初始化存储（自动建目录与表结构）。
 
         Args:
-            db_path: SQLite 文件路径（如 data/events.db）。
+            db_path: SQLite 文件路径（如 data/users/_local/memory/events.db）。
         """
         self._db_path = Path(db_path)
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -224,11 +226,16 @@ class EventStore:
         return int(row["c"])
 
     # ------ 内部实现 ------
-    def _connect(self) -> sqlite3.Connection:
-        """新建连接（行工厂为 Row，便于按列名读取）。"""
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        """在一次数据库操作内打开并关闭连接，确保临时用户目录可清理。"""
         conn = sqlite3.connect(self._db_path)
         conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     @staticmethod
     def _to_record(row: sqlite3.Row) -> EventRecord:

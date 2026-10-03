@@ -1,13 +1,14 @@
 # LightTrail（光迹）· 设计推进总览
 
-> **文档**：设计推进总览（主理人汇总）  
-> **日期**：2026-08-15（v2.0 更新：2026-09-09）  
-> **作者**：画统筹（Hua）· 设计原型专家团主理人  
-> **版本**：v2.0  
+> **文档**：设计推进总览（主理人汇总）
+> **日期**：2026-08-15（v2.0 更新：2026-09-09）
+> **作者**：画统筹（Hua）· 设计原型专家团主理人
+> **版本**：v2.1
 > **协作链路**：许明需（需求发现）→ 彩格调（设计系统）→ 筑原型（原型生成+移动端强化）→ 严过审（质量审查）→ 交付达（导出交付）
 >
 > **v2.0 更新说明**：设计稿（`lighttrail-prototype.html`）被小北确认为满意的目标形态；实际前端的 `frontend/` 落地需依设计稿对齐。原设计文档 v1.1 已归档至 `docs/design/archive/DESIGN-OVERVIEW-v1.1.md`。
 > **前端开发的唯一 spec**：见 [`FRONTEND-SPEC.md`](FRONTEND-SPEC.md)（6 页信息架构、设计令牌全集、组件规格、组件→API 映射、可解释性三铁律、移动端规范）。
+> **状态说明（2026-09-22）**：本文保留设计形成过程与视觉验收证据，不再承担工程进度和任务排序；当前实现状态见 `docs/architecture.md`，后续任务见 `docs/AGENT-ROADMAP.md`。
 
 ---
 
@@ -23,7 +24,7 @@
 
 | 模块 | 状态 | 说明 |
 |------|------|------|
-| Agent 骨架（core/tools/cli/config/llm） | ✅ 已实现 | 多轮对话 + 工具调用 + 注册表 + 可配置并发（默认串行）+ 容错 |
+| Agent 骨架（core/tools/cli/config/llm） | ✅ 已实现 | 多轮对话 + 工具调用 + 注册表 + `LLM_CONCURRENCY` 可配置并发 + 容错 |
 | PRD v0.3（决策引擎整合版） | ✅ 已输出 | `docs/PRD-v0.3.md`，5 大场景、4 阶段决策主线 |
 | 决策主线工具（天文/天气/参数推荐） | ⏳ 未开始 | 仅曝光换算演示工具 `equivalent_exposure` |
 | 记忆与可解释性地基 | ⏳ 未开始 | PRD 第 5 章规划，未实现 |
@@ -141,12 +142,12 @@ docs/design/
 4. **多模态 AI**：D4 复盘、D1 照片反推；
 5. **个人记忆**：M1 相似命中、偏好归纳。
 
-> 当前架构基线见 `docs/architecture.md` v3.1：**FastAPI 薄服务层 + SSE 事件流 + SPA 前端**。并发由 `LLM_CONCURRENCY` 配置，前端以 OpenAPI 生成的契约消费真实事件；「trace 即 UI」即本原型右栏轨迹面板的产品化来源。原型对应的 Web 骨架已完成，后续决策闭环任务以 `docs/POST-REFACTOR-ROADMAP.md` 为准。
+> 当前架构基线见 `docs/architecture.md`：**FastAPI 薄服务层 + SSE 事件流 + SPA 前端**。并发由 `LLM_CONCURRENCY` 配置，前端以 OpenAPI 生成的契约消费真实事件；「trace 即 UI」即本原型右栏轨迹面板的产品化来源。原型对应的 Web 骨架已完成，后续决策闭环只以 `docs/AGENT-ROADMAP.md` 为准。
 
 ### 6.2 产品迭代
 
 - 原型已为 PRD v0.3 的 D1-D4 + M1/M2 提供了完整视觉与交互基线，可直接作为工程实现的高保真参照；
-- 后续建议：以本原型为展示基准，优先补齐真实的照片反推入口、题材感知规划和结构化时间窗；详见 `docs/POST-REFACTOR-ROADMAP.md` 的 C0。
+- 后续建议：保留本原型的视觉与信息架构，工程上先完成 `docs/AGENT-ROADMAP.md` 的 R0 真实性收口，再推进结构化 SpotPlan 和统一 DecisionCard。
 
 ---
 

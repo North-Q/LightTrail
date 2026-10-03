@@ -1,139 +1,722 @@
 {
-  "说明": "L2 黄金用例集（E8-1）：12 条管线回归（cassette 回放，零 LLM 成本）+ 10 条工具数值断言 + E6 照片用例归档（结构标注）。三题材（银河/火烧云/日出尖光）× 主线（灵感/规划/临场）+ 边界（极昼/缺天气Key/空档案）。",
-  "版本": "2026-09-09",
+  "说明": "L2 语义评估 v2：12 条独立离线管线夹具、10 条工具断言；所有 v2 数据为合成样本。",
+  "版本": "2026-09-28-r0-7",
   "pipeline_cases": [
     {
       "id": "L2-001",
       "group": "galaxy",
-      "request": "这周末想去拍银河",
-      "mode": "inspiration",
+      "request": "这周末去天荒坪拍银河，制定拍摄计划",
+      "mode": "planning",
       "scenario": "normal",
+      "request_context": {
+        "user_id": "eval-L2-001",
+        "requested_at": "2026-09-28T02:00:00+00:00",
+        "tz_offset": "+08:00"
+      },
+      "profile": {
+        "camera_body": "松下 S5M2",
+        "favorite_spots": [
+          {
+            "name": "天荒坪",
+            "latitude": 30.47,
+            "longitude": 119.53,
+            "coordinate_system": "WGS84",
+            "subject": "银河"
+          }
+        ]
+      },
+      "semantic": {
+        "target_date": "2026-10-03",
+        "location": "天荒坪",
+        "subject_type": "银河",
+        "verdict": "go",
+        "degraded": "",
+        "tools": [
+          "moon_phase",
+          "moon_events",
+          "galaxy_visibility",
+          "weather_forecast",
+          "match_sites"
+        ],
+        "require_action": true,
+        "forbidden_locations": [
+          "上海"
+        ],
+        "forbidden_subjects": [],
+        "coordinates": [
+          30.47,
+          119.53
+        ],
+        "match_subject": "银河",
+        "profile_camera": "松下 S5M2",
+        "facts": [
+          {
+            "tool": "moon_phase",
+            "path": [
+              "月相名称"
+            ],
+            "value": "新月",
+            "claim_in_conclusion": true
+          }
+        ]
+      },
       "expect": {
         "min_evidence": 1,
-        "max_locations": 5
+        "max_locations": 1,
+        "allow_degraded": false
       }
     },
     {
       "id": "L2-002",
       "group": "galaxy",
-      "request": "周末去天荒坪拍星轨，值得去吗",
+      "request": "2026-10-03去天荒坪拍星空，制定拍摄计划",
       "mode": "planning",
       "scenario": "normal",
+      "request_context": {
+        "user_id": "eval-L2-002",
+        "requested_at": "2026-09-28T02:00:00+00:00",
+        "tz_offset": "+08:00"
+      },
+      "profile": {
+        "camera_body": "",
+        "favorite_spots": [
+          {
+            "name": "天荒坪",
+            "latitude": 30.47,
+            "longitude": 119.53,
+            "coordinate_system": "WGS84",
+            "subject": "银河"
+          }
+        ]
+      },
+      "semantic": {
+        "target_date": "2026-10-03",
+        "location": "天荒坪",
+        "subject_type": "星空",
+        "verdict": "go",
+        "degraded": "",
+        "tools": [
+          "moon_phase",
+          "moon_events",
+          "galaxy_visibility",
+          "weather_forecast",
+          "match_sites"
+        ],
+        "require_action": true,
+        "forbidden_locations": [
+          "上海"
+        ],
+        "forbidden_subjects": [],
+        "coordinates": [
+          30.47,
+          119.53
+        ],
+        "match_subject": "星空",
+        "facts": [
+          {
+            "tool": "moon_phase",
+            "path": [
+              "月相名称"
+            ],
+            "value": "新月",
+            "claim_in_conclusion": true
+          }
+        ]
+      },
       "expect": {
         "min_evidence": 1,
-        "max_locations": 5
+        "max_locations": 1,
+        "allow_degraded": false
       }
     },
     {
       "id": "L2-003",
       "group": "galaxy",
-      "request": "今晚拍银河现在走还来得及吗",
+      "request": "今晚去海堤拍银河现在走还来得及吗",
       "mode": "live",
       "scenario": "normal",
+      "request_context": {
+        "user_id": "eval-L2-003",
+        "requested_at": "2026-09-28T02:00:00+00:00",
+        "tz_offset": "+08:00"
+      },
+      "profile": {
+        "camera_body": "",
+        "favorite_spots": [
+          {
+            "name": "海堤",
+            "latitude": 31.4,
+            "longitude": 121.8,
+            "coordinate_system": "WGS84",
+            "subject": "银河"
+          }
+        ]
+      },
+      "semantic": {
+        "target_date": "2026-09-28",
+        "location": "海堤",
+        "subject_type": "银河",
+        "verdict": "go",
+        "degraded": "",
+        "tools": [
+          "moon_phase",
+          "moon_events",
+          "galaxy_visibility",
+          "weather_forecast",
+          "match_sites"
+        ],
+        "require_action": true,
+        "forbidden_locations": [
+          "上海"
+        ],
+        "forbidden_subjects": [],
+        "coordinates": [
+          31.4,
+          121.8
+        ],
+        "match_subject": "银河",
+        "facts": [
+          {
+            "tool": "moon_phase",
+            "path": [
+              "月相名称"
+            ],
+            "value": "新月",
+            "claim_in_conclusion": true
+          }
+        ]
+      },
       "expect": {
         "min_evidence": 1,
-        "max_locations": 5
+        "max_locations": 1,
+        "allow_degraded": false
       }
     },
     {
       "id": "L2-004",
       "group": "live",
-      "request": "今晚火烧云值得冲吗",
+      "request": "今晚去东岸拍火烧云值得冲吗",
       "mode": "live",
       "scenario": "normal",
+      "request_context": {
+        "user_id": "eval-L2-004",
+        "requested_at": "2026-09-28T02:00:00+00:00",
+        "tz_offset": "+08:00"
+      },
+      "profile": {
+        "camera_body": "",
+        "favorite_spots": [
+          {
+            "name": "东岸",
+            "latitude": 31.25,
+            "longitude": 121.52,
+            "coordinate_system": "WGS84",
+            "subject": "银河"
+          }
+        ]
+      },
+      "semantic": {
+        "target_date": "2026-09-28",
+        "location": "东岸",
+        "subject_type": "火烧云",
+        "verdict": "go",
+        "degraded": "",
+        "tools": [
+          "sun_times",
+          "sunset_glow_score",
+          "weather_forecast",
+          "match_sites"
+        ],
+        "require_action": true,
+        "forbidden_locations": [
+          "上海"
+        ],
+        "forbidden_subjects": [
+          "银河"
+        ],
+        "coordinates": [
+          31.25,
+          121.52
+        ],
+        "match_subject": "日落",
+        "facts": [
+          {
+            "tool": "sun_times",
+            "path": [
+              "日落"
+            ],
+            "value": "18:05",
+            "claim_in_conclusion": true
+          }
+        ]
+      },
       "expect": {
         "min_evidence": 1,
-        "max_locations": 5
+        "max_locations": 1,
+        "allow_degraded": false
       }
     },
     {
       "id": "L2-005",
       "group": "live",
-      "request": "明天傍晚晚霞去崇明怎么样",
+      "request": "明天去崇明东滩拍晚霞值得冲吗",
       "mode": "live",
       "scenario": "normal",
+      "request_context": {
+        "user_id": "eval-L2-005",
+        "requested_at": "2026-09-28T02:00:00+00:00",
+        "tz_offset": "+08:00"
+      },
+      "profile": {
+        "camera_body": "",
+        "favorite_spots": [
+          {
+            "name": "崇明东滩",
+            "latitude": 31.52,
+            "longitude": 121.95,
+            "coordinate_system": "WGS84",
+            "subject": "银河"
+          }
+        ]
+      },
+      "semantic": {
+        "target_date": "2026-09-29",
+        "location": "崇明东滩",
+        "subject_type": "晚霞",
+        "verdict": "go",
+        "degraded": "",
+        "tools": [
+          "sun_times",
+          "sunset_glow_score",
+          "weather_forecast",
+          "match_sites"
+        ],
+        "require_action": true,
+        "forbidden_locations": [
+          "上海"
+        ],
+        "forbidden_subjects": [],
+        "coordinates": [
+          31.52,
+          121.95
+        ],
+        "match_subject": "日落",
+        "facts": [
+          {
+            "tool": "sun_times",
+            "path": [
+              "日落"
+            ],
+            "value": "18:05",
+            "claim_in_conclusion": true
+          }
+        ]
+      },
       "expect": {
         "min_evidence": 1,
-        "max_locations": 5
+        "max_locations": 1,
+        "allow_degraded": false
       }
     },
     {
       "id": "L2-006",
-      "group": "live",
-      "request": "日落后二十分钟东边会反烧吗",
-      "mode": "live",
+      "group": "planning",
+      "request": "2026-09-30去西岸拍日落，制定拍摄计划",
+      "mode": "planning",
       "scenario": "normal",
+      "request_context": {
+        "user_id": "eval-L2-006",
+        "requested_at": "2026-09-28T02:00:00+00:00",
+        "tz_offset": "+08:00"
+      },
+      "profile": {
+        "camera_body": "",
+        "favorite_spots": [
+          {
+            "name": "西岸",
+            "latitude": 31.21,
+            "longitude": 121.47,
+            "coordinate_system": "WGS84",
+            "subject": "银河"
+          }
+        ]
+      },
+      "semantic": {
+        "target_date": "2026-09-30",
+        "location": "西岸",
+        "subject_type": "日落",
+        "verdict": "go",
+        "degraded": "",
+        "tools": [
+          "sun_times",
+          "sunset_glow_score",
+          "weather_forecast",
+          "match_sites"
+        ],
+        "require_action": true,
+        "forbidden_locations": [
+          "上海"
+        ],
+        "forbidden_subjects": [],
+        "coordinates": [
+          31.21,
+          121.47
+        ],
+        "match_subject": "日落",
+        "facts": [
+          {
+            "tool": "sun_times",
+            "path": [
+              "日落"
+            ],
+            "value": "18:05",
+            "claim_in_conclusion": true
+          }
+        ]
+      },
       "expect": {
         "min_evidence": 1,
-        "max_locations": 5
+        "max_locations": 1,
+        "allow_degraded": false
       }
     },
     {
       "id": "L2-007",
-      "group": "planning",
-      "request": "周末两天三机位对比，帮我排一下",
-      "mode": "planning",
+      "group": "sun",
+      "request": "2026-10-01去西岸拍日出",
+      "mode": "inspiration",
       "scenario": "normal",
+      "request_context": {
+        "user_id": "eval-L2-007",
+        "requested_at": "2026-09-28T02:00:00+00:00",
+        "tz_offset": "+08:00"
+      },
+      "profile": {
+        "camera_body": "",
+        "favorite_spots": [
+          {
+            "name": "西岸",
+            "latitude": 31.21,
+            "longitude": 121.47,
+            "coordinate_system": "WGS84",
+            "subject": "银河"
+          }
+        ]
+      },
+      "semantic": {
+        "target_date": "2026-10-01",
+        "location": "西岸",
+        "subject_type": "日出",
+        "verdict": "go",
+        "degraded": "",
+        "tools": [
+          "sun_times",
+          "sunset_glow_score",
+          "weather_forecast"
+        ],
+        "require_action": true,
+        "forbidden_locations": [
+          "上海"
+        ],
+        "forbidden_subjects": [],
+        "coordinates": [
+          31.21,
+          121.47
+        ],
+        "facts": [
+          {
+            "tool": "sun_times",
+            "path": [
+              "日出"
+            ],
+            "value": "05:45",
+            "claim_in_conclusion": true
+          }
+        ]
+      },
       "expect": {
         "min_evidence": 1,
-        "max_locations": 5,
-        "time_window_note": "计划编排建议时间窗口"
+        "max_locations": 1,
+        "allow_degraded": false
       }
     },
     {
       "id": "L2-008",
       "group": "planning",
-      "request": "三天内哪天通透适合银河",
+      "request": "2026-10-02去西岸拍蓝调，制定拍摄计划",
       "mode": "planning",
       "scenario": "normal",
+      "request_context": {
+        "user_id": "eval-L2-008",
+        "requested_at": "2026-09-28T02:00:00+00:00",
+        "tz_offset": "+08:00"
+      },
+      "profile": {
+        "camera_body": "",
+        "favorite_spots": [
+          {
+            "name": "西岸",
+            "latitude": 31.21,
+            "longitude": 121.47,
+            "coordinate_system": "WGS84",
+            "subject": "银河"
+          }
+        ]
+      },
+      "semantic": {
+        "target_date": "2026-10-02",
+        "location": "西岸",
+        "subject_type": "蓝调",
+        "verdict": "go",
+        "degraded": "",
+        "tools": [
+          "sun_times",
+          "sunset_glow_score",
+          "weather_forecast",
+          "match_sites"
+        ],
+        "require_action": true,
+        "forbidden_locations": [
+          "上海"
+        ],
+        "forbidden_subjects": [],
+        "coordinates": [
+          31.21,
+          121.47
+        ],
+        "match_subject": "蓝调",
+        "facts": [
+          {
+            "tool": "sun_times",
+            "path": [
+              "日落"
+            ],
+            "value": "18:05",
+            "claim_in_conclusion": true
+          }
+        ]
+      },
       "expect": {
         "min_evidence": 1,
-        "max_locations": 5
+        "max_locations": 1,
+        "allow_degraded": false
       }
     },
     {
       "id": "L2-009",
-      "group": "sun",
-      "request": "明天朝霞日出哪里拍比较好",
+      "group": "galaxy",
+      "request": "2026-10-03去海堤拍银河",
       "mode": "inspiration",
       "scenario": "normal",
+      "request_context": {
+        "user_id": "eval-L2-009",
+        "requested_at": "2026-09-28T02:00:00+00:00",
+        "tz_offset": "+08:00"
+      },
+      "profile": {
+        "camera_body": "",
+        "favorite_spots": [
+          {
+            "name": "海堤",
+            "latitude": 31.4,
+            "longitude": 121.8,
+            "coordinate_system": "WGS84",
+            "subject": "银河"
+          }
+        ]
+      },
+      "semantic": {
+        "target_date": "2026-10-03",
+        "location": "海堤",
+        "subject_type": "银河",
+        "verdict": "go",
+        "degraded": "",
+        "tools": [
+          "moon_phase",
+          "moon_events",
+          "galaxy_visibility",
+          "weather_forecast"
+        ],
+        "require_action": true,
+        "forbidden_locations": [
+          "上海"
+        ],
+        "forbidden_subjects": [],
+        "coordinates": [
+          31.4,
+          121.8
+        ],
+        "facts": [
+          {
+            "tool": "moon_phase",
+            "path": [
+              "月相名称"
+            ],
+            "value": "新月",
+            "claim_in_conclusion": true
+          }
+        ]
+      },
       "expect": {
         "min_evidence": 1,
-        "max_locations": 5
+        "max_locations": 1,
+        "allow_degraded": false
       }
     },
     {
       "id": "L2-010",
       "group": "polar",
-      "request": "北极圈极昼期能拍星空吗",
+      "request": "2027-06-04去北极圈拍日落",
       "mode": "inspiration",
       "scenario": "polar",
+      "request_context": {
+        "user_id": "eval-L2-010",
+        "requested_at": "2026-09-28T02:00:00+00:00",
+        "tz_offset": "+08:00"
+      },
+      "profile": {
+        "camera_body": "",
+        "favorite_spots": [
+          {
+            "name": "北极圈",
+            "latitude": 78.0,
+            "longitude": 15.0,
+            "coordinate_system": "WGS84",
+            "subject": "银河"
+          }
+        ]
+      },
+      "semantic": {
+        "target_date": "2027-06-04",
+        "location": "北极圈",
+        "subject_type": "日落",
+        "verdict": "risk",
+        "degraded": "",
+        "tools": [
+          "sun_times",
+          "sunset_glow_score",
+          "weather_forecast"
+        ],
+        "require_action": true,
+        "forbidden_locations": [
+          "上海"
+        ],
+        "forbidden_subjects": [],
+        "coordinates": [
+          78.0,
+          15.0
+        ],
+        "facts": [
+          {
+            "tool": "sun_times",
+            "path": [
+              "提示"
+            ],
+            "value": "极昼期间无日出日落",
+            "claim_in_conclusion": true
+          }
+        ]
+      },
       "expect": {
-        "min_evidence": 0,
-        "max_locations": 5,
-        "allow_degraded": true
+        "min_evidence": 1,
+        "max_locations": 1,
+        "allow_degraded": false
       }
     },
     {
       "id": "L2-011",
       "group": "galaxy",
-      "request": "（空档案）新手求银河入门方案",
+      "request": "2026-10-05想拍银河",
       "mode": "inspiration",
       "scenario": "normal",
+      "request_context": {
+        "user_id": "eval-L2-011",
+        "requested_at": "2026-09-28T02:00:00+00:00",
+        "tz_offset": "+08:00"
+      },
+      "profile": {},
+      "semantic": {
+        "target_date": "2026-10-05",
+        "location": "",
+        "subject_type": "银河",
+        "verdict": "wait",
+        "degraded": "missing_favorite_spot",
+        "tools": [],
+        "require_action": false,
+        "forbidden_locations": [],
+        "forbidden_subjects": []
+      },
       "expect": {
-        "min_evidence": 1,
-        "max_locations": 5
+        "min_evidence": 0,
+        "max_locations": 1,
+        "allow_degraded": true
       }
     },
     {
       "id": "L2-012",
       "group": "live",
-      "request": "（缺天气Key）今晚还能不能拍火烧云",
+      "request": "今晚去东岸拍火烧云值得冲吗",
       "mode": "live",
       "scenario": "missing_weather",
+      "request_context": {
+        "user_id": "eval-L2-012",
+        "requested_at": "2026-09-28T02:00:00+00:00",
+        "tz_offset": "+08:00"
+      },
+      "profile": {
+        "camera_body": "",
+        "favorite_spots": [
+          {
+            "name": "东岸",
+            "latitude": 31.25,
+            "longitude": 121.52,
+            "coordinate_system": "WGS84",
+            "subject": "银河"
+          }
+        ]
+      },
+      "semantic": {
+        "target_date": "2026-09-28",
+        "location": "东岸",
+        "subject_type": "火烧云",
+        "verdict": "wait",
+        "degraded": "missing_weather",
+        "tools": [
+          "sun_times",
+          "sunset_glow_score",
+          "weather_forecast",
+          "match_sites"
+        ],
+        "require_action": true,
+        "forbidden_locations": [
+          "上海"
+        ],
+        "forbidden_subjects": [
+          "银河"
+        ],
+        "coordinates": [
+          31.25,
+          121.52
+        ],
+        "match_subject": "日落",
+        "unavailable_tools": [
+          "weather_forecast",
+          "sunset_glow_score"
+        ],
+        "facts": [
+          {
+            "tool": "sun_times",
+            "path": [
+              "日落"
+            ],
+            "value": "18:05",
+            "claim_in_conclusion": true
+          }
+        ]
+      },
       "expect": {
-        "min_evidence": 0,
-        "max_locations": 5,
+        "min_evidence": 1,
+        "max_locations": 1,
         "allow_degraded": true
       }
     }

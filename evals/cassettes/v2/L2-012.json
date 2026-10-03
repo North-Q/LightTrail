@@ -1,0 +1,49 @@
+{
+  "case_id": "L2-012",
+  "kind": "offline_fixture",
+  "request": "今晚去东岸拍火烧云值得冲吗",
+  "responses": {
+    "card": {
+      "conclusion": "2026-09-28去东岸拍火烧云，依据日落18:05，建议暂缓并补查天气。",
+      "evidence": [
+        {
+          "tool": "sun_times",
+          "field": "日落",
+          "confidence": "high",
+          "note": "离线合成：日落 18:05"
+        }
+      ],
+      "confidence": "low",
+      "verdict": "wait",
+      "time_window": "2026-09-28 17:30-18:30",
+      "locations": [
+        {
+          "name": "东岸",
+          "reason": "用户档案中带坐标的机位"
+        }
+      ],
+      "params": [],
+      "alternatives": [],
+      "degraded": "missing_weather",
+      "target_date": "2026-09-28",
+      "subject_type": "火烧云"
+    }
+  },
+  "tool_results": {
+    "weather_forecast": {
+      "error": "离线夹具：天气不可用"
+    },
+    "sun_times": {
+      "日出": "05:45",
+      "日落": "18:05",
+      "数据来源": "离线合成"
+    },
+    "sunset_glow_score": {
+      "error": "离线夹具：评分不可用"
+    },
+    "match_sites": {
+      "匹配结果": [],
+      "数据来源": "离线合成"
+    }
+  }
+}

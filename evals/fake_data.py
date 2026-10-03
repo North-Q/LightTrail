@@ -11,6 +11,7 @@ import json
 import logging
 from typing import Any
 
+from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.trace import Recorder, null_trace
 
 logger = logging.getLogger("lighttrail.evals")
@@ -59,19 +60,26 @@ class FakeDispatcher:
         scenario: 场景名（normal / missing_weather / polar），影响天气与太阳数据。
     """
 
-    def __init__(self, scenario: str = "normal") -> None:
+    def __init__(
+        self, scenario: str = "normal", *, payloads: dict[str, dict[str, Any]] | None = None
+    ) -> None:
         self._data = _default_payload()
         if scenario == "missing_weather":
             self._data["weather_forecast"] = {"error": "未配置天气 API Key（边界用例）"}
             self._data["sunset_glow_score"] = {"error": "缺少天气数据无法评分（边界用例）"}
         elif scenario == "polar":
-            self._data["sun_times"] = {"提示": "极昼期间无日出日落", "数据来源": "天文计算（确定性）"}
+            self._data["sun_times"] = {
+                "提示": "极昼期间无日出日落",
+                "数据来源": "天文计算（确定性）",
+            }
             self._data["sunset_glow_score"] = {
                 "评分（0-100）": 0,
                 "等级": "极昼无黄昏",
                 "提示": "极昼期间无火烧云窗口",
                 "数据来源": "启发式规则（确定性）",
             }
+        if payloads:
+            self._data.update(payloads)
         self.calls: list[tuple[str, str]] = []
 
     def __call__(self, name: str, args: str) -> str:
@@ -82,9 +90,7 @@ class FakeDispatcher:
         return json.dumps({"error": f"FakeDispatcher 无数据：{name}"}, ensure_ascii=False)
 
 
-def dispatch_with_trace(
-    raw: FakeDispatcher, recorder: Recorder | None = None
-) -> Any:
+def dispatch_with_trace(raw: FakeDispatcher, recorder: Recorder | None = None) -> Any:
     """包一层 recorder 记录（与注册表直调一致），供 Orchestrator 注入。"""
     recorder = recorder or null_trace
 
@@ -136,13 +142,12 @@ class CassetteChatClient:
         self._current = group
 
     def _pick(self, kind: str) -> str:
-        """当前分组 cassette 的 content；缺分组回退任一可用 cassette。"""
+        """只读取当前用例 cassette；缺失时显式失败，禁止跨用例回退。"""
         current = getattr(self, "_current", None)
-        for group in (current, *self._group_for.values(), *self._cassettes.keys()):
-            cassette = self._cassettes.get(group)
-            if cassette and kind in cassette and cassette[kind].get("content"):
-                return cassette[kind]["content"]
-        raise KeyError(f"缺少 cassette：{kind}（分组 {current}）")
+        cassette = self._cassettes.get(current) if current is not None else None
+        if cassette and kind in cassette and cassette[kind].get("content"):
+            return cassette[kind]["content"]
+        raise KeyError(f"缺少当前用例 cassette：{kind}（用例 {current}）")
 
 
 class RecordingChatClient:
@@ -152,30 +157,42 @@ class RecordingChatClient:
         inner: 真实 ChatClient。
     """
 
-    async def acall(self, messages, **kwargs) -> dict[str, Any]:
-        """async 通道：B2-7 起编排器经 AgentRuntime → Model 桥走 acall。"""
-        allowed = {k: v for k, v in kwargs.items() if k in {"model", "tools", "temperature"}}
-        return self.chat(messages, **allowed)
+    async def acall(self, messages: list[dict[str, Any]], **kwargs: Any) -> dict[str, Any]:
+        """透传异步调用及配置扩展，录制时保持生产客户端行为。"""
+        response = await self._inner.acall(messages, **kwargs)
+        self._record(messages, response)
+        return response
 
     def __init__(self, inner: Any) -> None:
         self._inner = inner
         self.recorded: dict[str, str] = {}
 
-    def chat(self, messages, **kwargs) -> dict[str, Any]:
+    @property
+    def quota(self) -> QuotaLedger | None:
+        """向统一装配暴露被包装客户端的同一账本。"""
+        return getattr(self._inner, "quota", None)
+
+    def chat(self, messages: list[dict[str, Any]], **kwargs: Any) -> dict[str, Any]:
         """调用真实客户端并记录 content（意图/综合两段，按 message 语义归档）。"""
+        response = self._inner.chat(messages, **kwargs)
+        self._record(messages, response)
+        return response
+
+    def _record(self, messages: list[dict[str, Any]], response: dict[str, Any]) -> None:
+        """按原有分组规则保存响应，不改变 cassette 的评估口径。"""
         user_text = ""
         for message in reversed(messages):
             if isinstance(message, dict) and message.get("role") == "user":
                 user_text = str(message.get("content", ""))
                 break
-        resp = self._inner.chat(messages, **kwargs)
-        content = resp.get("content", "")
+        content = response.get("content", "")
         kind = "intent" if _INTENT_MARK in user_text else "card"
         self.recorded[kind] = content
-        return resp
 
 
-def intents(subject: str, mode: str = "inspiration", location: str = "", time_hint: str = "这周末") -> str:
+def intents(
+    subject: str, mode: str = "inspiration", location: str = "", time_hint: str = "这周末"
+) -> str:
     """构造合法 Intent JSON（确定性）。"""
     return json.dumps(
         {"subject_type": subject, "location": location, "time_hint": time_hint, "mode": mode},
@@ -197,7 +214,14 @@ def card(
     payload: dict[str, Any] = {
         "conclusion": conclusion,
         "evidence": evidence
-        or [{"tool": "确定性规则", "field": "演示", "confidence": confidence, "note": "cassette 回放"}],
+        or [
+            {
+                "tool": "确定性规则",
+                "field": "演示",
+                "confidence": confidence,
+                "note": "cassette 回放",
+            }
+        ],
         "confidence": confidence,
         "time_window": time_window,
         "locations": locations or [{"name": "默认机位（上海）", "reason": "演示"}],

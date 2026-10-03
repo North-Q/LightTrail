@@ -29,7 +29,7 @@ from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from lighttrail.contracts.llm import DEFAULT_CONCURRENCY
-from lighttrail.contracts.plan import DEFAULT_PLAN_MAX_STEPS
+from lighttrail.contracts.plan import DEFAULT_PIPELINE_MAX_STEPS, DEFAULT_PLAN_MAX_STEPS
 
 # 项目根目录（src/lighttrail/config.py 向上三级）
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -44,7 +44,6 @@ DEFAULT_DATA_DIR = "data"
 
 # 护栏默认值（见模块 docstring；PLAN_MAX_STEPS 与契约层同源）
 DEFAULT_REACT_MAX_ROUNDS = 12
-DEFAULT_PIPELINE_MAX_STEPS = 12
 DEFAULT_LLM_TIMEOUT: tuple[float, float] = (30.0, 120.0)
 DEFAULT_CONTEXT_ROLE_BUDGET = 220
 DEFAULT_CONTEXT_CONDUCT_BUDGET = 220
@@ -75,6 +74,8 @@ class Settings(BaseSettings):
         routing_confidence_threshold: LLM 路由结果的最低接纳置信度（ROUTING_CONFIDENCE_THRESHOLD）。
         llm_timeout: (连接超时, 读取超时) 秒（LLM_TIMEOUT，支持 "30,120" 写法）。
         amap_web_service_key: 高德 Web 服务 Key（仅后端读取）。
+        amap_js_api_key: 高德 JS API 的公开 Web 平台 Key。
+        amap_security_js_code: 高德 JS API 安全密钥（只在服务端代理使用）。
         baidu_map_ak: 百度地图服务端 AK（仅后端读取）。
         map_primary_provider: 地图路线主服务标识；未配置 Key 时自动降级为本地估算。
     """
@@ -138,7 +139,11 @@ class Settings(BaseSettings):
     context_trace_budget: int = Field(default=DEFAULT_CONTEXT_TRACE_BUDGET, ge=1)
 
     # ------ 地图路线服务（C1-1）------
-    amap_web_service_key: str = Field(default="", validation_alias="AMAP_WEB_SERVICE_KEY")
+    amap_web_service_key: str = Field(default="", validation_alias="AMAP_WEB_SERVICE_KEY", repr=False)
+    amap_js_api_key: str = Field(default="", validation_alias="AMAP_JS_API_KEY", repr=False)
+    amap_security_js_code: str = Field(
+        default="", validation_alias="AMAP_SECURITY_JS_CODE", repr=False
+    )
     baidu_map_ak: str = Field(default="", validation_alias="BAIDU_MAP_AK")
     map_primary_provider: str = Field(default="amap", validation_alias="MAP_PRIMARY_PROVIDER")
 
@@ -152,6 +157,11 @@ class Settings(BaseSettings):
     def has_amap_web_service_key(self) -> bool:
         """是否配置了可用的高德 Web 服务 Key（占位值视为未配置）。"""
         return bool(self.amap_web_service_key) and not self.amap_web_service_key.startswith("your-")
+
+    @property
+    def has_amap_js_credentials(self) -> bool:
+        """JS API 的 Web Key 与服务端安全密钥是否同时配置。"""
+        return bool(self.amap_js_api_key.strip()) and bool(self.amap_security_js_code.strip())
 
     @property
     def has_baidu_map_ak(self) -> bool:

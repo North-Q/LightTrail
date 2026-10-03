@@ -18,11 +18,14 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from lighttrail.application.router import RuleIntentRouter
+from lighttrail.contracts.context import RequestContext
 from lighttrail.contracts.models import DecisionCard, Intent, RoutingDecision
+from lighttrail.contracts.plan import DEFAULT_PIPELINE_MAX_STEPS, DEFAULT_PLAN_MAX_STEPS
+from lighttrail.contracts.tool import ToolContext
 from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.trace import Recorder, null_trace
 from lighttrail.infra.validation import parse_with_retry
-from lighttrail.llm.router import ModelRouter
+from lighttrail.llm.router import ModelRouter, RouteIntent
 from lighttrail.memory import MemoryManager
 from lighttrail.orchestrator.context import PipelineContext
 from lighttrail.orchestrator.pipelines import PIPELINES, PipelineEnv, default_mode, finalize_card
@@ -36,11 +39,17 @@ logger = logging.getLogger("lighttrail.orchestrator")
 _INTENT_SYSTEM = "你是 LightTrail 摄影决策引擎的意图解析器。"
 
 
-def _default_photo_analyze(registry: ToolRegistry, recorder: Recorder) -> Callable[[str, str], dict]:
+def _default_photo_analyze(
+    registry: ToolRegistry, recorder: Recorder, tool_context: ToolContext | None
+) -> Callable[[str, str], dict]:
     """默认照片分析绑定：经注册表调用已注入依赖的领域工具。"""
+
     def analyze(image_path: str, focus: str) -> dict:
         raw = registry.dispatch(
-            "analyze_photo", json.dumps({"image_path": image_path, "focus": focus}), recorder=recorder
+            "analyze_photo",
+            json.dumps({"image_path": image_path, "focus": focus}),
+            tool_context,
+            recorder=recorder,
         )
         result = json.loads(raw)
         if not isinstance(result, dict):
@@ -51,13 +60,15 @@ def _default_photo_analyze(registry: ToolRegistry, recorder: Recorder) -> Callab
 
 
 def _default_photo_reverse(
-    registry: ToolRegistry, recorder: Recorder
+    registry: ToolRegistry, recorder: Recorder, tool_context: ToolContext | None
 ) -> Callable[[str, str, str], dict]:
     """默认照片反推绑定：经注册表调用已注入依赖的领域工具。"""
+
     def reverse(image_path: str, note: str, equipment: str) -> dict:
         raw = registry.dispatch(
             "reverse_engineer_photo",
             json.dumps({"image_path": image_path, "note": note, "equipment": equipment}),
+            tool_context,
             recorder=recorder,
         )
         result = json.loads(raw)
@@ -80,13 +91,18 @@ def _extract_plan_params(plan_reference: str) -> list[dict[str, Any]]:
     return params if isinstance(params, list) else []
 
 
-def _candidate_sites(memory: MemoryManager | None) -> list[dict[str, Any]]:
+def _candidate_sites(memory: MemoryManager | None, request: RequestContext) -> list[dict[str, Any]]:
     """从档案真实 favorite_spots 读取候选机位；无记录时返回空。"""
     if memory is None:
         return []
     return [
-        {"名称": item["name"], "纬度": item["latitude"], "经度": item["longitude"], "题材": item["subject"]}
-        for item in memory.profile.valid_favorite_spots()
+        {
+            "名称": item["name"],
+            "纬度": item["latitude"],
+            "经度": item["longitude"],
+            "题材": item["subject"],
+        }
+        for item in memory.profile_for(request).valid_favorite_spots()
     ]
 
 
@@ -100,6 +116,7 @@ def _build_reverse_plan_prompt(reverse: dict[str, Any], date_iso: str, data: dic
         "请给复刻计划决策卡片：conclusion 须回答『去哪 / 什么时候去 / 怎么拍』三要素。",
     ]
     return "\n\n".join(lines) + "\n\n" + _REVERSE_CARD_INSTRUCTION
+
 
 _REVERSE_CARD_INSTRUCTION = """请只输出如下 JSON 对象（不要任何其他文字）：
 
@@ -140,11 +157,18 @@ def _render_card(card: DecisionCard) -> str:
         lines.append(f"- 时间窗口：{card.time_window}")
     lines.append(f"- 置信度：{card.confidence}")
     if card.locations:
-        lines.append("- 推荐机位：" + "；".join(f"{loc.name}（{loc.reason}）" for loc in card.locations))
+        lines.append(
+            "- 推荐机位：" + "；".join(f"{loc.name}（{loc.reason}）" for loc in card.locations)
+        )
     if card.params:
-        lines.append("- 参数建议：" + "；".join(f"{p.name}={p.value}（{p.reason}）" for p in card.params))
+        lines.append(
+            "- 参数建议：" + "；".join(f"{p.name}={p.value}（{p.reason}）" for p in card.params)
+        )
     if card.evidence:
-        lines.append("- 依据：" + "；".join(f"{e.tool}/{e.field} [置信度 {e.confidence}]" for e in card.evidence))
+        lines.append(
+            "- 依据："
+            + "；".join(f"{e.tool}/{e.field} [置信度 {e.confidence}]" for e in card.evidence)
+        )
     if card.alternatives:
         lines.append("- 备选：" + "；".join(card.alternatives))
     if card.degraded:
@@ -170,6 +194,9 @@ class Orchestrator:
         routing_confidence_threshold: float = 0.6,
         planner: Planner | None = None,
         quota: QuotaLedger | None = None,
+        tool_context: ToolContext | None = None,
+        plan_max_steps: int = DEFAULT_PLAN_MAX_STEPS,
+        pipeline_max_steps: int = DEFAULT_PIPELINE_MAX_STEPS,
     ) -> None:
         """初始化编排器。
 
@@ -186,22 +213,35 @@ class Orchestrator:
             photo_reverse: 照片反推绑定（同上；测试可注入 Fake）。
             intent_router: 规则优先意图路由器；缺省使用项目规则表。
             routing_confidence_threshold: LLM 路由结果的最低接纳置信度（0-1）。
+            tool_context: 装配根创建的请求工具上下文，贯穿管线、Planner 和照片工具。
+            plan_max_steps: 当前部署允许的受控规划最大步数。
+            pipeline_max_steps: 当前部署允许的管线数据采集最大步数。
         """
         self._registry = registry
         self._runtime = agent
         self._recorder: Recorder = recorder or null_trace
         self._router = router or getattr(agent, "router", None)
+        self._tool_context = tool_context
         self._env = PipelineEnv(
             dispatch=dispatch
-            or (lambda name, args: self._registry.dispatch(name, args, recorder=self._recorder)),
+            or (
+                lambda name, args: self._registry.dispatch(
+                    name, args, self._tool_context, recorder=self._recorder
+                )
+            ),
             reason=self._reason_text,
             memory=memory,
             recorder=self._recorder,
             router=self._router,
-            photo_analyze=photo_analyze or _default_photo_analyze(self._registry, self._recorder),
+            photo_analyze=photo_analyze
+            or _default_photo_analyze(self._registry, self._recorder, self._tool_context),
             quota=quota,
+            request=tool_context.request if tool_context is not None else RequestContext(),
+            max_steps=pipeline_max_steps,
         )
-        self._photo_reverse = photo_reverse or _default_photo_reverse(self._registry, self._recorder)
+        self._photo_reverse = photo_reverse or _default_photo_reverse(
+            self._registry, self._recorder, self._tool_context
+        )
         self._intent_router = intent_router or RuleIntentRouter()
         self._routing_confidence_threshold = routing_confidence_threshold
         self._planner = planner or Planner(
@@ -210,6 +250,7 @@ class Orchestrator:
             self._reason_text,
             recorder=self._recorder,
             quota=quota,
+            max_steps=plan_max_steps,
         )
         self.last_card: DecisionCard | None = None
 
@@ -223,25 +264,67 @@ class Orchestrator:
         Returns:
             方案卡片文本；管线失败时返回自由对话回复（原因标注管线降级）。
         """
+        self.last_card = None
         unsupported_reply = self._intent_router.unsupported_reply(user_request)
         if unsupported_reply is not None:
             self._recorder.record_step(
                 "意图路由_超工具集",
                 input_summary=user_request[:80],
-                output_summary="显式诚实告知",
+                output_summary="超出摄影工具能力；显式告知不可代办",
             )
             return unsupported_reply
         try:
+            if self._env.quota is not None and not self._env.quota.check():
+                self._recorder.record_step(
+                    "配额_拒绝", input_summary="plan", output_summary="quota_exhausted"
+                )
+                card = finalize_card(
+                    DecisionCard(
+                        conclusion="当前配额已达上限，本次未发起模型调用。",
+                        evidence=[],
+                        confidence="low",
+                        verdict="wait",
+                        degraded="quota_exhausted",
+                    )
+                )
+                self.last_card = card
+                return _render_card(card)
+            if self._env.quota is not None and self._router is not None:
+                warning = self._env.quota.degrade(RouteIntent.DEEP_REASONING, self._router)
+                if warning is not None:
+                    self._recorder.record_step(
+                        "配额_降级", input_summary="plan", output_summary=warning[:120]
+                    )
+                    card = finalize_card(
+                        DecisionCard(
+                            conclusion="当前配额水位较高，已降级为不发起深推理的保守建议。",
+                            evidence=[],
+                            confidence="low",
+                            verdict="wait",
+                            degraded="quota_high_water",
+                        )
+                    )
+                    self.last_card = card
+                    return _render_card(card)
             if self._intent_router.needs_controlled_plan(user_request):
-                self._recorder.record_step("意图路由_Planner", input_summary=user_request[:80], output_summary="受控规划")
-                card = self._planner.execute(self._planner.make_plan(user_request))
+                self._recorder.record_step(
+                    "意图路由_Planner",
+                    input_summary=user_request[:80],
+                    output_summary="命中复合任务关键词；受控规划",
+                )
+                plan = self._planner.make_plan(user_request)
+                card = (
+                    self._planner.execute(plan, self._tool_context)
+                    if self._tool_context is not None
+                    else self._planner.execute(plan)
+                )
             else:
                 card = self.run_pipeline(user_request)
             self.last_card = card
             return _render_card(card)
         except Exception as exc:  # noqa: BLE001 - 管线任何异常统一降级
             logger.warning("管线执行失败，降级 ReAct：%s", exc)
-            return self._fallback(user_request)
+            return self._fallback(user_request, reason=type(exc).__name__)
 
     def run_pipeline(self, user_request: str, *, mode: str = "") -> DecisionCard:
         """执行一条决策管线。
@@ -262,7 +345,9 @@ class Orchestrator:
         pipeline_name = intent.mode or default_mode(intent.subject_type)
         ctx = PipelineContext(user_request=user_request, intent=intent)
         pipeline = PIPELINES.get(pipeline_name) or PIPELINES[default_mode(intent.subject_type)]
-        self._recorder.record_step(f"管线_{pipeline.name}", input_summary=user_request[:80], output_summary="启动")
+        self._recorder.record_step(
+            f"管线_{pipeline.name}", input_summary=user_request[:80], output_summary="启动"
+        )
         return pipeline.run(ctx, self._env)
 
     def review(self, image_path: str, *, focus: str = "", plan_reference: str = "") -> str:
@@ -284,7 +369,9 @@ class Orchestrator:
             logger.warning("复盘失败，降级 ReAct：%s", exc)
             return self._fallback(f"帮我复盘这张照片（{image_path}）{focus}")
 
-    def run_review(self, image_path: str, *, focus: str = "", plan_reference: str = "") -> DecisionCard:
+    def run_review(
+        self, image_path: str, *, focus: str = "", plan_reference: str = ""
+    ) -> DecisionCard:
         """执行复盘管线：照片分析 + 对账 + reason 复盘卡。
 
         Args:
@@ -352,7 +439,7 @@ class Orchestrator:
         """
         self._recorder.record_step("反推_多模态", input_summary=image_path[:80], output_summary="")
         reverse = self._photo_reverse(image_path, note, equipment)
-        if not _candidate_sites(self._env.memory):
+        if not _candidate_sites(self._env.memory, self._env.request):
             return finalize_card(
                 DecisionCard(
                     conclusion="请先在档案中录入至少一个带经纬度的常用机位，再生成复刻计划。",
@@ -364,21 +451,28 @@ class Orchestrator:
             )
         date_iso, data = self._collect_candidate_day()
         self._recorder.record_step(
-            "反推_候选日", input_summary=date_iso, output_summary=json.dumps(data, ensure_ascii=False)[:120]
+            "反推_候选日",
+            input_summary=date_iso,
+            output_summary=json.dumps(data, ensure_ascii=False)[:120],
         )
         prompt = _build_reverse_plan_prompt(reverse, date_iso, data)
         self._recorder.record_step("反推_综合", input_summary=prompt[:80], output_summary="")
-        return finalize_card(parse_with_retry(DecisionCard, lambda p: self._reason_text(p, ""), prompt))
+        return finalize_card(
+            parse_with_retry(DecisionCard, lambda p: self._reason_text(p, ""), prompt)
+        )
 
     def _collect_candidate_day(self) -> tuple[str, dict[str, Any]]:
         """为复刻选候选日：未来 3 天取平均云量最低（通透优先）作为基准日并采集数据。"""
-        sites = _candidate_sites(self._env.memory)
+        sites = _candidate_sites(self._env.memory, self._env.request)
         if not sites:
             raise ValueError("缺少带经纬度的 favorite_spot")
         lat, lon = sites[0]["纬度"], sites[0]["经度"]
         weather_raw = self._env.dispatch(
             "weather_forecast",
-            json.dumps({"latitude": lat, "longitude": lon, "days": 3, "tz_offset": "+08:00"}, ensure_ascii=False),
+            json.dumps(
+                {"latitude": lat, "longitude": lon, "days": 3, "tz_offset": "+08:00"},
+                ensure_ascii=False,
+            ),
         )
         try:
             weather: dict[str, Any] = json.loads(weather_raw or "{}")
@@ -387,22 +481,30 @@ class Orchestrator:
         daily = weather.get("每日预报") or []
         valid = [d for d in daily if isinstance(d, dict) and d.get("平均云量（%）") is not None]
         best = min(valid, key=lambda d: int(d["平均云量（%）"])) if valid else None
-        date_iso = str(best["日期"]) if best else datetime.now(timezone(timedelta(hours=8))).date().isoformat()
+        date_iso = (
+            str(best["日期"])
+            if best
+            else datetime.now(timezone(timedelta(hours=8))).date().isoformat()
+        )
         data: dict[str, Any] = {"weather_forecast": weather}
         if best:
             data["sun_times"] = json.loads(
                 self._env.dispatch(
                     "sun_times",
-                    json.dumps({"latitude": lat, "longitude": lon, "date": date_iso}, ensure_ascii=False),
+                    json.dumps(
+                        {"latitude": lat, "longitude": lon, "date": date_iso}, ensure_ascii=False
+                    ),
                 )
                 or "{}"
             )
-        moon_raw = self._env.dispatch("moon_phase", json.dumps({"date": date_iso}, ensure_ascii=False))
+        moon_raw = self._env.dispatch(
+            "moon_phase", json.dumps({"date": date_iso}, ensure_ascii=False)
+        )
         try:
             data["moon_phase"] = json.loads(moon_raw or "{}")
         except ValueError:
             data["moon_phase"] = {}
-        data["候选机位"] = _candidate_sites(self._env.memory)
+        data["候选机位"] = _candidate_sites(self._env.memory, self._env.request)
         return date_iso, data
 
     def parse_intent(self, user_request: str) -> Intent:
@@ -422,12 +524,14 @@ class Orchestrator:
             self._recorder.record_step(
                 "意图路由_规则",
                 input_summary=user_request[:80],
-                output_summary=f"{rule_intent.mode}/{rule_intent.subject_type}",
+                output_summary=f"规则关键词命中：{rule_intent.mode}/{rule_intent.subject_type}",
             )
             return rule_intent
 
         prompt = _ROUTING_INSTRUCTION.replace("__REQUEST__", user_request)
-        self._recorder.record_step("意图路由_LLM", input_summary=user_request[:80], output_summary="")
+        self._recorder.record_step(
+            "意图路由_LLM", input_summary=user_request[:80], output_summary=""
+        )
 
         def _chat(prompt_text: str) -> str:
             return self._runtime.complete(prompt_text, system=_INTENT_SYSTEM)
@@ -438,7 +542,7 @@ class Orchestrator:
             input_summary=user_request[:80],
             output_summary=(
                 f"{decision.intent.mode}/{decision.intent.subject_type}/"
-                f"{decision.confidence:.2f}"
+                f"{decision.confidence:.2f}；依据：{decision.reason}"
             ),
         )
         if decision.confidence < self._routing_confidence_threshold:
@@ -446,7 +550,7 @@ class Orchestrator:
                 f"LLM 路由置信度 {decision.confidence:.2f} "
                 f"低于阈值 {self._routing_confidence_threshold:.2f}"
             )
-        return decision.intent
+        return self._intent_router.ground(decision.intent, user_request)
 
     # ------ 内部实现 ------
     def _reason_text(self, prompt: str, system: str) -> str:
@@ -457,12 +561,18 @@ class Orchestrator:
         """降级自由对话（ReAct）：走 runtime.run。"""
         return self._runtime.run(user_request)
 
-    def _fallback(self, user_request: str) -> str:
+    def _fallback(self, user_request: str, *, reason: str = "pipeline_failure") -> str:
         """管线降级：携带卡片上下文转入自由对话（ReAct）。"""
         context_note = ""
         if self.last_card is not None:
-            context_note = f"（背景：管线已产出部分方案「{self.last_card.conclusion}」，可在此基础上追问调整）"
-        self._recorder.record_step("管线降级", input_summary=user_request[:80], output_summary=context_note[:80])
+            context_note = (
+                f"（背景：管线已产出部分方案「{self.last_card.conclusion}」，可在此基础上追问调整）"
+            )
+        self._recorder.record_step(
+            "管线降级",
+            input_summary=user_request[:80],
+            output_summary=f"{reason}；转入 ReAct {context_note}"[:120],
+        )
         return self._run_freeform(user_request + context_note)
 
 

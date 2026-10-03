@@ -30,7 +30,7 @@ TOOLS: tuple[Tool, ...] = (
     *astronomy.TOOLS,
     *weather.TOOLS,
     *site_match.TOOLS,
-    *memory_tool.build_tools(memory_tool.default_store_factory),
+    *memory_tool.build_tools(),
 )
 
 __all__ = [

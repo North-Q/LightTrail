@@ -24,6 +24,8 @@ from httpx import ASGITransport, AsyncClient
 from lighttrail.api.app import ApiDeps, create_app
 from lighttrail.api.events import TraceBridge, map_trace_event, sse_text
 from lighttrail.api.session import SessionManager
+from lighttrail.composition import build_application
+from lighttrail.config import Settings
 from lighttrail.contracts.events import TraceEvent
 from lighttrail.infra.trace import TraceRecorder
 from lighttrail.memory import MemoryManager
@@ -102,21 +104,25 @@ def data_dir() -> Path:
 def make_app(data_dir: Path):
     """按 Fake 依赖构造应用。"""
 
+    applications = []
+
     def _build(responses: list[dict]) -> tuple[object, FakeChatClient]:
         fake = FakeChatClient(responses)
         memory = MemoryManager(data_dir)
-        memory.update_profile({"favorite_spots": [{"name": "测试机位", "latitude": 31.2, "longitude": 121.5}]})
-        deps = ApiDeps(
+        memory.update_profile({"favorite_spots": [{"name": "测试机位", "latitude": 31.2, "longitude": 121.5, "coordinate_system": "WGS84"}]})
+        services = build_application(
+            Settings(_env_file=None, data_dir=str(data_dir), reason_thinking=False),
             client=fake,
-            sessions=SessionManager(data_dir),
             memory=memory,
-            model="ecnu-plus",
-            reason_thinking=False,
             dispatch=_fake_dispatch,
         )
+        applications.append(services)
+        deps = ApiDeps(services=services, sessions=SessionManager(data_dir))
         return create_app(deps), fake
 
-    return _build
+    yield _build
+    for services in applications:
+        services.close()
 
 
 # ------ 事件映射单元测试 ------
@@ -210,7 +216,6 @@ async def test_decide_sse_sequence_order(make_app) -> None:
     """/api/decide：step → tool_call → tool_result → card → done 顺序正确。"""
     app, _ = make_app(
         [
-            {"role": "assistant", "content": _intent_json("火烧云", mode="live")},
             {"role": "assistant", "content": _card_json()},
         ]
     )
@@ -271,7 +276,6 @@ async def test_decide_sse_tool_result_carries_structured_data(make_app) -> None:
     """/api/decide 真实链路：tool_result 事件带结构化 data（前端可直接读字段）。"""
     app, _ = make_app(
         [
-            {"role": "assistant", "content": _intent_json("火烧云", mode="live")},
             {"role": "assistant", "content": _card_json()},
         ]
     )

@@ -8,7 +8,13 @@ from lighttrail.contracts.knowledge import KnowledgeProvider
 from lighttrail.domain.knowledge import CameraSpecsCatalog, FtsKnowledgeProvider
 
 _TABLE = Path(__file__).resolve().parents[1] / "data" / "knowledge" / "camera_specs.yaml"
-_SEED = Path(__file__).resolve().parents[1] / "data" / "knowledge" / "seed" / "atmospheric-knowledge.json"
+_SEED = (
+    Path(__file__).resolve().parents[1]
+    / "data"
+    / "knowledge"
+    / "seed"
+    / "atmospheric-knowledge.json"
+)
 
 
 def test_camera_specs_lookup_returns_pixel_pitch_and_source() -> None:
@@ -38,3 +44,14 @@ def test_fts_trigram_finds_chinese_substring(tmp_path: Path) -> None:
     assert "卷云冰晶" in hits[0].text
     assert hits[0].source
     assert provider.search("不存在") == []
+
+
+def test_fts_natural_question_recalls_fact_without_generic_false_hit(tmp_path: Path) -> None:
+    """完整中文问句可召回知识；无关问句不能仅凭通用措辞误命中。"""
+    provider = FtsKnowledgeProvider(tmp_path / "knowledge.db", _SEED)
+    try:
+        hits = provider.search("卷云冰晶对长波散射有什么影响？")
+        assert [hit.id for hit in hits] == ["cirrus-ice-crystals-longwave-scattering"]
+        assert provider.search("潮汐变化对海岸拍摄有什么影响？") == []
+    finally:
+        provider.close()

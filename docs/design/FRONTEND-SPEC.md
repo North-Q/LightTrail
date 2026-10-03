@@ -4,6 +4,19 @@
 **唯一视觉真源**：`docs/design/delivery/lighttrail-prototype.html`（129KB 单文件，断网可开；**只读，不改**）
 **现状基线**：`frontend/` 已有 3 页（chat/sessions/card），E7-5 交付，212 测试全绿
 
+## 2026-09-30 增量：D2 地图与 D4 原图预览
+
+本节覆盖下文历史原型中“机位地图可以用 Fake 填充”和“E7 后端不新增端点”的旧约束；实施顺序与验收以 `docs/AGENT-ROADMAP.md` 为准。沿用现有设计令牌，不把示意线称作道路路线。
+
+| 页面 | 当前页交互 | 后续接线与降级 |
+|---|---|---|
+| D4 复盘 | 选取有效 jpg/png 后立即显示当前照片和文件名；分析中、失败和停止等待时保留预览；批量结束后预览与最近一张成功卡片对应。预览用 `URL.createObjectURL`，换图/卸载时释放，不写入长期存储。 | E1 为每张照片建立 `CaptureEvent.photos` 引用和对应分析；存原图、读 GPS、长期记忆写入另行告知与确认。无照片时不显示空白图框。 |
+| D2 单机位 | 地图标记与列表双向定位；选中机位显示名称、朝向、适合题材、坐标系及来源。 | S1-2/3 提供已校验坐标和稳定机位 ID 后在 S1-4 接线。未知坐标系/无坐标不落点；地图离线时列表照常可用。 |
+| D2 计划回放 | 导出版本化计划 JSON；URL 只保存题材、日期和机位 ID，恢复时从当前用户列表校验。导入后的冻结计划保留行动时间线与证据，并明确标识未更新实时数据。 | 默认导出移除结构化经纬度；机位名称、来源等用户自填文本仍需分享前核对。导入只做本地校验与展示，不调用地图、天气或 LLM。 |
+| D2 赶场 | 地图按计划顺序显示 2–4 个机位与路线段；路段卡保留距离、耗时、出发/到达、余量、provider、采集时间和降级原因。 | O1-2/3 才接真实路线几何。手工估算只显示“直线示意”；没有路线几何不画道路实线。地图与文字行程必须一致。 |
+
+地图首次加载要告知精确机位坐标会发送给地图服务，由用户主动触发；不能把精确坐标写进 URL、前端持久化或模型生成的文本。高德 JS API 2.0 是优先评估候选，接入条件见 `docs/design/MAP-EVALUATION.md`。桌面端地图与机位/路线列表并排，窄屏先列表后地图；地图标记有同序号文字标签，键盘和屏幕阅读器可在列表完成同样操作。第三方服务失败时显示错误原因，不用假底图。
+
 ## 0. v1.1 增量（2026-09-14，B4 契约单一真源 —— 与本文 v1.0 正文冲突时以本节为准）
 
 1. **契约类型不手抄**：前端契约类型一律取自 `frontend/src/api/generated.ts`（`npm run gen:api`：
@@ -36,9 +49,9 @@
 |---|------|-----------|----------------|----------|
 | 1 | 旅程总览 | `#/home` | 今日决策速览（火烧云环图 + CTA）、四阶段入口卡、最近计划、记忆摘要、下一窗口预告 | Ring、StageCard、TodayCard |
 | 2 | D1 灵感 | `#/d1` | 自然语言输入 + 示例 chips、参考图上传（反推）、方案卡 A/B/C（含依据链） | PromptBox、UploadZone、PlanCard |
-| 3 | D2 规划 | `#/d2` | 机位列表（评分/朝向/距离 + 静态地图）、天象时间线（sky-band）、月相、银河可见窗口、赶场时间轴 | SpotCard、SkyTimeline、RouteTimeline |
+| 3 | D2 规划 | `#/d2` | 机位列表、已核验坐标机位地图、天象时间线（sky-band）、月相、银河可见窗口、赶场时间轴与路线图层 | SpotCard、SpotMap、SkyTimeline、RouteTimeline |
 | 4 | D3 决策 | `#/d3` | 三态大卡 + 倒计时 + 现场模式、依据构成条、置信度三层、曝光三角联动、「为什么这么判断」四步推理、相似历史 | VerdictCard、ConfidencePanel、ProbBars、ExposureTriangle、WhyPanel |
-| 5 | D4 复盘 | `#/d4` | 批量上传区、4 维度分析（曝光/构图/色彩/时间）、可执行处方（高/中/低） | BatchUpload、AnalysisGrid、PrescriptionList |
+| 5 | D4 复盘 | `#/d4` | 批量上传区、当前原图预览、4 维度分析（曝光/构图/色彩/时间）、可执行处方（高/中/低） | BatchUpload、PhotoPreview、AnalysisGrid、PrescriptionList |
 | 6 | M1 记忆 | `#/m1` | 器材档案（可编辑）、事件历史（EXIF 摘要）、语义偏好芯片 | GearCard、EventList、PreferenceChips |
 
 > 全局：顶栏 6 项导航 + 移动端汉堡抽屉；页脚「数据与依据 · 解释中心」模态（全局可开）。
@@ -161,14 +174,16 @@
 
 ## 5. 组件 → API 数据映射表
 
-> 后端 E7-3 五端点 + SSE 8 事件（queued/step/tool_call/tool_result/token/card/error/done）**已够用**。能接端点的接端点；端点和设计稿没有的板块用「示例数据」Fake 渲染。
+> 后端提供 FastAPI 端点和 SSE 8 事件（queued/step/tool_call/tool_result/token/card/error/done）。下表是设计映射，当前实现状态以路线图与代码为准；没有数据的板块应明确标记示例，不得冒充实时结果。
 
 | 设计稿板块 | 数据来源 | 现有 API |
 |---|---|---|
 | 今日决策速览 / 下一窗口预告 | /api/decide（card 事件）或 Fake | `decide` |
 | D1 方案卡 A/B/C | /api/decide（灵感意图） | `decide` |
-| D1 参考图上传反推 | /api/photos/review 或 Fake | `photos/review` |
+| D1 参考图上传反推 | /api/photos/reverse | `photos/reverse` |
 | D2 机位列表 / 天象时间线 / 月相 / 银河窗口 | `tool_result.data`（工具**结构化返回**，按中文字段读，如 `data["日出"]`）/ Fake | `decide` |
+| D2 机位地图 | S1-2 已校验收藏机位坐标 + S1-4 结构化计划选中机位；地图服务仅负责底图和可核验投影 | `profile` / 后续 SpotPlan |
+| D2 赶场路线地图 | O1 路线结果的机位序列与 provider 几何；手工估算仅直线示意 | `chase-plans` / 后续路线契约 |
 | D3 三态卡 | `card.verdict`（go/wait/risk，模型结构化输出） | `decide` |
 | D3 倒计时 | `card.time_window` 文本取首个时刻（本地展示层解析；结构化时间窗待后续契约增补） | `decide` |
 | D3 置信度三层 | `card.confidence_detail`（后端规则推导：score/low/high/basis + 三档计数），前端只渲染 | `decide` |
@@ -176,6 +191,7 @@
 | D3 四步推理 | step 事件（TraceBridge 已推） | `decide` |
 | D3 相似历史命中 | search_memory 工具结果或 Fake | `decide` |
 | D4 批量上传 + 4 维分析 + 处方 | PhotoAnalysisReport（scene/composition/exposure/color/assessment/prescription/suggestions） | `photos/review` |
+| D4 原图预览 | 用户本轮选择的浏览器 `File`，本地临时 Object URL；不从后端会话恢复原图 | 浏览器本地，不调用新端点 |
 | M1 器材档案 | GET/PUT `/api/profile` | `profile` |
 | M1 事件历史 / 偏好芯片 | /api/sessions/{id}、/api/profile 或 Fake | `sessions`/`profile` |
 | 会话历史回放 | /api/sessions/{id} | `sessions` |
@@ -204,7 +220,7 @@
 
 ## 8. Fake 数据标注规范（诚实原则）
 
-- 凡端点和设计稿没有的真实数据（天象时间线细节、机位地图、偏好芯片、相似历史、处方列表），一律用**结构正确的 Fake** 渲染，并在界面显眼处标注「示例数据」。
+- 凡端点和设计稿没有的真实数据（天象时间线细节、偏好芯片、相似历史、处方列表），可用**结构正确的 Fake** 渲染，并在界面显眼处标注「示例数据」。机位地图和路线是行动决策依据，必须使用已核验坐标与路线结果；Fake 仅用于隔离测试或明确标记的离线演示，不进入普通用户规划结果。
 - 不许用假数据冒充真实 API 结果；可解释性诚实是产品底线。
 
 ---

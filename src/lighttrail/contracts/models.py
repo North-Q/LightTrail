@@ -164,6 +164,8 @@ class DecisionCard(BaseModel):
         params: 参数建议列表。
         alternatives: 备选方案文案列表。
         degraded: 降级原因（配额 / 管线降级标注，空串表示未降级）。
+        target_date: 本次拍摄目标日期（请求时区中的 YYYY-MM-DD）。
+        subject_type: 本次请求的拍摄题材，不由收藏机位元数据覆盖。
     """
 
     conclusion: str
@@ -178,6 +180,8 @@ class DecisionCard(BaseModel):
     params: list[ParamSuggestion] = Field(default_factory=list)
     alternatives: list[str] = Field(default_factory=list)
     degraded: str = ""
+    target_date: str = ""
+    subject_type: str = ""
 
 
 __all__ = [

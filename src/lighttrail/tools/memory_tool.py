@@ -1,37 +1,25 @@
 """事件记忆检索工具（M1.2：search_memory 供 ReAct 主动检索）。
 
-设计要点（架构 v2.0 §2.5，E3-2 落地；B2-3 去全局态）：
+设计要点（架构 v2.0 §2.5，E3-2 落地；R0-3 请求身份接线）：
 - 工具返回结构化中文事件列表（含坐标与天气/天象快照），供模型做个性化判断、
   复拍对比（D2.3-07）等需要历史记忆的场景主动检索；
-- 存储依赖**经构造注入**（store_factory）：本模块无模块级可写全局、无 setter ——
-  测试与装配根各自构造自己的 SearchMemoryTool，互不污染（R1/R2 的解药）；
+- 生产检索只经 ToolContext.memory 与 ToolContext.request，缺少请求记忆时明确报错，
+  不回落到部署根目录的旧事件库；
 - 检索三个维度：关键词（地点/摘要/标签模糊）、地点、题材，参数化查询防注入。
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
-from pathlib import Path
+from collections.abc import Sequence
 from typing import Any
 
-from lighttrail.config import load_settings
+from lighttrail.contracts.memory import EventRecord as ContractEventRecord
 from lighttrail.contracts.tool import Confidence, Tool, ToolContext, ToolResult, ToolSpec
 from lighttrail.memory.events import EventRecord, EventStore
 
 
-def default_store_factory() -> EventStore:
-    """按部署配置构造默认事件存储（data_dir/events.db）。
-
-    由装配根（或迁移期收集点）调用；本模块不持有任何全局存储实例。
-
-    Returns:
-        事件存储实例。
-    """
-    return EventStore(Path(load_settings().data_dir) / "events.db")
-
-
-def _event_to_dict(event: EventRecord) -> dict[str, Any]:
+def _event_to_dict(event: EventRecord | ContractEventRecord) -> dict[str, Any]:
     """把事件记录转为工具返回的中文字段 dict。"""
     return {
         "时间": event.timestamp,
@@ -112,6 +100,11 @@ def search_memory(
         subject_type=subject_type or None,
         limit=limit,
     )
+    return _format_events(events)
+
+
+def _format_events(events: Sequence[EventRecord | ContractEventRecord]) -> dict[str, Any]:
+    """把当前命名空间的检索结果转为工具可读数据。"""
     return {
         "命中数": len(events),
         "事件": [_event_to_dict(event) for event in events],
@@ -120,41 +113,45 @@ def search_memory(
 
 
 class SearchMemoryTool:
-    """事件记忆检索工具：存储经构造注入（无模块级全局与服务定位器）。
-
-    Args:
-        store_factory: 事件存储工厂（每次调用取一次，便于装配根懒加载与测试注入）。
-    """
+    """事件记忆检索工具：从请求上下文解析用户命名空间。"""
 
     spec = _SPEC_SEARCH_MEMORY
 
-    def __init__(self, store_factory: Callable[[], EventStore]) -> None:
-        self._store_factory = store_factory
-
     def __call__(self, ctx: ToolContext, **kwargs: Any) -> ToolResult:
-        """执行检索（依赖从工厂取，ctx 未用）。
+        """只查询当前请求用户的事件记忆。
 
         Args:
-            ctx: 运行上下文（本工具依赖在构造时注入）。
+            ctx: 携带用户身份和记忆端口的工具上下文。
             **kwargs: 检索参数。
 
         Returns:
             工具返回载体。
         """
-        data = search_memory(self._store_factory(), **kwargs)
+        limit = kwargs.get("limit", 5)
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 10:
+            data: dict[str, Any] = {"error": "limit 须在 1-10 之间"}
+        elif ctx.memory is None:
+            data = {"error": "当前请求未装配用户记忆"}
+        else:
+            events = ctx.memory.search_events(
+                ctx.request,
+                str(kwargs.get("query") or ""),
+                location=str(kwargs.get("location") or "") or None,
+                subject_type=str(kwargs.get("subject_type") or "") or None,
+                limit=limit,
+            )
+            data = _format_events(events)
+            data["数据来源"] = f"用户事件记忆：{ctx.request.user_id}"
         return ToolResult(content=json.dumps(data, ensure_ascii=False, default=str), data=data)
 
 
-def build_tools(store_factory: Callable[[], EventStore]) -> tuple[Tool, ...]:
-    """构造本模块工具（依赖显式注入；装配根/测试各自构造自己的实例）。
-
-    Args:
-        store_factory: 事件存储工厂。
+def build_tools() -> tuple[Tool, ...]:
+    """构造由 ToolContext 提供请求记忆的声明式工具。
 
     Returns:
         本模块的声明式工具元组。
     """
-    return (SearchMemoryTool(store_factory),)
+    return (SearchMemoryTool(),)
 
 
-__all__ = ["SearchMemoryTool", "build_tools", "default_store_factory", "search_memory"]
+__all__ = ["SearchMemoryTool", "build_tools", "search_memory"]

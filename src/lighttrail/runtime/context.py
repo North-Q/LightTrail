@@ -1,11 +1,11 @@
-"""上下文构建（runtime 层，B2-6 自 agent/context.py 迁入）：五层系统提示组装。
+"""上下文构建（runtime 层，B2-6 自 agent/context.py 迁入）：分层系统提示组装。
 
 设计要点（架构 v2.0 §2.7 语义保留；v4 §2.4 热插拔）：
 - 工具层（③）由**注册表自动生成**：`registry.to_openai_schema()` → 中文说明段落，
   新增工具后能力叙述自动包含，无需手改任何提示词（消灭 DEFAULT_ROLE_PROMPT 手写清单）；
 - 系统提示按「变化频率升序」分为五层：① 角色与使命（静态）→ ② 行为准则（静态）
   → ③ 工具使用说明（半静态，注册表变更时刷新）→ ④ 用户档案+语义记忆（动态，注入器）
-  → ⑤ 会话轨迹摘要（动态，注入器）；
+  → ⑤ 命中领域知识（动态，按需检索）→ ⑥ 会话轨迹摘要（动态，注入器）；
 - ①②③ 构成静态前缀：多轮对话间字节不变，服务平台 prompt 缓存命中（命中价 1/5）；
 - 每层独立 token 预算与版本号：版本注释头只含静态层版本（保证静态前缀字节稳定），
   动态层在段尾带版本注释，供回归 diff；
@@ -68,8 +68,8 @@ _DEFAULT_BUDGETS: dict[str, int] = {
     LAYER_ROLE: 220,
     LAYER_CONDUCT: 220,
     LAYER_TOOLS: 1200,
-        LAYER_PROFILE: 400,
-        LAYER_KNOWLEDGE: 300,
+    LAYER_PROFILE: 400,
+    LAYER_KNOWLEDGE: 300,
     LAYER_TRACE: 300,
 }
 _TRUNCATE_MARKER = "…（超预算截断）"
@@ -115,15 +115,17 @@ def _section_block(layer: str, heading: str, text: str, version: str) -> str:
 
 
 class ContextBuilder:
-    """五层系统提示的组装器。
+    """六层系统提示的组装器。
 
     Args:
         role_prompt: 第①层「角色与使命」静态文本。
         conduct_prompt: 第②层「行为准则」静态文本。
         registry: 工具注册表，用于生成第③层「可用工具」说明（半静态，变更自动刷新）。
-        profile_provider: 第④层注入器，返回「用户档案+语义记忆」文本；未设置时省略该层。
+        profile_provider: 兼容旧无参档案注入器。
+        memory_provider: 本轮查询驱动的用户记忆注入器；优先于 profile_provider。
         knowledge_provider: 全局只读知识检索端口；仅当前请求命中时注入，绝不常驻。
-        trace_provider: 第⑤层注入器，返回「会话轨迹摘要」文本；未设置时省略该层。
+        knowledge_source_reporter: 知识命中时记录查询与来源的回调。
+        trace_provider: 第⑥层注入器，返回「会话轨迹摘要」文本；未设置时省略该层。
         budgets: 各层 token 预算覆盖（键为层名，默认见 _DEFAULT_BUDGETS）。
         layer_versions: 各层版本号覆盖（键为层名，如 {"profile": "3"} → layer:profile@3）。
     """
@@ -135,7 +137,9 @@ class ContextBuilder:
         conduct_prompt: str = DEFAULT_CONDUCT_PROMPT,
         registry: ToolRegistry | None = None,
         profile_provider: Callable[[], str] | None = None,
+        memory_provider: Callable[[str], str] | None = None,
         knowledge_provider: KnowledgeProvider | None = None,
+        knowledge_source_reporter: Callable[[str, str], None] | None = None,
         trace_provider: Callable[[], str] | None = None,
         budgets: Mapping[str, int] | None = None,
         layer_versions: Mapping[str, str | int] | None = None,
@@ -150,7 +154,11 @@ class ContextBuilder:
             LAYER_TRACE: trace_provider,
         }
         self._knowledge_provider = knowledge_provider
+        self._memory_provider = memory_provider
+        self._memory_query = ""
         self._knowledge_query = ""
+        self._knowledge_source_reporter = knowledge_source_reporter
+        self._reported_knowledge_queries: set[str] = set()
         self._budgets: dict[str, int] = dict(_DEFAULT_BUDGETS)
         if budgets:
             self._budgets.update(budgets)
@@ -176,6 +184,10 @@ class ContextBuilder:
         """设置本轮知识检索查询词（空串意味着不注入）。"""
         self._knowledge_query = query.strip()
 
+    def set_memory_query(self, query: str) -> None:
+        """设置本轮记忆检索意图，供当前用户的动态记忆层使用。"""
+        self._memory_query = query.strip()
+
     def build(self, system_prompt: str, history: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
         """兼容薄封装：不经分层，把传入的 system_prompt 原样作为系统提示。
 
@@ -189,7 +201,7 @@ class ContextBuilder:
         return [{"role": "system", "content": system_prompt}, *history]
 
     def build_system_prompt(self) -> str:
-        """按 ①→⑤ 顺序组装分层系统提示（含版本注释头）。
+        """按 ①→⑥ 顺序组装分层系统提示（含版本注释头）。
 
         Returns:
             分层后的系统提示全文；静态前缀（头 + ①②③）在多轮调用间字节不变。
@@ -227,6 +239,8 @@ class ContextBuilder:
             return self._tools_section()
         if layer == LAYER_KNOWLEDGE:
             return self._knowledge_section()
+        if layer == LAYER_PROFILE and self._memory_provider is not None:
+            return self._memory_provider(self._memory_query)
         provider = self._providers.get(layer)
         if provider is None:
             return ""
@@ -237,6 +251,14 @@ class ContextBuilder:
         if self._knowledge_provider is None or not self._knowledge_query:
             return ""
         chunks = self._knowledge_provider.search(self._knowledge_query)
+        if (
+            chunks
+            and self._knowledge_source_reporter is not None
+            and self._knowledge_query not in self._reported_knowledge_queries
+        ):
+            sources = "；".join(f"{chunk.source}（版本 {chunk.version}）" for chunk in chunks)
+            self._knowledge_source_reporter(self._knowledge_query, sources)
+            self._reported_knowledge_queries.add(self._knowledge_query)
         return "\n".join(
             f"- {chunk.text}\n  来源：{chunk.source}（版本 {chunk.version}）" for chunk in chunks
         )

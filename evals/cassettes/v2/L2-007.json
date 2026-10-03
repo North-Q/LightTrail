@@ -1,0 +1,52 @@
+{
+  "case_id": "L2-007",
+  "kind": "offline_fixture",
+  "request": "2026-10-01去西岸拍日出",
+  "responses": {
+    "card": {
+      "conclusion": "2026-10-01去西岸拍日出，依据日出05:45，建议按计划出发。",
+      "evidence": [
+        {
+          "tool": "sun_times",
+          "field": "日出",
+          "confidence": "high",
+          "note": "离线合成：日出 05:45"
+        }
+      ],
+      "confidence": "medium",
+      "verdict": "go",
+      "time_window": "2026-10-01 17:30-18:30",
+      "locations": [
+        {
+          "name": "西岸",
+          "reason": "用户档案中带坐标的机位"
+        }
+      ],
+      "params": [],
+      "alternatives": [],
+      "degraded": "",
+      "target_date": "2026-10-01",
+      "subject_type": "日出"
+    }
+  },
+  "tool_results": {
+    "weather_forecast": {
+      "每日预报": [
+        {
+          "日期": "2026-10-01",
+          "平均云量（%）": 18
+        }
+      ],
+      "数据来源": "离线合成"
+    },
+    "sun_times": {
+      "日出": "05:45",
+      "日落": "18:05",
+      "数据来源": "离线合成"
+    },
+    "sunset_glow_score": {
+      "评分（0-100）": 62,
+      "数据来源": "离线合成"
+    }
+  }
+}

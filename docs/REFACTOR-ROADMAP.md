@@ -1,8 +1,8 @@
 # LightTrail（光迹）· 架构重构路线图（B0–B7）
 
 > **版本**：v1.1 ｜ **日期**：2026-09-17
-> **状态**：B0–B7 已于 2026-09-16 全部完成，本文件保留为架构重建的验收记录，不再新增执行任务。后续功能任务见 [`POST-REFACTOR-ROADMAP.md`](POST-REFACTOR-ROADMAP.md)。
-> **唯一权威依据**：`docs/architecture-v4-proposal.md`（D1–D14 全部拍板定稿）。本路线图不重复方案论证，只做任务拆解；任务与方案的对应关系以「§x」引用标注。
+> **状态**：**历史档案，禁止继续领取或新增任务。** B0–B7 已于 2026-09-16 全部完成；当前状态和后续任务只见 [`AGENT-ROADMAP.md`](AGENT-ROADMAP.md)。
+> **历史依据**：`docs/architecture-v4-proposal.md`（D1–D14）。本文件只保留当时的任务拆解与验收证据，不代表当前代码状态。
 > **接替关系**：E1–E9 时代的旧路线图已归档至 `docs/archive/DEVELOPMENT-ROADMAP-v2.5.md`（仅作历史查阅，不再执行）。E9/E10 等未做功能项的去留见 v4 §9 需求范围表（被动提醒 E9-1/E9-2 延后至重构后，E9-3 砍掉，token 流式延后）。
 
 ---
@@ -629,4 +629,4 @@ graph LR
 
 ---
 
-*本路线图 v1.1 是 B0–B7 的完成记录，与 `architecture-v4-proposal.md`（定稿）配套；后续开发不再沿用本文件新增批次。*
+*本路线图 v1.1 是 B0–B7 的历史完成记录；后续开发只按 `docs/AGENT-ROADMAP.md` 推进。*

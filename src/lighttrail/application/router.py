@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from lighttrail.contracts.models import Intent
@@ -41,6 +42,15 @@ _SUBJECT_KEYWORDS: tuple[str, ...] = (
 )
 
 _TIME_KEYWORDS: tuple[str, ...] = (
+    "下周末",
+    "下周六",
+    "下周日",
+    "这周六",
+    "这周日",
+    "本周六",
+    "本周日",
+    "周六",
+    "周日",
     "今天",
     "今晚",
     "明天",
@@ -106,12 +116,31 @@ class RuleIntentRouter:
             return None
         for rule in self._rules:
             if any(keyword in request for keyword in rule.keywords):
+                location = self._location_hint(request)
+                subject_request = request.replace(location, "", 1) if location else request
                 return Intent(
-                    subject_type=self._subject_type(request),
+                    subject_type=self._subject_type(subject_request),
+                    location=location,
                     time_hint=self._time_hint(request),
                     mode=rule.mode,
                 )
         return None
+
+    def ground(self, intent: Intent, user_request: str) -> Intent:
+        """用原文中可直接核实的地点、日期和题材修正 LLM 意图。"""
+        location = self._location_hint(user_request)
+        subject_request = user_request.replace(location, "", 1) if location else user_request
+        subject = self._subject_type(subject_request)
+        time_hint = self._time_hint(user_request)
+        return intent.model_copy(
+            update={
+                "subject_type": subject if subject != "其他" else intent.subject_type,
+                "location": location or (
+                    intent.location if intent.location and intent.location in user_request else ""
+                ),
+                "time_hint": time_hint or intent.time_hint,
+            }
+        )
 
     # ------ 内部实现 ------
     @staticmethod
@@ -123,10 +152,24 @@ class RuleIntentRouter:
     @staticmethod
     def _time_hint(user_request: str) -> str:
         """提取首个明确时间词；不做不可靠的自然语言日期推断。"""
+        iso_date = re.search(r"(?<!\d)\d{4}-\d{2}-\d{2}(?!\d)", user_request)
+        if iso_date is not None:
+            return iso_date.group()
         for keyword in _TIME_KEYWORDS:
             if keyword in user_request:
                 return keyword
         return ""
+
+    @staticmethod
+    def _location_hint(user_request: str) -> str:
+        """只提取明确的「在/去/到某地拍」地点短语，未识别时留空。"""
+        match = re.search(
+            r"(?:在|去|到|前往)([^\s，。！？拍看]{2,30}?)(?:拍|摄影|看|观测)",
+            user_request,
+        )
+        if match is None:
+            return ""
+        return match.group(1).removesuffix("机位")
 
 
 __all__ = ["DEFAULT_INTENT_RULES", "IntentRule", "RuleIntentRouter"]

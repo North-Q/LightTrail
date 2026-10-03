@@ -13,17 +13,14 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from typing import Any
 
 from lighttrail.composition import (
-    build_client,
-    build_memory,
-    build_orchestrator,
-    build_provider,
-    build_recorder,
-    build_registry,
-    build_runtime,
+    ApplicationServices,
+    build_application,
     load_settings,
 )
+from lighttrail.contracts.context import RequestContext
 from lighttrail.infra.trace import TraceEvent
 
 BANNER = "LightTrail · 光迹（拍摄决策引擎）—— 输入 /help 查看命令"
@@ -74,7 +71,22 @@ def _print_progress(event: TraceEvent) -> None:
         print(f"[工具] {name} 完成", file=sys.stderr, flush=True)
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(
+    argv: list[str] | None = None,
+    *,
+    services: ApplicationServices | None = None,
+    request_context: RequestContext | None = None,
+) -> int:
+    """解析 CLI 参数并通过统一装配执行请求。
+
+    Args:
+        argv: 命令行参数；空值时读取进程参数。
+        services: 应用服务覆盖，供离线集成与嵌入式调用使用。
+        request_context: 调用方确定的身份；默认本地用户。
+
+    Returns:
+        进程退出码。
+    """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
     parser = argparse.ArgumentParser(prog="lighttrail", description="LightTrail · 光迹（拍摄决策引擎）")
@@ -87,33 +99,28 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     _configure_stdio()
-    settings = load_settings()
-    if not settings.has_api_key:
+    settings = services.settings if services is not None else load_settings()
+    if services is None and not settings.has_api_key:
         print("未检测到有效 API Key。请复制 .env.example 为 .env，填入 LLM_API_KEY 后重试（ECNU_API_KEY 兼容）。")
         return 1
 
-    # 装配根是唯一的 new 点（B2-4）：CLI 不再取模块级全局单例
-    recorder = build_recorder()
-    recorder.subscribe(_print_progress)
-    client = build_client(settings)
-    registry = build_registry(recorder=recorder, photo_client_factory=lambda: client)
-    memory = build_memory(settings)
-    # B2-7：自由对话走 PydanticAI runtime（--pipeline 的编排器仍用旧 Agent，切换见 B2-7 剩余项）
-    runtime = build_runtime(
-        build_provider(settings), registry, settings, recorder=recorder, memory=memory
-    )
+    active_services = services if services is not None else build_application(settings)
+    context = request_context if request_context is not None else RequestContext()
+    try:
+        if args.pipeline:
+            scope = active_services.create_scope(context)
+            scope.recorder.subscribe(_print_progress)
+            print(scope.orchestrator.plan(" ".join(args.pipeline)))
+            return 0
+        return _chat_loop(active_services, context)
+    finally:
+        if services is None:
+            active_services.close()
 
-    if args.pipeline:
-        request = " ".join(args.pipeline)
-        orchestrator = build_orchestrator(
-            registry,
-            runtime,
-            memory=memory,
-            recorder=recorder,
-            settings=settings,
-        )
-        print(orchestrator.plan(request))
-        return 0
+
+def _chat_loop(services: ApplicationServices, context: RequestContext) -> int:
+    """逐轮创建作用域，只有对话历史在 CLI 会话中显式传递。"""
+    history: list[Any] = []
 
     print(BANNER)
     while True:
@@ -129,7 +136,7 @@ def main(argv: list[str] | None = None) -> int:
             print("再见！")
             return 0
         if user_input == "/reset":
-            runtime.reset()
+            history = []
             print("（已清空对话历史）")
             continue
         if user_input == "/help":
@@ -137,7 +144,11 @@ def main(argv: list[str] | None = None) -> int:
             continue
 
         try:
-            reply = runtime.run(user_input)
+            scope = services.create_scope(context)
+            scope.recorder.subscribe(_print_progress)
+            scope.runtime.load_messages(history)
+            reply = scope.runtime.run(user_input)
+            history = scope.runtime.messages
         except Exception as exc:  # noqa: BLE001 - CLI 层兜底，避免直接崩溃
             print(f"[错误] {exc}")
             continue

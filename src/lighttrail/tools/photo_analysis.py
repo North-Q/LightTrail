@@ -9,7 +9,7 @@
 - **输出走 pydantic schema**（PhotoAnalysisReport，E5-2 契约）——校验失败把错误
   回传模型自愈（≤2 次），仍失败抛 SchemaError 由工具层返回可读错误；
 - **图片控 token**：最长边 ≤1024 缩放 + JPEG 压缩 + base64；EXIF 经 exifread 提取；
-- **处方结合器材**：优先显式 equipment 参数，缺省从 data/profile.json 档案读取，
+- **处方结合器材**：优先显式 equipment 参数，缺省经 ToolContext 读取当前用户档案，
   让处方落在具体参数（D4-04）而非泛泛点评。
 """
 
@@ -25,7 +25,6 @@ from typing import Any
 
 from PIL import Image, ImageOps
 
-from lighttrail.config import load_settings
 from lighttrail.contracts.llm import SyncLLMClient
 from lighttrail.contracts.models import PhotoAnalysisReport, PhotoReverseReport
 from lighttrail.contracts.tool import Confidence, Tool, ToolContext, ToolResult, ToolSpec
@@ -124,22 +123,11 @@ def _read_exif(image_path: str | Path) -> dict[str, str]:
     return result
 
 
-def _read_gear() -> str:
-    """从 data/profile.json 档案读取器材背景（缺省空串，显式 equipment 优先）。"""
-    try:
-        profile_path = Path(load_settings().data_dir) / "profile.json"
-        if not profile_path.exists():
-            return ""
-        raw = json.loads(profile_path.read_text(encoding="utf-8"))
-    except (ValueError, OSError):
+def _read_gear(ctx: ToolContext | None) -> str:
+    """只从本次请求用户的记忆端口读取器材摘要。"""
+    if ctx is None or ctx.memory is None:
         return ""
-    parts: list[str] = []
-    if raw.get("camera_body"):
-        parts.append(str(raw["camera_body"]))
-    lenses = raw.get("lenses") or []
-    if lenses:
-        parts.append("镜头：" + "、".join(str(item) for item in lenses))
-    return "；".join(parts)
+    return ctx.memory.equipment_for(ctx.request)
 
 
 class PhotoError(Exception):
@@ -184,6 +172,8 @@ def analyze_photo(
     equipment: str = "",
     *,
     client: SyncLLMClient,
+    ctx: ToolContext | None = None,
+    router: ModelRouter | None = None,
 ) -> dict:
     """多模态分析一张照片：EXIF + 画面 → 构图/曝光/色彩评价 + 可执行处方。
 
@@ -192,18 +182,24 @@ def analyze_photo(
         focus: 分析重点（可空），如「星空对焦与噪点」。
         equipment: 器材覆盖（可空，缺省读用户档案）；如「松下 S5M2 + 14mm f/1.8」。
         client: 多模态客户端（由装配根或测试显式注入）。
+        ctx: 请求工具上下文；缺省不读取档案。
+        router: 能力路由器；生产由装配根注入。
 
     Returns:
         中文结构分析 dict（场景/主体/构图/曝光/色彩/评语/处方/参数建议/EXIF/置信度）。
     """
-    gear = equipment.strip() or _read_gear()
+    gear = equipment.strip() or _read_gear(ctx)
+    active_router = router or ModelRouter()
     exif = _read_exif(image_path)
     encoded = _encode_image(image_path)
     prompt = _build_analysis_prompt(exif, gear, focus)
 
     def _chat(prompt_text: str) -> str:
         # 纠错指令由 parse_with_retry 拼进 prompt（B3-2：不再手写校验重试循环）
-        return _multimodal_call(client, encoded, prompt_text, "")
+        return _multimodal_call(
+            client, encoded, prompt_text, system_prompt=_ANALYZE_SYSTEM,
+            router=active_router,
+        )
 
     try:
         report = parse_with_retry(PhotoAnalysisReport, _chat, prompt, max_retries=_MAX_RETRIES)
@@ -234,32 +230,37 @@ def _build_analysis_prompt(exif: dict[str, str], gear: str, focus: str) -> str:
     return "\n".join(lines)
 
 
-def _multimodal_call(client: SyncLLMClient, encoded: str, prompt: str, last_error: str) -> str:
-    """一次多模态调用：返回模型文本；校验错误拼进指令（自愈第 N 轮）。
+def _multimodal_call(
+    client: SyncLLMClient,
+    encoded: str,
+    prompt: str,
+    *,
+    system_prompt: str,
+    router: ModelRouter,
+) -> str:
+    """以显式 system prompt 发起一次多模态调用。
 
     Args:
         client: 多模态客户端（显式传入，无模块级全局）。
         encoded: 图片 data URL。
         prompt: 分析指令。
-        last_error: 上一轮结构化校验错误（拼进指令供模型自愈）。
+        system_prompt: 分析或反推专用系统指令。
+        router: 应用装配根的能力路由器。
 
     Returns:
         模型输出文本。
     """
-    instruction = prompt
-    if last_error:
-        instruction += f"\n\n上一次输出未通过结构化校验：{last_error}\n请只输出符合结构的完整 JSON。"
     messages = [
-        {"role": "system", "content": _ANALYZE_SYSTEM},
+        {"role": "system", "content": system_prompt},
         {
             "role": "user",
             "content": [
-                {"type": "text", "text": instruction},
+                {"type": "text", "text": prompt},
                 {"type": "image_url", "image_url": {"url": encoded}},
             ],
         },
     ]
-    model = RouteIntent.VISION.resolve(ModelRouter())
+    model = RouteIntent.VISION.resolve(router)
     response = client.chat(messages, model=model, tools=None, temperature=0.2)
     return response.get("content", "").strip()
 
@@ -326,6 +327,8 @@ def reverse_engineer_photo(
     equipment: str = "",
     *,
     client: SyncLLMClient,
+    ctx: ToolContext | None = None,
+    router: ModelRouter | None = None,
 ) -> dict:
     """反推一张参考图的拍摄方案并给复刻计划。
 
@@ -334,6 +337,8 @@ def reverse_engineer_photo(
         note: 用户补充约束（时间/地点/器材限制等）。
         equipment: 器材覆盖（缺省读用户档案）。
         client: 多模态客户端（由装配根或测试显式注入）。
+        ctx: 请求工具上下文；缺省不读取档案。
+        router: 能力路由器；生产由装配根注入。
 
     Returns:
         中文结构字段（场景/光向/推断时段/机位特征/后期风格/复刻计划/参数建议/置信度）。
@@ -341,13 +346,17 @@ def reverse_engineer_photo(
     Raises:
         PhotoError: 图片读取或输出解析失败（重试后）。
     """
-    gear = equipment.strip() or _read_gear()
+    gear = equipment.strip() or _read_gear(ctx)
+    active_router = router or ModelRouter()
     exif = _read_exif(image_path)
     encoded = _encode_image(image_path)
     prompt = _build_reverse_prompt(exif, gear, note)
 
     def _chat(prompt_text: str) -> str:
-        return _multimodal_call(client, encoded, prompt_text, "")
+        return _multimodal_call(
+            client, encoded, prompt_text, system_prompt=_REVERSE_SYSTEM,
+            router=active_router,
+        )
 
     try:
         report = parse_with_retry(PhotoReverseReport, _chat, prompt, max_retries=_MAX_RETRIES)
@@ -393,16 +402,18 @@ class AnalyzePhotoTool:
 
     Args:
         client_factory: 客户端工厂（每次调用取一次；测试注入 Fake）。
+        router: 应用级模型能力路由。
     """
 
     spec = _SPEC_ANALYZE_PHOTO
 
-    def __init__(self, client_factory: Callable[[], SyncLLMClient]) -> None:
+    def __init__(self, client_factory: Callable[[], SyncLLMClient], router: ModelRouter) -> None:
         self._client_factory = client_factory
+        self._router = router
 
     def __call__(self, ctx: ToolContext, **kwargs: Any) -> ToolResult:
-        """执行多模态分析（依赖从工厂取，ctx 未用）。"""
-        data = analyze_photo(client=self._client_factory(), **kwargs)
+        """以当前用户上下文执行多模态分析。"""
+        data = analyze_photo(client=self._client_factory(), ctx=ctx, router=self._router, **kwargs)
         return ToolResult(content=json.dumps(data, ensure_ascii=False, default=str), data=data)
 
 
@@ -411,29 +422,34 @@ class ReverseEngineerPhotoTool:
 
     Args:
         client_factory: 客户端工厂（每次调用取一次；测试注入 Fake）。
+        router: 应用级模型能力路由。
     """
 
     spec = _SPEC_REVERSE_ENGINEER_PHOTO
 
-    def __init__(self, client_factory: Callable[[], SyncLLMClient]) -> None:
+    def __init__(self, client_factory: Callable[[], SyncLLMClient], router: ModelRouter) -> None:
         self._client_factory = client_factory
+        self._router = router
 
     def __call__(self, ctx: ToolContext, **kwargs: Any) -> ToolResult:
-        """执行照片反推（依赖从工厂取，ctx 未用）。"""
-        data = reverse_engineer_photo(client=self._client_factory(), **kwargs)
+        """以当前用户上下文执行照片反推。"""
+        data = reverse_engineer_photo(client=self._client_factory(), ctx=ctx, router=self._router, **kwargs)
         return ToolResult(content=json.dumps(data, ensure_ascii=False, default=str), data=data)
 
 
-def build_tools(client_factory: Callable[[], SyncLLMClient]) -> tuple[Tool, ...]:
+def build_tools(
+    client_factory: Callable[[], SyncLLMClient], router: ModelRouter
+) -> tuple[Tool, ...]:
     """构造本模块工具（依赖显式注入；装配根/测试各自构造自己的实例）。
 
     Args:
         client_factory: 多模态客户端工厂。
+        router: 应用级模型能力路由器。
 
     Returns:
         本模块的声明式工具元组。
     """
-    return (AnalyzePhotoTool(client_factory), ReverseEngineerPhotoTool(client_factory))
+    return (AnalyzePhotoTool(client_factory, router), ReverseEngineerPhotoTool(client_factory, router))
 
 
 __all__ = [

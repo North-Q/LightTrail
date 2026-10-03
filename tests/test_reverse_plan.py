@@ -125,12 +125,11 @@ def _runtime(
     )
 
 
-def test_reverse_tool_sends_image_and_returns_plan(workdir: Path, monkeypatch) -> None:
+def test_reverse_tool_sends_image_and_returns_plan(workdir: Path) -> None:
     """多模态消息含 image_url + note；VISION 路由默认 plus；返回复刻计划。"""
     image = workdir / "ref.png"
     _make_png(image)
     fake = FakeChatClient([{"role": "assistant", "content": _REVERSE_JSON}])
-    monkeypatch.setattr(photo, "load_settings", lambda: type("S", (), {"data_dir": str(workdir)})())
     result = photo.reverse_engineer_photo(str(image), note="我在杭州，只能周末去", client=fake)
     assert result["复刻计划"].startswith("周末傍晚去临港海边")
     assert "机位特征" in result
@@ -143,7 +142,7 @@ def test_reverse_tool_sends_image_and_returns_plan(workdir: Path, monkeypatch) -
     assert content[1]["type"] == "image_url"
 
 
-def test_reverse_tool_retry_then_succeed(workdir: Path, monkeypatch) -> None:
+def test_reverse_tool_retry_then_succeed(workdir: Path) -> None:
     """首次非法输出 → 纠错重试 → 成功（2 次调用）。"""
     image = workdir / "ref.png"
     _make_png(image)
@@ -153,7 +152,6 @@ def test_reverse_tool_retry_then_succeed(workdir: Path, monkeypatch) -> None:
             {"role": "assistant", "content": _REVERSE_JSON},
         ]
     )
-    monkeypatch.setattr(photo, "load_settings", lambda: type("S", (), {"data_dir": str(workdir)})())
     photo.reverse_engineer_photo(str(image), client=fake)
     assert len(fake.calls) == 2
 
@@ -165,13 +163,12 @@ def test_reverse_tool_registered() -> None:
 
 
 # ------ Orchestrator.reverse_plan（端到端）------
-def test_orchestrator_reverse_plan_full_flow(workdir: Path, monkeypatch) -> None:
+def test_orchestrator_reverse_plan_full_flow(workdir: Path) -> None:
     """参考图 → 反推 → 候选日采集 → reason 综合 → 复刻卡片（含三要素）。"""
     image = workdir / "ref.png"
     _make_png(image)
     # 多模态走 photo 模块客户端；agent.reason 走编排客户端
     photo_fake = FakeChatClient([{"role": "assistant", "content": _REVERSE_JSON}])
-    monkeypatch.setattr(photo, "load_settings", lambda: type("S", (), {"data_dir": str(workdir)})())
     agent_fake = FakeChatClient([{"role": "assistant", "content": _CARD_JSON}])
     runtime = _runtime(agent_fake)
 
@@ -179,7 +176,7 @@ def test_orchestrator_reverse_plan_full_flow(workdir: Path, monkeypatch) -> None
         return photo.reverse_engineer_photo(image_path, note=note, equipment=equipment, client=photo_fake)
 
     memory = MemoryManager(workdir)
-    memory.update_profile({"favorite_spots": [{"name": "临港海边", "latitude": 30.9, "longitude": 121.9}]})
+    memory.update_profile({"favorite_spots": [{"name": "临港海边", "latitude": 30.9, "longitude": 121.9, "coordinate_system": "WGS84"}]})
     orc = Orchestrator(
         registry, runtime, memory=memory, dispatch=_fake_dispatch, photo_reverse=_fake_reverse
     )
@@ -195,7 +192,7 @@ def test_orchestrator_reverse_plan_full_flow(workdir: Path, monkeypatch) -> None
     assert agent_fake.calls[0]["kwargs"]["model"] == "ecnu-max"
 
 
-def test_orchestrator_reverse_plan_fallback_on_failure(workdir: Path, monkeypatch) -> None:
+def test_orchestrator_reverse_plan_fallback_on_failure(workdir: Path) -> None:
     """反推链路失败 → 降级自由对话（agent.run）。"""
     image = workdir / "ref.png"
     _make_png(image)
@@ -206,7 +203,6 @@ def test_orchestrator_reverse_plan_fallback_on_failure(workdir: Path, monkeypatc
             {"role": "assistant", "content": "依旧坏"},
         ]
     )
-    monkeypatch.setattr(photo, "load_settings", lambda: type("S", (), {"data_dir": str(workdir)})())
     agent_fake = FakeChatClient([{"role": "assistant", "content": "复刻不了的话我可以帮你找类似的机位。"}])
     # photo_fake 恒坏 → reverse_engineer_photo 抛 PhotoError → 降级 agent.run
     runtime = _runtime(agent_fake)

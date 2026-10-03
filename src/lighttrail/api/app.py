@@ -1,4 +1,4 @@
-"""FastAPI 应用工厂（E7-3）：单例初始化 Agent/Orchestrator/SessionManager/Ledger。
+"""FastAPI 应用工厂：接入统一应用服务，并管理 Web 会话与生命周期。
 
 设计要点（架构 v2.0 §2.8 / §2.9）：
 - 薄服务层：唯一职责是组装依赖与挂路由，业务逻辑全部在 Agent/Orchestrator；
@@ -12,67 +12,29 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
-from dataclasses import dataclass, field
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 
-from lighttrail.adapters.llm.client import ChatClient
 from lighttrail.api.routes import router
 from lighttrail.api.session import SessionManager
-from lighttrail.composition import (
-    build_client,
-    build_memory,
-    build_registry,
-    build_travel_provider,
-    load_settings,
-)
-from lighttrail.config import DEFAULT_MODEL
-from lighttrail.domain.chase import ManualTravelTimeProvider, TravelTimeProvider
-from lighttrail.memory import MemoryManager
-from lighttrail.runtime.registry import ToolRegistry
-from lighttrail.tools import (  # noqa: F401  触发全部工具注册
-    astronomy,
-    basic,
-    exposure,
-    memory_tool,
-    photo_analysis,
-    site_match,
-    weather,
-)
+from lighttrail.composition import ApplicationServices, build_application, load_settings
+from lighttrail.contracts.spot_plan import SpotPlan
 
 logger = logging.getLogger("lighttrail.api.app")
 
 
 @dataclass
 class ApiDeps:
-    """Web 服务运行依赖（测试可整体替换为 Fake）。
+    """Web 入口依赖：统一应用服务与仅负责交互持久化的会话管理器。"""
 
-    Attributes:
-        client: LLM 客户端（默认真实 Settings + QuotaLedger）。
-        sessions: 会话管理器。
-        memory: 记忆管理器（档案/事件/语义）。
-        registry: 工具注册表。
-        model: 对话/工具主模型。
-        reason_thinking: 深推理扩展参数开关（平台中立，见 ADR-003）。
-        dispatch: 数据采集函数覆盖（测试 Fake 数据源用；默认注册表直调）。
-        photo_analyze: 照片分析覆盖（测试 Fake 用；默认 evaluate 真实链路）。
-        travel_provider: 赶场路线服务；缺省为离线保守估算，测试可注入 Fake。
-    """
-
-    client: ChatClient
+    services: ApplicationServices
     sessions: SessionManager
-    memory: MemoryManager
-    registry: ToolRegistry = field(default_factory=build_registry)
-    model: str = DEFAULT_MODEL
-    reason_thinking: bool = True
-    dispatch: Callable[[str, str], str] | None = None
-    photo_analyze: Callable[[str, str], dict[str, Any]] | None = None
-    photo_reverse: Callable[[str, str, str], dict[str, Any]] | None = None
-    travel_provider: TravelTimeProvider = field(default_factory=ManualTravelTimeProvider)
 
 
 def create_app(deps: ApiDeps | None = None) -> FastAPI:
@@ -85,25 +47,31 @@ def create_app(deps: ApiDeps | None = None) -> FastAPI:
     Returns:
         配置完成的 FastAPI 实例（挂在 app.state.deps）。
     """
+    owns_services = deps is None
     if deps is None:
         settings = load_settings()
         if not settings.has_api_key:
             logger.warning("未配置有效 API Key：服务可启动，但 LLM 调用会失败（请检查 .env）")
         # 装配根是唯一的 new 点（B2-4）
-        client = build_client(settings)
         deps = ApiDeps(
-            client=client,
+            services=build_application(settings),
             sessions=SessionManager(settings.data_dir),
-            memory=build_memory(settings),
-            registry=build_registry(photo_client_factory=lambda: client),
-            model=settings.model,
-            reason_thinking=settings.reason_thinking,
-            travel_provider=build_travel_provider(settings),
         )
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        """仅释放由应用工厂创建的资源，外部注入服务由调用方管理。"""
+        try:
+            yield
+        finally:
+            if owns_services:
+                app.state.deps.services.close()
+
     app = FastAPI(
         title="LightTrail · 光迹",
         description="面向摄影场景的 AI 拍摄决策引擎（Web 服务层）",
         version="0.2.0",
+        lifespan=lifespan,
     )
     app.state.deps = deps
     # 本地开发放开跨域（Vite dev server 端口）；开源发布前按部署域收紧
@@ -142,10 +110,32 @@ def _install_contract_openapi(app: FastAPI) -> None:
             routes=app.routes,
         )
         _strip_stream_fallback(schema)
+        _add_shared_contracts(schema)
         app.openapi_schema = schema
         return schema
 
     app.openapi = _openapi  # type: ignore[method-assign]
+
+
+def _add_shared_contracts(schema: dict[str, Any]) -> None:
+    """仅在端点尚未生成计划契约时补充共享 schema。
+
+    S1-4 起真实计划端点由 FastAPI 发布类型；其输入/输出模式与独立
+    ``model_json_schema`` 的默认值表现不同，不能按字典相等比较或覆盖。
+
+    Args:
+        schema: FastAPI 生成的 OpenAPI 文档。
+    """
+    schemas = schema.setdefault("components", {}).setdefault("schemas", {})
+    if "SpotPlan" in schemas:
+        return
+    for model in (SpotPlan,):
+        model_schema = model.model_json_schema(ref_template="#/components/schemas/{model}")
+        definitions = model_schema.pop("$defs", {})
+        for name, definition in {**definitions, model.__name__: model_schema}.items():
+            if name in schemas and schemas[name] != definition:
+                raise ValueError(f"OpenAPI 组件名称冲突: {name}")
+            schemas[name] = definition
 
 
 def _strip_stream_fallback(schema: dict[str, Any]) -> None:

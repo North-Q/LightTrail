@@ -14,7 +14,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -32,8 +33,12 @@ class RequestContext:
         user_id: 用户标识；本期恒为 "_local"（多用户时由认证中间件填入）。
         session_id: 会话标识（未落会话时为空串）。
         llm_overrides: 请求级 LLM 配置覆盖（per-user Key 的落点）；本期恒 None。
+        tz_offset: 本次请求使用的时区偏移，默认北京时间。
+        requested_at: 本次请求的 UTC 基准时间，用于可复现的相对日期解析。
     """
 
     user_id: str = LOCAL_USER_ID
     session_id: str = ""
     llm_overrides: LLMConfig | None = None
+    tz_offset: str = "+08:00"
+    requested_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

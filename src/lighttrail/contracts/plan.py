@@ -15,6 +15,7 @@ from typing import Any
 
 # 计划步数上限默认值（settings.PLAN_MAX_STEPS 的契约侧默认，B1-5 起与配置对齐）
 DEFAULT_PLAN_MAX_STEPS = 8
+DEFAULT_PIPELINE_MAX_STEPS = 12
 
 
 @dataclass(frozen=True)

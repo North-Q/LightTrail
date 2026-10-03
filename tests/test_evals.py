@@ -12,14 +12,25 @@ from __future__ import annotations
 
 import json
 import sys
+from copy import deepcopy
 from pathlib import Path
+
+import pytest
 
 # evals 是项目根下的顶层包：把仓库根加入 sys.path 以导入
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from evals.fake_data import CassetteChatClient, card, intents
 from evals.judge import LLMJudge, LocalRubric, ToolCrossCheck
-from evals.runner import assert_card, run_l2, run_l3
+from evals.runner import (
+    _load_cases,
+    _load_cassettes,
+    _run_pipeline_case,
+    assert_card,
+    run_l2,
+    run_l3,
+)
+from evals.semantic import assert_semantics
 from lighttrail.contracts.models import ConfidenceDetail, DecisionCard, ParamSuggestion, Source
 from lighttrail.infra.confidence import confidence_detail
 from lighttrail.tools import exposure  # noqa: F401  触发注册
@@ -135,8 +146,8 @@ def test_llm_judge_parses_and_falls_back() -> None:
 
 
 # ------ runner 集成（离线）------
-def test_runner_l2_offline_zero_llm() -> None:
-    """L2 全量回放：全部通过、零 LLM 调用、可重复（两次结果一致）。"""
+def test_runner_l2_v2_passes_without_llm() -> None:
+    """独立合成夹具全部通过语义验收，且离线回放逐条可重复。"""
     report = run_l2()
     assert report["llm_calls"] == 0
     assert report["pipeline_pass"] == report["pipeline_total"]
@@ -146,6 +157,83 @@ def test_runner_l2_offline_zero_llm() -> None:
     assert repeat["pipeline_details"] == report["pipeline_details"]
 
 
+def _tampered_result(case_id: str, changes: dict[str, object]) -> list[str]:
+    """篡改单条模型卡片后经生产管线和语义断言回放。"""
+    case = next(row for row in _load_cases()["pipeline_cases"] if row["id"] == case_id)
+    cassettes = deepcopy(_load_cassettes())
+    payload = json.loads(cassettes[case_id]["card"]["content"])
+    payload.update(changes)
+    cassettes[case_id]["card"]["content"] = json.dumps(payload, ensure_ascii=False)
+    _, _, problems = _run_pipeline_case(case, cassettes)
+    return problems
+
+
+def test_v2_rejects_tianhuangping_answering_shanghai() -> None:
+    """问天荒坪却答上海必须失败，即使模型给了合法卡片结构。"""
+    problems = _tampered_result(
+        "L2-001", {"conclusion": "2026-10-03去上海拍银河，依据月相名称新月出发。",
+                   "locations": [{"name": "上海", "reason": "模型臆造"}]}
+    )
+    assert any("降级" in item or "错误地点" in item for item in problems)
+
+
+def test_v2_rejects_tomorrow_chongming_answering_tonight() -> None:
+    """问明天崇明却答今晚通用建议必须失败。"""
+    problems = _tampered_result(
+        "L2-005", {"conclusion": "今晚可以出去拍晚霞，依据日落18:05。",
+                   "time_window": "今晚 18:00-18:30"}
+    )
+    assert any("降级" in item or "今晚" in item or "日期" in item for item in problems)
+
+
+def test_v2_rejects_wrong_topic_fact_and_personalization() -> None:
+    """错误题材、关键事实和伪造个性化都不能靠关键词或合法 schema 通过。"""
+    assert _tampered_result("L2-004", {"subject_type": "银河"})
+    fact_problems = _tampered_result(
+        "L2-007", {"conclusion": "2026-10-01去西岸拍日出，日出06:45，建议出发。",
+                   "evidence": [{"tool": "sun_times", "field": "日出", "confidence": "high",
+                                 "note": "离线合成：日出 06:45"}]}
+    )
+    assert any("工具事实" in item for item in fact_problems)
+    profile_problems = _tampered_result(
+        "L2-001", {"evidence": [{"tool": "moon_phase", "field": "月相名称",
+                                 "confidence": "high", "note": "新月"}]}
+    )
+    assert any("用户器材依据" in item for item in profile_problems)
+
+
+def test_v2_cassette_cannot_fall_back_to_another_case() -> None:
+    """相同题材也不能跨 case 复用响应，缺失独占夹具直接报错。"""
+    cases = _load_cases()["pipeline_cases"]
+    assert len({case["id"] for case in cases}) == 12
+    assert len(_load_cassettes()) == 12
+    with pytest.raises(KeyError, match="独占 cassette"):
+        _run_pipeline_case(cases[1], {cases[0]["id"]: _load_cassettes()[cases[0]["id"]]})
+    client = CassetteChatClient({"first": {"card": {"content": "{}"}}})
+    client.set_group("second")
+    with pytest.raises(KeyError, match="当前用例"):
+        client.chat([{"role": "user", "content": "输出决策卡片"}])
+
+
+def test_v2_rejects_wrong_tools_and_stale_tool_date() -> None:
+    """工具选错或天气结果没有目标日期时，结构化事实门禁失败。"""
+    case = next(row for row in _load_cases()["pipeline_cases"] if row["id"] == "L2-005")
+    cassette = deepcopy(_load_cassettes()["L2-005"])
+    card = DecisionCard.model_validate_json(cassette["card"]["content"])
+    problems = assert_semantics(card, case, cassette, [], [])
+    assert any("工具选择" in item for item in problems)
+
+    cassette["tool_results"]["weather_forecast"]["每日预报"][0]["日期"] = "2026-09-08"
+    calls = [
+        (name, json.dumps({"date": "2026-09-29", "tz_offset": "+08:00",
+                           "latitude": 31.52, "longitude": 121.95,
+                           "sites": [{"题材": "日落"}]}))
+        for name in case["semantic"]["tools"]
+    ]
+    problems = assert_semantics(card, case, cassette, calls, [])
+    assert any("天气结果不包含目标日期" in item for item in problems)
+
+
 def test_runner_l3_report_structure() -> None:
     """L3 报告：含 4 维均值、diff、交叉校验清单与逐条行。"""
     report = run_l3()
@@ -153,6 +241,7 @@ def test_runner_l3_report_structure() -> None:
     assert "diff_vs_last" in report
     assert isinstance(report["cross_check_findings"], list)
     assert report["samples"] >= 10
+    assert report["semantic_pass"] == report["samples"]
 
 
 def test_assert_card_requires_confidence_detail() -> None:

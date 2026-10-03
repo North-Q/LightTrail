@@ -1,0 +1,349 @@
+{
+  "level": "L3",
+  "ts": "20260928-140714",
+  "elapsed_s": 0.46,
+  "samples": 12,
+  "semantic_pass": 12,
+  "means": {
+    "决策合理性": 3.08,
+    "依据完整性": 2.92,
+    "个性化程度": 2.5,
+    "不确定性坦白": 5.0
+  },
+  "means_llm": {},
+  "diff_vs_last": {
+    "决策合理性": -1.59,
+    "依据完整性": -1.91,
+    "个性化程度": -2.25,
+    "不确定性坦白": 0.83
+  },
+  "cross_check_findings": [],
+  "rows": [
+    {
+      "id": "L2-001",
+      "group": "galaxy",
+      "local": {
+        "决策合理性": {
+          "score": 3,
+          "reason": "",
+          "evidence": []
+        },
+        "依据完整性": {
+          "score": 4,
+          "reason": "2 条依据"
+        },
+        "个性化程度": {
+          "score": 5,
+          "reason": "引用个性化记忆/器材"
+        },
+        "不确定性坦白": {
+          "score": 5,
+          "reason": "置信度透明度"
+        }
+      },
+      "semantic_pass": true,
+      "semantic_problems": [],
+      "cross_check": [],
+      "conclusion": "2026-10-03去天荒坪拍银河，依据月相名称新月，建议按计划出发。"
+    },
+    {
+      "id": "L2-002",
+      "group": "galaxy",
+      "local": {
+        "决策合理性": {
+          "score": 3,
+          "reason": "",
+          "evidence": []
+        },
+        "依据完整性": {
+          "score": 3,
+          "reason": "仅 1 条依据，建议补充来源"
+        },
+        "个性化程度": {
+          "score": 2,
+          "reason": "未见个性化记忆引用"
+        },
+        "不确定性坦白": {
+          "score": 5,
+          "reason": "置信度透明度"
+        }
+      },
+      "semantic_pass": true,
+      "semantic_problems": [],
+      "cross_check": [],
+      "conclusion": "2026-10-03去天荒坪拍星空，依据月相名称新月，建议按计划出发。"
+    },
+    {
+      "id": "L2-003",
+      "group": "galaxy",
+      "local": {
+        "决策合理性": {
+          "score": 3,
+          "reason": "",
+          "evidence": []
+        },
+        "依据完整性": {
+          "score": 3,
+          "reason": "仅 1 条依据，建议补充来源"
+        },
+        "个性化程度": {
+          "score": 2,
+          "reason": "未见个性化记忆引用"
+        },
+        "不确定性坦白": {
+          "score": 5,
+          "reason": "置信度透明度"
+        }
+      },
+      "semantic_pass": true,
+      "semantic_problems": [],
+      "cross_check": [],
+      "conclusion": "2026-09-28去海堤拍银河，依据月相名称新月，建议按计划出发。"
+    },
+    {
+      "id": "L2-004",
+      "group": "live",
+      "local": {
+        "决策合理性": {
+          "score": 3,
+          "reason": "",
+          "evidence": []
+        },
+        "依据完整性": {
+          "score": 3,
+          "reason": "仅 1 条依据，建议补充来源"
+        },
+        "个性化程度": {
+          "score": 2,
+          "reason": "未见个性化记忆引用"
+        },
+        "不确定性坦白": {
+          "score": 5,
+          "reason": "置信度透明度"
+        }
+      },
+      "semantic_pass": true,
+      "semantic_problems": [],
+      "cross_check": [],
+      "conclusion": "2026-09-28去东岸拍火烧云，依据日落18:05，建议按计划出发。"
+    },
+    {
+      "id": "L2-005",
+      "group": "live",
+      "local": {
+        "决策合理性": {
+          "score": 3,
+          "reason": "",
+          "evidence": []
+        },
+        "依据完整性": {
+          "score": 3,
+          "reason": "仅 1 条依据，建议补充来源"
+        },
+        "个性化程度": {
+          "score": 2,
+          "reason": "未见个性化记忆引用"
+        },
+        "不确定性坦白": {
+          "score": 5,
+          "reason": "置信度透明度"
+        }
+      },
+      "semantic_pass": true,
+      "semantic_problems": [],
+      "cross_check": [],
+      "conclusion": "2026-09-29去崇明东滩拍晚霞，依据日落18:05，建议按计划出发。"
+    },
+    {
+      "id": "L2-006",
+      "group": "planning",
+      "local": {
+        "决策合理性": {
+          "score": 3,
+          "reason": "",
+          "evidence": []
+        },
+        "依据完整性": {
+          "score": 3,
+          "reason": "仅 1 条依据，建议补充来源"
+        },
+        "个性化程度": {
+          "score": 2,
+          "reason": "未见个性化记忆引用"
+        },
+        "不确定性坦白": {
+          "score": 5,
+          "reason": "置信度透明度"
+        }
+      },
+      "semantic_pass": true,
+      "semantic_problems": [],
+      "cross_check": [],
+      "conclusion": "2026-09-30去西岸拍日落，依据日落18:05，建议按计划出发。"
+    },
+    {
+      "id": "L2-007",
+      "group": "sun",
+      "local": {
+        "决策合理性": {
+          "score": 3,
+          "reason": "",
+          "evidence": []
+        },
+        "依据完整性": {
+          "score": 3,
+          "reason": "仅 1 条依据，建议补充来源"
+        },
+        "个性化程度": {
+          "score": 2,
+          "reason": "未见个性化记忆引用"
+        },
+        "不确定性坦白": {
+          "score": 5,
+          "reason": "置信度透明度"
+        }
+      },
+      "semantic_pass": true,
+      "semantic_problems": [],
+      "cross_check": [],
+      "conclusion": "2026-10-01去西岸拍日出，依据日出05:45，建议按计划出发。"
+    },
+    {
+      "id": "L2-008",
+      "group": "planning",
+      "local": {
+        "决策合理性": {
+          "score": 3,
+          "reason": "",
+          "evidence": []
+        },
+        "依据完整性": {
+          "score": 3,
+          "reason": "仅 1 条依据，建议补充来源"
+        },
+        "个性化程度": {
+          "score": 2,
+          "reason": "未见个性化记忆引用"
+        },
+        "不确定性坦白": {
+          "score": 5,
+          "reason": "置信度透明度"
+        }
+      },
+      "semantic_pass": true,
+      "semantic_problems": [],
+      "cross_check": [],
+      "conclusion": "2026-10-02去西岸拍蓝调，依据日落18:05，建议按计划出发。"
+    },
+    {
+      "id": "L2-009",
+      "group": "galaxy",
+      "local": {
+        "决策合理性": {
+          "score": 3,
+          "reason": "",
+          "evidence": []
+        },
+        "依据完整性": {
+          "score": 3,
+          "reason": "仅 1 条依据，建议补充来源"
+        },
+        "个性化程度": {
+          "score": 2,
+          "reason": "未见个性化记忆引用"
+        },
+        "不确定性坦白": {
+          "score": 5,
+          "reason": "置信度透明度"
+        }
+      },
+      "semantic_pass": true,
+      "semantic_problems": [],
+      "cross_check": [],
+      "conclusion": "2026-10-03去海堤拍银河，依据月相名称新月，建议按计划出发。"
+    },
+    {
+      "id": "L2-010",
+      "group": "polar",
+      "local": {
+        "决策合理性": {
+          "score": 3,
+          "reason": "",
+          "evidence": []
+        },
+        "依据完整性": {
+          "score": 3,
+          "reason": "仅 1 条依据，建议补充来源"
+        },
+        "个性化程度": {
+          "score": 2,
+          "reason": "未见个性化记忆引用"
+        },
+        "不确定性坦白": {
+          "score": 5,
+          "reason": "置信度透明度"
+        }
+      },
+      "semantic_pass": true,
+      "semantic_problems": [],
+      "cross_check": [],
+      "conclusion": "2027-06-04去北极圈拍日落，依据提示极昼期间无日出日落，建议谨慎评估。"
+    },
+    {
+      "id": "L2-011",
+      "group": "galaxy",
+      "local": {
+        "决策合理性": {
+          "score": 4,
+          "reason": "结论含",
+          "evidence": []
+        },
+        "依据完整性": {
+          "score": 1,
+          "reason": "evidence 为空（M2 缺失）"
+        },
+        "个性化程度": {
+          "score": 5,
+          "reason": "引用个性化记忆/器材"
+        },
+        "不确定性坦白": {
+          "score": 5,
+          "reason": "置信度透明度"
+        }
+      },
+      "semantic_pass": true,
+      "semantic_problems": [],
+      "cross_check": [],
+      "conclusion": "请先在档案中录入至少一个带经纬度的常用机位，再生成拍摄决策。"
+    },
+    {
+      "id": "L2-012",
+      "group": "live",
+      "local": {
+        "决策合理性": {
+          "score": 3,
+          "reason": "",
+          "evidence": []
+        },
+        "依据完整性": {
+          "score": 3,
+          "reason": "仅 1 条依据，建议补充来源"
+        },
+        "个性化程度": {
+          "score": 2,
+          "reason": "未见个性化记忆引用"
+        },
+        "不确定性坦白": {
+          "score": 5,
+          "reason": "置信度透明度"
+        }
+      },
+      "semantic_pass": true,
+      "semantic_problems": [],
+      "cross_check": [],
+      "conclusion": "2026-09-28去东岸拍火烧云，依据日落18:05，建议暂缓并补查天气。"
+    }
+  ],
+  "llm_judge_used": false,
+  "llm_judge_count": 0
+}
