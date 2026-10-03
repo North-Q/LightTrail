@@ -9,14 +9,9 @@ import type { DecisionCard, SSEEvent } from "../api/events";
 import { useSources } from "../context/SourceContext";
 import { DecisionCardView } from "../components/DecisionCard";
 import { CheckIcon, ClockIcon, WarnIcon } from "../components/icons";
+import { changeExposure, exposureValue, type Exposure } from "./exposure";
 
 type Verdict = "go" | "wait" | "risk";
-
-interface SliderState {
-  aperture: number;
-  shutter: number;
-  iso: number;
-}
 
 const STATES: { key: Verdict; label: string; icon: (props: { className?: string }) => ReactElement }[] = [
   { key: "go", label: "去", icon: CheckIcon },
@@ -66,21 +61,18 @@ function formatShutter(seconds: number): string {
   return seconds >= 1 ? `${seconds.toFixed(1)}s` : `1/${Math.round(1 / seconds)}s`;
 }
 
-function evOf(aperture: number, shutter: number, iso: number): number {
-  return Math.log2((aperture * aperture) / shutter) + Math.log2(iso / 100);
-}
-
 export function D3Page() {
   const [input, setInput] = useState("");
   const [card, setCard] = useState<DecisionCard | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
+  const [decisionText, setDecisionText] = useState("");
   const [activeVerdict, setActiveVerdict] = useState<Verdict | null>(null);
   const [fieldMode, setFieldMode] = useState(false);
   const [targetTime, setTargetTime] = useState("");
   const [remaining, setRemaining] = useState(0);
   const [whyOpenMobile, setWhyOpenMobile] = useState(false);
-  const [exposure, setExposure] = useState<SliderState>({ aperture: 4, shutter: 1 / 250, iso: 100 });
+  const [exposure, setExposure] = useState<Exposure>({ aperture: 4, shutter: 1 / 250, iso: 100 });
   const reasonsRef = useRef<{ title: string; detail: string; src: string }[]>([]);
   const [reasons, setReasons] = useState<{ title: string; detail: string; src: string }[]>([]);
   const { addSource } = useSources();
@@ -108,31 +100,7 @@ export function D3Page() {
   const verdict: Verdict | null = useMemo(() => asVerdict(card?.verdict) ?? activeVerdict, [card, activeVerdict]);
 
   // 曝光三角联动（EV 守恒，纯前端）
-  const ev = evOf(exposure.aperture, exposure.shutter, exposure.iso);
-  function setAperture(value: number): void {
-    setExposure((prev) => {
-      const aperture = Math.min(22, Math.max(1, value));
-      const isoFactor = prev.iso / 100;
-      const shutter = (aperture * aperture) / Math.pow(2, evOf(prev.aperture, prev.shutter, prev.iso)) / isoFactor;
-      return { ...prev, aperture, shutter: Math.min(30, Math.max(1 / 8000, shutter)) };
-    });
-  }
-  function setShutter(value: number): void {
-    setExposure((prev) => {
-      const shutter = Math.min(30, Math.max(1 / 8000, value));
-      const isoFactor = prev.iso / 100;
-      const aperture = Math.sqrt((shutter * Math.pow(2, evOf(prev.aperture, prev.shutter, prev.iso)) * isoFactor));
-      return { ...prev, shutter, aperture: Math.min(22, Math.max(1, aperture)) };
-    });
-  }
-  function setIso(value: number): void {
-    setExposure((prev) => {
-      const iso = Math.min(25600, Math.max(50, value));
-      const isoFactor = iso / 100;
-      const shutter = (prev.aperture * prev.aperture) / Math.pow(2, evOf(prev.aperture, prev.shutter, prev.iso)) / isoFactor;
-      return { ...prev, iso, shutter: Math.min(30, Math.max(1 / 8000, shutter)) };
-    });
-  }
+  const ev = exposureValue(exposure);
 
   async function submit(): Promise<void> {
     const text = input.trim();
@@ -140,6 +108,7 @@ export function D3Page() {
       return;
     }
     setError("");
+    setDecisionText("");
     setCard(null);
     setActiveVerdict(null);
     reasonsRef.current = [];
@@ -155,6 +124,8 @@ export function D3Page() {
           if (parsed) {
             setTargetTime(parsed);
           }
+        } else if (event.type === "token") {
+          setDecisionText((previous) => previous + event.content);
         } else if (event.type === "tool_result") {
           if (event.data_source) {
             addSource({ name: event.data_source, note: `${event.name} · ${event.field ?? "结果"}` });
@@ -290,29 +261,29 @@ export function D3Page() {
           </div>
           <div className="param-card">
             <div className="param-name">ISO</div>
-            <div className="param-value">{exposure.iso}</div>
+            <div className="param-value">{Math.round(exposure.iso)}</div>
           </div>
           <div className="param-card">
             <div className="param-name">EV 守恒</div>
             <div className="param-value num">{ev.toFixed(1)}</div>
           </div>
         </div>
-        <p className="page-sub" style={{ margin: "8px 0 0" }}>曝光三角联动（拖动任一滑块，其余自动换算保持 EV）</p>
+        <p className="page-sub" style={{ margin: "8px 0 0" }}>曝光三角联动保持 EV100；超出器材范围时滑块停在可等效的边界。</p>
         <div className="card-block">
           <div className="exp-slider-row">
             <span className="exp-slider-label">光圈</span>
-            <input type="range" min={1} max={22} step={0.1} value={exposure.aperture} onChange={(e) => setAperture(parseFloat(e.target.value))} aria-label="光圈" />
+            <input type="range" min={1} max={22} step="any" value={exposure.aperture} onChange={(e) => setExposure((prev) => changeExposure(prev, "aperture", parseFloat(e.target.value)))} aria-label="光圈" />
             <span className="exp-slider-val">f/{exposure.aperture.toFixed(1)}</span>
           </div>
           <div className="exp-slider-row">
             <span className="exp-slider-label">快门</span>
-            <input type="range" min={1 / 8000} max={30} step={1 / 1000} value={exposure.shutter} onChange={(e) => setShutter(parseFloat(e.target.value))} aria-label="快门" />
+            <input type="range" min={1 / 8000} max={30} step="any" value={exposure.shutter} onChange={(e) => setExposure((prev) => changeExposure(prev, "shutter", parseFloat(e.target.value)))} aria-label="快门" />
             <span className="exp-slider-val">{formatShutter(exposure.shutter)}</span>
           </div>
           <div className="exp-slider-row">
             <span className="exp-slider-label">ISO</span>
-            <input type="range" min={50} max={25600} step={50} value={exposure.iso} onChange={(e) => setIso(parseFloat(e.target.value))} aria-label="ISO" />
-            <span className="exp-slider-val num">{exposure.iso}</span>
+            <input type="range" min={50} max={25600} step="any" value={exposure.iso} onChange={(e) => setExposure((prev) => changeExposure(prev, "iso", parseFloat(e.target.value)))} aria-label="ISO" />
+            <span className="exp-slider-val num">{Math.round(exposure.iso)}</span>
           </div>
         </div>
       </section>
@@ -338,6 +309,7 @@ export function D3Page() {
           </button>
         </form>
         {error ? <p className="message-error">{error}</p> : null}
+        {decisionText ? <p className="trace-empty" role="status">{decisionText}</p> : null}
       </section>
 
       {card ? <div style={{ marginTop: 20 }}><DecisionCardView card={card} /></div> : null}

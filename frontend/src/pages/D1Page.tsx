@@ -5,6 +5,7 @@ import { postFormSSE, sendChat, sendDecide } from "../api/client";
 import type { DecisionCard, SSEEvent, TraceItem } from "../api/events";
 import { useSources } from "../context/SourceContext";
 import { DecisionCardView } from "../components/DecisionCard";
+import { MarkdownMessage } from "../components/MarkdownMessage";
 import { TracePanel } from "../components/TracePanel";
 
 interface Message {
@@ -279,12 +280,16 @@ export function D1Page() {
           <div className="message-list">
             {messages.map((message, index) => (
               <div className={`message message-${message.role}`} key={index}>
-                <div className="bubble">{message.content}</div>
+                <div className={`bubble${message.role === "assistant" ? " bubble-markdown" : ""}`}>
+                  {message.role === "assistant"
+                    ? <MarkdownMessage content={message.content} />
+                    : message.content}
+                </div>
               </div>
             ))}
             {streaming ? (
               <div className="message message-assistant">
-                <div className="bubble">{streaming}</div>
+                <div className="bubble bubble-markdown"><MarkdownMessage content={streaming} /></div>
               </div>
             ) : null}
             {error ? <div className="message message-error">{error}</div> : null}

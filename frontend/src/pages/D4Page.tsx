@@ -1,13 +1,19 @@
 /** D4 复盘页：批量上传 → /api/photos/review → 复盘卡 → 4 维分析 + 可执行处方（无数据时展示空态）。 */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { postFormSSE } from "../api/client";
 import type { DecisionCard, SSEEvent } from "../api/events";
 import { useSources } from "../context/SourceContext";
+import { canWriteReviewEvent, type ReviewOutcome } from "./reviewEvent";
 
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png"]);
 const DIMENSION_LABELS = ["曝光", "构图", "色彩", "时间"];
+
+interface PhotoPreview {
+  name: string;
+  url: string;
+}
 
 export function D4Page() {
   const [running, setRunning] = useState(false);
@@ -17,18 +23,49 @@ export function D4Page() {
   const [uploaded, setUploaded] = useState<string[]>([]);
   const [location, setLocation] = useState("");
   const [subjectType, setSubjectType] = useState("");
+  const [outcome, setOutcome] = useState<ReviewOutcome>("");
   const [savingEvent, setSavingEvent] = useState(false);
+  const [eventSaved, setEventSaved] = useState(false);
   const [eventMessage, setEventMessage] = useState("");
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [preview, setPreview] = useState<PhotoPreview | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const previewUrlRef = useRef<string | null>(null);
   const { addSource } = useSources();
 
-  async function uploadOne(file: File): Promise<void> {
+  useEffect(() => () => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (!running) return;
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, [running]);
+
+  function showPreview(file: File | null): void {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    const url = file ? URL.createObjectURL(file) : null;
+    previewUrlRef.current = url;
+    setPreview(url && file ? { name: file.name, url } : null);
+  }
+
+  async function uploadOne(file: File, signal: AbortSignal): Promise<DecisionCard> {
+    let reviewCard: DecisionCard | null = null;
     const form = new FormData();
     form.append("file", file);
     form.append("focus", "");
     form.append("plan_reference", "");
     await postFormSSE("/api/photos/review", form, (event: SSEEvent) => {
-      if (event.type === "card") {
-        setCard(event.card);
+      if (event.type === "queued") {
+        setNotice(`${file.name}：等待分析（队列第 ${event.position} 位）…`);
+      } else if (event.type === "step") {
+        setNotice(`${file.name}：${event.name}${event.output_summary ? ` · ${event.output_summary}` : ""}`);
+      } else if (event.type === "tool_call") {
+        setNotice(`${file.name}：正在运行 ${event.name}…`);
+      } else if (event.type === "card") {
+        reviewCard = event.card;
       } else if (event.type === "tool_result") {
         if (event.data_source) {
           addSource({ name: event.data_source, note: `${event.name} · ${event.field ?? "结果"}` });
@@ -36,43 +73,75 @@ export function D4Page() {
       } else if (event.type === "error") {
         throw new Error(event.message);
       }
-    });
+    }, signal);
+    if (reviewCard === null) {
+      throw new Error("复盘未返回决策卡");
+    }
+    return reviewCard;
   }
 
   async function handleFiles(files: FileList | null): Promise<void> {
-    if (!files || files.length === 0) {
+    if (!files || files.length === 0 || running) {
       return;
     }
     setUploadError("");
     setCard(null);
+    showPreview(null);
     setUploaded([]);
     setNotice("");
+    setEventMessage("");
+    setOutcome("");
+    setEventSaved(false);
+    setElapsedSeconds(0);
     const list = Array.from(files);
-    for (const file of list) {
-      if (!ALLOWED_TYPES.has(file.type)) {
-        setUploadError(`${file.name}：仅支持 jpg/png，已跳过`);
-        continue;
+    let analyzedCount = 0;
+    let lastSuccessful: { file: File; card: DecisionCard } | null = null;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setRunning(true);
+    try {
+      for (const file of list) {
+        if (controller.signal.aborted) break;
+        if (!ALLOWED_TYPES.has(file.type)) {
+          setUploadError(`${file.name}：仅支持 jpg/png，已跳过`);
+          continue;
+        }
+        if (file.size > MAX_PHOTO_BYTES) {
+          setUploadError(`${file.name}：超过 10MB，已跳过`);
+          continue;
+        }
+        showPreview(file);
+        setCard(null);
+        setNotice(`正在分析 ${file.name}…`);
+        try {
+          const reviewCard = await uploadOne(file, controller.signal);
+          setCard(reviewCard);
+          lastSuccessful = { file, card: reviewCard };
+          analyzedCount += 1;
+          setUploaded((prev) => [...prev, file.name]);
+        } catch (caught) {
+          if (controller.signal.aborted) {
+            setNotice("已停止等待。服务端可能仍在完成本次分析；请勿重复提交同一照片。");
+            break;
+          }
+          setUploadError(`${file.name}：${caught instanceof Error ? caught.message : String(caught)}`);
+        }
       }
-      if (file.size > MAX_PHOTO_BYTES) {
-        setUploadError(`${file.name}：超过 10MB，已跳过`);
-        continue;
+      if (!controller.signal.aborted) {
+        if (lastSuccessful) {
+          showPreview(lastSuccessful.file);
+          setCard(lastSuccessful.card);
+        }
+        setNotice(analyzedCount > 0 ? `已分析 ${analyzedCount} 张，下方展示最近一张的结果` : "未取得可展示的复盘结果。");
       }
-      setRunning(true);
-      setNotice(`正在分析 ${file.name}…`);
-      try {
-        await uploadOne(file);
-        setUploaded((prev) => [...prev, file.name]);
-      } catch (caught) {
-        setUploadError(`${file.name}：${caught instanceof Error ? caught.message : String(caught)}`);
-      } finally {
-        setRunning(false);
-      }
+    } finally {
+      abortRef.current = null;
+      setRunning(false);
     }
-    setNotice(uploaded.length > 0 ? `已分析 ${uploaded.length} 张，下方展示最近一张的结果` : "");
   }
 
   async function saveEvent(): Promise<void> {
-    if (!card || !location.trim() || savingEvent) {
+    if (!card || !canWriteReviewEvent(true, location, outcome, savingEvent, eventSaved)) {
       return;
     }
     setSavingEvent(true);
@@ -85,12 +154,13 @@ export function D4Page() {
           location: location.trim(),
           subject_type: subjectType.trim(),
           summary: card.conclusion,
-          outcome: "success",
+          outcome,
         }),
       });
       if (!response.ok) {
         throw new Error(await response.text());
       }
+      setEventSaved(true);
       setEventMessage("已确认写入事件记忆 ✓");
     } catch (caught) {
       setEventMessage(`写入失败：${caught instanceof Error ? caught.message : String(caught)}`);
@@ -122,11 +192,25 @@ export function D4Page() {
         />
         <p style={{ margin: 0 }}>＋ 选择要复盘的照片（jpg/png，单张 10MB 内，可多选）</p>
         <p className="page-sub" style={{ margin: "8px 0 0" }}>
-          {running ? "分析中（读取 EXIF 与画面）…" : "系统逐张分析，完成后给出四个维度评价与处方"}
+          {running ? `分析中（已等待 ${elapsedSeconds} 秒；画面分析可能调用模型）…` : "系统逐张分析，完成后给出四个维度评价与处方"}
         </p>
       </label>
+      {running ? (
+        <button type="button" className="btn btn-ghost" onClick={() => abortRef.current?.abort()}>
+          停止等待
+        </button>
+      ) : null}
       {uploadError ? <p className="message-error">{uploadError}</p> : null}
       {notice ? <p className="page-sub">{notice}</p> : null}
+      {preview ? (
+        <section className="card d4-preview" aria-label="本次复盘照片预览">
+          <div>
+            <span className="card-kicker">本次复盘照片</span>
+            <p className="page-sub">{preview.name} · 仅在当前页面预览，未另存照片</p>
+          </div>
+          <img className="d4-preview-image" src={preview.url} alt={`本次复盘照片：${preview.name}`} />
+        </section>
+      ) : null}
       {uploaded.length > 0 ? (
         <p className="page-sub" style={{ marginTop: 8 }}>已分析：{uploaded.join("、")}</p>
       ) : null}
@@ -193,25 +277,16 @@ export function D4Page() {
               <label htmlFor="event-subject">题材</label>
               <input id="event-subject" value={subjectType} onChange={(event) => setSubjectType(event.target.value)} placeholder="如 火烧云" />
             </div>
-            <button type="button" className="btn btn-primary" disabled={!location.trim() || savingEvent} onClick={() => void saveEvent()}>
-              {savingEvent ? "写入中…" : "确认写入事件记忆"}
-            </button>
-            {eventMessage ? <p className="page-sub">{eventMessage}</p> : null}
-          </section>
-
-          <section className="card" style={{ marginTop: 20 }}>
-            <span className="card-kicker">记录本次拍摄</span>
-            <p className="page-sub">仅在你点击确认后写入事件记忆；不会因上传或复盘自动保存。</p>
             <div className="gear-field">
-              <label htmlFor="event-location">地点</label>
-              <input id="event-location" value={location} onChange={(event) => setLocation(event.target.value)} placeholder="如 临港海堤" />
+              <label htmlFor="event-outcome">实际结果</label>
+              <select id="event-outcome" value={outcome} onChange={(event) => setOutcome(event.target.value as ReviewOutcome)}>
+                <option value="">请选择是否出片</option>
+                <option value="success">出片</option>
+                <option value="fail">未出片</option>
+              </select>
             </div>
-            <div className="gear-field">
-              <label htmlFor="event-subject">题材</label>
-              <input id="event-subject" value={subjectType} onChange={(event) => setSubjectType(event.target.value)} placeholder="如 火烧云" />
-            </div>
-            <button type="button" className="btn btn-primary" disabled={!location.trim() || savingEvent} onClick={() => void saveEvent()}>
-              {savingEvent ? "写入中…" : "确认写入事件记忆"}
+            <button type="button" className="btn btn-primary" disabled={!canWriteReviewEvent(Boolean(card), location, outcome, savingEvent, eventSaved)} onClick={() => void saveEvent()}>
+              {savingEvent ? "写入中…" : eventSaved ? "已写入" : "确认写入事件记忆"}
             </button>
             {eventMessage ? <p className="page-sub">{eventMessage}</p> : null}
           </section>

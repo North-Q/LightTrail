@@ -8,11 +8,18 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "gen:api": "node scripts/dump-openapi.mjs && openapi-typescript .openapi.json -o src/api/generated.ts",
-    "check:ui": "node scripts/shell-check.mjs"
+    "check:ui": "node scripts/shell-check.mjs",
+    "test:r0-6": "node --experimental-strip-types --test tests/r0-6.test.mjs",
+    "test:s1-5": "node --experimental-strip-types --test tests/s1-5.test.mjs",
+    "check:r0-6-ui": "node scripts/r0-6-browser-check.mjs",
+    "check:s1-3-ui": "node scripts/s1-3-browser-check.mjs",
+    "check:s1-5-ui": "node scripts/s1-5-browser-check.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

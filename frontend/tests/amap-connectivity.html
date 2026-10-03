@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head><meta charset="UTF-8" /><title>高德地图最小联通检查</title></head>
+  <body>
+    <div id="map" style="width: 600px; height: 400px"></div>
+    <p id="amap-result">RUNNING</p>
+    <script>
+      (async () => {
+        const result = document.getElementById("amap-result");
+        if (new URLSearchParams(location.search).get("run") !== "1") {
+          result.textContent = "SKIPPED: EXPLICIT_OPT_IN_REQUIRED";
+          return;
+        }
+        try {
+          const response = await fetch("/api/map/config", { cache: "no-store" });
+          const config = await response.json();
+          if (!response.ok || !config.available || !config.js_key) throw new Error("CONFIG_UNAVAILABLE");
+          window._AMapSecurityConfig = { serviceHost: `${location.origin}/_AMapService` };
+          const script = document.createElement("script");
+          script.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(config.js_key)}`;
+          script.onload = () => {
+            try {
+              if (!window.AMap) throw new Error("SDK_UNAVAILABLE");
+              const map = new AMap.Map(document.getElementById("map"), {
+                center: [104.2, 35.9], zoom: 4,
+              });
+              map.on("complete", () => {
+                setTimeout(() => {
+                  const surface = document.querySelector("#map canvas, #map img");
+                  result.textContent = surface ? "PASS: MAP_COMPLETE_WITH_SURFACE" : "PARTIAL: MAP_COMPLETE_NO_SURFACE";
+                  map.destroy();
+                }, 1000);
+              });
+            } catch (error) { result.textContent = `FAIL: ${error.message}`; }
+          };
+          script.onerror = () => { result.textContent = "FAIL: SDK_LOAD"; };
+          document.head.appendChild(script);
+          setTimeout(() => {
+            if (result.textContent === "RUNNING") result.textContent = "FAIL: MAP_TIMEOUT";
+          }, 8000);
+        } catch (error) { result.textContent = `FAIL: ${error.message}`; }
+      })();
+    </script>
+  </body>
+</html>

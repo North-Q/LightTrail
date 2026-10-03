@@ -1,59 +1,10 @@
 /** API 客户端：fetch 封装 + SSE 封装（E7-5，事件分发到页面状态）。 */
 
 import type { SessionDetail, SSEEvent } from "./events";
+import { pipeSSE } from "./sse";
 
 /** 后端基址：默认走 Vite 代理（/api → 127.0.0.1:8766），可被环境变量覆盖。 */
 const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
-
-/** 从一帧 SSE 文本解析事件。 */
-function parseFrame(frame: string): SSEEvent | null {
-  let type = "";
-  const dataLines: string[] = [];
-  for (const line of frame.split("\n")) {
-    if (line.startsWith("event:")) {
-      type = line.slice("event:".length).trim();
-    } else if (line.startsWith("data:")) {
-      dataLines.push(line.slice("data:".length).trim());
-    }
-  }
-  if (!type || dataLines.length === 0) {
-    return null;
-  }
-  try {
-    return { type, ...JSON.parse(dataLines.join("\n")) } as SSEEvent;
-  } catch {
-    return null;
-  }
-}
-
-/** 流式读取 SSE 响应体并逐帧回调（供 JSON / multipart 两类 POST 复用）。 */
-async function pipeSSE(resp: Response, onEvent: (event: SSEEvent) => void): Promise<void> {
-  if (!resp.body) {
-    throw new Error("响应无流式内容");
-  }
-  const reader = resp.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
-    }
-    buffer += decoder.decode(value, { stream: true });
-    for (;;) {
-      const index = buffer.indexOf("\n\n");
-      if (index < 0) {
-        break;
-      }
-      const frame = buffer.slice(0, index);
-      buffer = buffer.slice(index + 2);
-      const event = parseFrame(frame);
-      if (event) {
-        onEvent(event);
-      }
-    }
-  }
-}
 
 /** POST JSON 并流式读取 SSE：onEvent 按到达顺序回调，AbortSignal 可中断。 */
 export async function postSSE(

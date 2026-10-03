@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getSession } from "../api/client";
 import type { ProfilePayload } from "../api/events";
 import { useSources } from "../context/SourceContext";
+import { FavoriteSpotEditor } from "./FavoriteSpotEditor";
 
 /** 档案视图模型：把契约（generated.ts）里的可空字段归一为非空（仅页面内展示用）。 */
 type Profile = { [K in keyof ProfilePayload]-?: NonNullable<ProfilePayload[K]> };
@@ -44,7 +45,7 @@ export function M1Page() {
       } catch {
         setProfile(EMPTY_PROFILE);
       }
-      addSource({ name: "本地档案", note: "data/profile.json 档案读写" });
+      addSource({ name: "本地档案", note: "当前用户的档案读写" });
     })();
 
     // 最近会话（真实：本地记录 → 详情摘要）
@@ -78,7 +79,13 @@ export function M1Page() {
       const resp = await fetch("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
+        body: JSON.stringify({
+          camera_body: profile.camera_body,
+          lenses: profile.lenses,
+          preferences: profile.preferences,
+          common_locations: profile.common_locations,
+          skill_level: profile.skill_level,
+        }),
       });
       if (resp.ok) {
         setProfile((await resp.json()) as Profile);
@@ -142,7 +149,7 @@ export function M1Page() {
               ))}
             </div>
           ) : (
-            <p className="trace-empty">暂无偏好——在下方「偏好」输入框（字段名 preferences）添加后保存。</p>
+            <p className="trace-empty">暂无偏好题材。</p>
           )}
           <div className="gear-field" style={{ marginTop: 16 }}>
             <label htmlFor="prefs">偏好题材</label>
@@ -165,6 +172,7 @@ export function M1Page() {
           <p className="page-sub" style={{ marginTop: 12 }}>事件摘要来自最近会话；照片的 EXIF 复盘在「复盘」页进行。</p>
         </div>
       </section>
+      <FavoriteSpotEditor />
     </div>
   );
 }

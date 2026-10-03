@@ -54,8 +54,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 决策管线（D1–D3），SSE 事件直至决策卡片
-         * @description 一句话 → 管线步骤/工具事件逐条推 → 末端 card + done。
+         * 拍摄决策（D1–D3），SSE 返回卡片或文本边界
+         * @description 一句话经统一规划入口，推送步骤及卡片或明确的文本边界。
          */
         post: operations["decide_api_decide_post"];
         delete?: never;
@@ -78,6 +78,132 @@ export interface paths {
          * @description 写入一条用户明确确认的事件记忆，不从照片复盘自动落盘。
          */
         post: operations["create_event_api_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/favorite-spots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 列出当前用户收藏机位
+         * @description 只读列出机位；旧档案未知坐标系或非法记录不会被视为可计算。
+         *
+         *     Args:
+         *         request: 当前 HTTP 请求。
+         *         context: 当前用户上下文。
+         *
+         *     Returns:
+         *         机位列表及无法投影的旧条目索引。
+         */
+        get: operations["list_favorite_spots_api_favorite_spots_get"];
+        put?: never;
+        /**
+         * 新增收藏机位
+         * @description 保存用户明确提交的新机位和坐标来源。
+         *
+         *     Args:
+         *         payload: 新机位输入。
+         *         request: 当前 HTTP 请求。
+         *         context: 当前用户上下文。
+         *
+         *     Returns:
+         *         已保存的机位记录。
+         */
+        post: operations["create_favorite_spot_api_favorite_spots_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/favorite-spots/{spot_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 确认或更新收藏机位
+         * @description 完整更新机位；旧记录须由用户显式确认坐标系。
+         *
+         *     Args:
+         *         spot_id: 机位稳定 ID。
+         *         payload: 完整替换输入。
+         *         request: 当前 HTTP 请求。
+         *         context: 当前用户上下文。
+         *
+         *     Returns:
+         *         更新后的机位记录。
+         *
+         *     Raises:
+         *         HTTPException: 当前用户没有该机位。
+         */
+        put: operations["update_favorite_spot_api_favorite_spots__spot_id__put"];
+        post?: never;
+        /**
+         * 删除收藏机位
+         * @description 删除用户明确指定的一条机位；旧档案先备份。
+         *
+         *     Args:
+         *         spot_id: 机位稳定 ID。
+         *         request: 当前 HTTP 请求。
+         *         context: 当前用户上下文。
+         *
+         *     Returns:
+         *         已删除的机位 ID。
+         *
+         *     Raises:
+         *         HTTPException: 当前用户没有该机位。
+         */
+        delete: operations["delete_favorite_spot_api_favorite_spots__spot_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/map/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 读取手动加载地图所需的公开配置
+         * @description 只在前端主动加载地图时读取公开 Web Key，私密 jscode 不出服务端。
+         */
+        get: operations["get_map_config_api_map_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/map/convert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 手动加载地图时转换已确认坐标
+         * @description 只转换当前用户已确认的 WGS84 机位，浏览器不提交精确坐标。
+         */
+        post: operations["convert_map_coordinates_api_map_convert_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -172,10 +298,158 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/spot-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 按已确认机位生成结构化单机位计划
+         * @description 只按当前用户机位 ID 解析位置，保留缺事实时的 needs_data 状态。
+         *
+         *     Args:
+         *         payload: 本轮明确选择的日期、题材、时区与机位。
+         *         request: 当前 HTTP 请求。
+         *         response: 用于禁用坐标响应缓存。
+         *         context: 当前用户上下文。
+         *
+         *     Returns:
+         *         可执行的太阳题材计划，或含明确数据缺口的部分计划。
+         *
+         *     Raises:
+         *         HTTPException: 机位 ID、名称或时区与当前用户档案不一致。
+         */
+        post: operations["create_spot_plan_api_spot_plans_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/spot-plans/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 导出脱敏的冻结机位计划
+         * @description 从已验证计划移除经纬度，保留本轮请求和行动证据。
+         */
+        post: operations["export_spot_plan_archive_api_spot_plans_archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/spot-plans/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 校验并回放冻结机位计划
+         * @description 只校验并返回快照，不重新访问用户档案或外部数据源。
+         */
+        post: operations["replay_spot_plan_archive_api_spot_plans_replay_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * ArchivedArea
+         * @description 去掉中心经纬度后的待选区域。
+         */
+        ArchivedArea: {
+            /**
+             * Coordinate System
+             * @enum {string}
+             */
+            coordinate_system: "WGS84" | "GCJ-02" | "BD-09";
+            /** Name */
+            name: string;
+            /** Radius Km */
+            radius_km: number;
+        };
+        /**
+         * ArchivedPlanSite
+         * @description 计划机位的非坐标属性；坐标系保留以防误解。
+         */
+        ArchivedPlanSite: {
+            /**
+             * Coordinate System
+             * @enum {string}
+             */
+            coordinate_system: "WGS84" | "GCJ-02" | "BD-09";
+            /** Name */
+            name: string;
+            /** Site Id */
+            site_id?: string | null;
+            /** Source */
+            source: string;
+        };
+        /**
+         * ArchivedPlanningRequest
+         * @description 保留题材、日期、时区及位置语义的脱敏规划请求。
+         */
+        ArchivedPlanningRequest: {
+            area?: components["schemas"]["ArchivedArea"] | null;
+            date_range?: components["schemas"]["DateRange"] | null;
+            spot?: components["schemas"]["SpotSelector"] | null;
+            /** Subject Type */
+            subject_type: string;
+            /** Target Date */
+            target_date?: string | null;
+            /** Tz Offset */
+            tz_offset: string;
+        };
+        /**
+         * ArchivedSpotPlan
+         * @description 完整行动与证据快照，刻意不包含请求副本和经纬度。
+         */
+        ArchivedSpotPlan: {
+            arrival_window: components["schemas"]["PlanWindow"] | null;
+            departure_window: components["schemas"]["PlanWindow"] | null;
+            direction: components["schemas"]["PlanDirection"] | null;
+            /** Evidence Refs */
+            evidence_refs: components["schemas"]["PlanEvidenceRef"][];
+            /** Focal Length Mm */
+            focal_length_mm: number | null;
+            /** Gear */
+            gear: string[];
+            /** Parameters */
+            parameters: components["schemas"]["PlanParameter"][];
+            /** Risks */
+            risks: components["schemas"]["PlanRisk"][];
+            /** Selected Date */
+            selected_date: string | null;
+            setup_window: components["schemas"]["PlanWindow"] | null;
+            shoot_window: components["schemas"]["PlanWindow"] | null;
+            site: components["schemas"]["ArchivedPlanSite"] | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ready" | "needs_data";
+        };
         /** Body_photos_reverse_api_photos_reverse_post */
         Body_photos_reverse_api_photos_reverse_post: {
             /**
@@ -392,6 +666,24 @@ export interface components {
             score: number;
         };
         /**
+         * DateRange
+         * @description 可选拍摄日期范围，边界均包含在内。
+         */
+        DateRange: {
+            /**
+             * End
+             * Format: date
+             * @description 最后一个候选拍摄日期，如 2026-10-05
+             */
+            end: string;
+            /**
+             * Start
+             * Format: date
+             * @description 首个候选拍摄日期，如 2026-10-03
+             */
+            start: string;
+        };
+        /**
          * DecideRequest
          * @description 决策管线请求（D1–D3）：一句话 + 可选 session_id。
          */
@@ -426,6 +718,8 @@ export interface components {
          *         params: 参数建议列表。
          *         alternatives: 备选方案文案列表。
          *         degraded: 降级原因（配额 / 管线降级标注，空串表示未降级）。
+         *         target_date: 本次拍摄目标日期（请求时区中的 YYYY-MM-DD）。
+         *         subject_type: 本次请求的拍摄题材，不由收藏机位元数据覆盖。
          */
         DecisionCard: {
             /** Alternatives */
@@ -446,6 +740,16 @@ export interface components {
             locations?: components["schemas"]["LocationSuggestion"][];
             /** Params */
             params?: components["schemas"]["ParamSuggestion"][];
+            /**
+             * Subject Type
+             * @default
+             */
+            subject_type: string;
+            /**
+             * Target Date
+             * @default
+             */
+            target_date: string;
             /**
              * Time Window
              * @default
@@ -544,6 +848,153 @@ export interface components {
              */
             timestamp: string;
         };
+        /**
+         * FavoriteSpotInput
+         * @description 新增或完整更新机位的输入；有坐标时必须声明坐标系与时区。
+         */
+        FavoriteSpotInput: {
+            /**
+             * Coordinate System
+             * @description 坐标系；旧机位未知时为空，不得参与计算
+             */
+            coordinate_system?: ("WGS84" | "GCJ-02" | "BD-09") | null;
+            /**
+             * Direction Deg
+             * @description 主要朝向方位角
+             */
+            direction_deg?: number | null;
+            /**
+             * Latitude
+             * @description 纬度，北纬为正
+             */
+            latitude?: number | null;
+            /**
+             * Longitude
+             * @description 经度，东经为正
+             */
+            longitude?: number | null;
+            /**
+             * Name
+             * @description 机位名称，如崇明东滩
+             */
+            name: string;
+            /**
+             * Notes
+             * @description 机位备注
+             * @default
+             */
+            notes: string;
+            /**
+             * Source
+             * @description 坐标或机位信息来源
+             */
+            source: string;
+            /**
+             * Subject Types
+             * @description 适合拍摄的题材
+             */
+            subject_types?: string[];
+            /**
+             * Tz Offset
+             * @description 拍摄地时区偏移，如 +08:00
+             */
+            tz_offset?: string | null;
+        };
+        /**
+         * FavoriteSpotListPayload
+         * @description 机位列表及无法投影的旧档案条目索引。
+         */
+        FavoriteSpotListPayload: {
+            /** Items */
+            items: components["schemas"]["FavoriteSpotRecord"][];
+            /** Skipped */
+            skipped: components["schemas"]["SkippedFavoriteSpotPayload"][];
+        };
+        /**
+         * FavoriteSpotRecord
+         * @description 已保存机位；兼容旧档案中尚待用户确认坐标系的记录。
+         */
+        FavoriteSpotRecord: {
+            /**
+             * Coordinate State
+             * @description 机位能否参与 WGS84 计算
+             * @enum {string}
+             */
+            coordinate_state: "ready" | "missing_coordinates" | "unknown_system" | "unsupported_system";
+            /**
+             * Coordinate System
+             * @description 坐标系；旧机位未知时为空，不得参与计算
+             */
+            coordinate_system?: ("WGS84" | "GCJ-02" | "BD-09") | null;
+            /**
+             * Direction Deg
+             * @description 主要朝向方位角
+             */
+            direction_deg?: number | null;
+            /**
+             * Id
+             * @description 稳定机位标识
+             */
+            id: string;
+            /**
+             * Latitude
+             * @description 纬度，北纬为正
+             */
+            latitude?: number | null;
+            /**
+             * Longitude
+             * @description 经度，东经为正
+             */
+            longitude?: number | null;
+            /**
+             * Name
+             * @description 机位名称，如崇明东滩
+             */
+            name: string;
+            /**
+             * Notes
+             * @description 机位备注
+             * @default
+             */
+            notes: string;
+            /**
+             * Source
+             * @description 坐标或机位信息来源
+             */
+            source: string;
+            /**
+             * Subject Types
+             * @description 适合拍摄的题材
+             */
+            subject_types?: string[];
+            /**
+             * Tz Offset
+             * @description 拍摄地时区偏移，如 +08:00
+             */
+            tz_offset?: string | null;
+        };
+        /**
+         * GeoPoint
+         * @description 携带坐标系的地理坐标；禁止将不同坐标系当作同一数值使用。
+         */
+        GeoPoint: {
+            /**
+             * Coordinate System
+             * @description 坐标系，必须显式标注
+             * @enum {string}
+             */
+            coordinate_system: "WGS84" | "GCJ-02" | "BD-09";
+            /**
+             * Latitude
+             * @description 纬度，北纬为正，如 31.52
+             */
+            latitude: number;
+            /**
+             * Longitude
+             * @description 经度，东经为正，如 121.95
+             */
+            longitude: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -564,6 +1015,42 @@ export interface components {
              * @default
              */
             reason: string;
+        };
+        /**
+         * MapConfigPayload
+         * @description 地图手动加载配置；仅公开 JS API Web Key，不返回安全密钥。
+         */
+        MapConfigPayload: {
+            /** Available */
+            available: boolean;
+            /** Js Key */
+            js_key: string | null;
+        };
+        /**
+         * MapConvertPayload
+         * @description 用户主动打开地图后提交的当前用户收藏机位 ID。
+         */
+        MapConvertPayload: {
+            /** Spot Ids */
+            spot_ids: string[];
+        };
+        /**
+         * MapConvertResult
+         * @description 按请求顺序返回转换结果，不持久化用户精确坐标。
+         */
+        MapConvertResult: {
+            /** Positions */
+            positions: components["schemas"]["MapConvertedPoint"][];
+        };
+        /**
+         * MapConvertedPoint
+         * @description 高德地图标记使用的 GCJ-02 经度、纬度。
+         */
+        MapConvertedPoint: {
+            /** Latitude */
+            latitude: number;
+            /** Longitude */
+            longitude: number;
         };
         /**
          * ParamSuggestion
@@ -587,8 +1074,187 @@ export interface components {
             value: string;
         };
         /**
+         * PlanArchive
+         * @description 版本化的离线计划包；导入不调用任何实时数据源。
+         */
+        PlanArchive: {
+            /**
+             * Format
+             * @default lighttrail.spot-plan
+             * @constant
+             */
+            format: "lighttrail.spot-plan";
+            plan: components["schemas"]["ArchivedSpotPlan"];
+            /**
+             * Privacy
+             * @default coordinates_removed
+             * @constant
+             */
+            privacy: "coordinates_removed";
+            request: components["schemas"]["ArchivedPlanningRequest"];
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+        };
+        /**
+         * PlanDirection
+         * @description 拍摄朝向；方位角从正北顺时针计算。
+         */
+        PlanDirection: {
+            /**
+             * Bearing Deg
+             * @description 拍摄方位角，单位度
+             */
+            bearing_deg: number;
+            /**
+             * Reason
+             * @description 朝向依据与目标天体或光线
+             */
+            reason: string;
+        };
+        /**
+         * PlanEvidenceRef
+         * @description 计划依据的结构化引用。
+         */
+        PlanEvidenceRef: {
+            /**
+             * Field
+             * @description 被引用的结果字段
+             */
+            field: string;
+            /**
+             * Observed At
+             * @description 数据采集时刻；未知则为空
+             */
+            observed_at?: string | null;
+            /**
+             * Source
+             * @description 数据源或工具名称
+             */
+            source: string;
+            /**
+             * Valid Until
+             * @description 数据有效期；未知则为空
+             */
+            valid_until?: string | null;
+        };
+        /**
+         * PlanParameter
+         * @description 可执行拍摄参数及其依据。
+         */
+        PlanParameter: {
+            /**
+             * Name
+             * @description 参数名，如光圈
+             */
+            name: string;
+            /**
+             * Reason
+             * @description 推荐理由
+             */
+            reason: string;
+            /**
+             * Value
+             * @description 参数值，如 f/4
+             */
+            value: string;
+        };
+        /**
+         * PlanRisk
+         * @description 失败条件或数据缺口。
+         */
+        PlanRisk: {
+            /**
+             * Code
+             * @description 稳定风险代码
+             */
+            code: string;
+            /**
+             * Detail
+             * @description 用户可理解的风险和应对
+             */
+            detail: string;
+            /**
+             * Severity
+             * @description 风险严重程度
+             * @enum {string}
+             */
+            severity: "low" | "medium" | "high";
+        };
+        /**
+         * PlanSite
+         * @description 本次实际机位与其坐标来源。
+         */
+        PlanSite: {
+            /**
+             * Name
+             * @description 本次拍摄机位名称
+             */
+            name: string;
+            /** @description 机位坐标及坐标系 */
+            point: components["schemas"]["GeoPoint"];
+            /**
+             * Site Id
+             * @description 收藏机位稳定标识
+             */
+            site_id?: string | null;
+            /**
+             * Source
+             * @description 坐标来源，如用户收藏机位
+             */
+            source: string;
+        };
+        /**
+         * PlanWindow
+         * @description 带时区的行动窗口。
+         */
+        PlanWindow: {
+            /**
+             * End
+             * Format: date-time
+             * @description 窗口结束，ISO 8601 且含时区
+             */
+            end: string;
+            /**
+             * Start
+             * Format: date-time
+             * @description 窗口开始，ISO 8601 且含时区
+             */
+            start: string;
+        };
+        /**
+         * PlanningRequest
+         * @description 结构化拍摄请求：题材、日期、时区和位置选择均为必需语义。
+         */
+        PlanningRequest: {
+            /** @description 仍需挑选机位的区域 */
+            area?: components["schemas"]["SearchArea"] | null;
+            /** @description 候选日期范围 */
+            date_range?: components["schemas"]["DateRange"] | null;
+            /** @description 用户明确选择的收藏机位 */
+            spot?: components["schemas"]["SpotSelector"] | null;
+            /**
+             * Subject Type
+             * @description 拍摄题材，如银河
+             */
+            subject_type: string;
+            /**
+             * Target Date
+             * @description 明确的本地拍摄日期
+             */
+            target_date?: string | null;
+            /**
+             * Tz Offset
+             * @description 拍摄地时区偏移，如 +08:00
+             */
+            tz_offset: string;
+        };
+        /**
          * ProfilePayload
-         * @description 档案编辑（M1.1-01）：全部字段可选，PUT 只更新出现的字段。
+         * @description 档案编辑（M1.1-01）：机位列表只读，其他字段可经 PUT 更新。
          */
         ProfilePayload: {
             /** Camera Body */
@@ -628,6 +1294,37 @@ export interface components {
             type: "queued";
         };
         /**
+         * SearchArea
+         * @description 待选区域；规划器须在区域内确定实际机位后才能给出完整计划。
+         */
+        SearchArea: {
+            /** @description 区域中心坐标及坐标系 */
+            center: components["schemas"]["GeoPoint"];
+            /**
+             * Name
+             * @description 区域名称，如崇明东部
+             */
+            name: string;
+            /**
+             * Radius Km
+             * @description 候选搜索半径，单位公里
+             */
+            radius_km: number;
+        };
+        /**
+         * SkippedFavoriteSpotPayload
+         * @description 旧档案中未能投影的条目序号及原因。
+         */
+        SkippedFavoriteSpotPayload: {
+            /** Index */
+            index: number;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "policy" | "invalid";
+        };
+        /**
          * Source
          * @description 一条决策依据（M2）：哪个工具 / 哪个字段 / 置信度 / 说明。
          */
@@ -652,6 +1349,78 @@ export interface components {
              * @default
              */
             tool: string;
+        };
+        /**
+         * SpotPlan
+         * @description 可执行单机位计划；缺关键字段时必须标为 needs_data。
+         */
+        SpotPlan: {
+            /** @description 到达窗口 */
+            arrival_window: components["schemas"]["PlanWindow"] | null;
+            /** @description 离场窗口 */
+            departure_window: components["schemas"]["PlanWindow"] | null;
+            /** @description 拍摄朝向 */
+            direction: components["schemas"]["PlanDirection"] | null;
+            /**
+             * Evidence Refs
+             * @description 关键判断的数据依据引用
+             */
+            evidence_refs: components["schemas"]["PlanEvidenceRef"][];
+            /**
+             * Focal Length Mm
+             * @description 建议焦距，单位毫米
+             */
+            focal_length_mm: number | null;
+            /**
+             * Gear
+             * @description 本次应携带的器材
+             */
+            gear: string[];
+            /**
+             * Parameters
+             * @description 建议曝光等拍摄参数
+             */
+            parameters: components["schemas"]["PlanParameter"][];
+            /** @description 生成本计划的结构化请求快照 */
+            request: components["schemas"]["PlanningRequest"];
+            /**
+             * Risks
+             * @description 天气、可达性或数据缺口风险
+             */
+            risks: components["schemas"]["PlanRisk"][];
+            /**
+             * Selected Date
+             * @description 最终选择的本地拍摄日期
+             */
+            selected_date: string | null;
+            /** @description 准备窗口 */
+            setup_window: components["schemas"]["PlanWindow"] | null;
+            /** @description 拍摄窗口 */
+            shoot_window: components["schemas"]["PlanWindow"] | null;
+            /** @description 本次实际机位与坐标 */
+            site: components["schemas"]["PlanSite"] | null;
+            /**
+             * Status
+             * @description ready=可执行；needs_data=缺关键事实
+             * @enum {string}
+             */
+            status: "ready" | "needs_data";
+        };
+        /**
+         * SpotSelector
+         * @description 用户明确选择的收藏机位；S1-2 将赋予持久化机位标识。
+         */
+        SpotSelector: {
+            /**
+             * Name
+             * @description 收藏机位名称，如崇明东滩
+             */
+            name: string;
+            /**
+             * Site Id
+             * @description 稳定机位标识，尚未迁移时可为空
+             */
+            site_id?: string | null;
         };
         /**
          * StepEvent
@@ -959,6 +1728,180 @@ export interface operations {
             };
         };
     };
+    list_favorite_spots_api_favorite_spots_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FavoriteSpotListPayload"];
+                };
+            };
+        };
+    };
+    create_favorite_spot_api_favorite_spots_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FavoriteSpotInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FavoriteSpotRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_favorite_spot_api_favorite_spots__spot_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                spot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FavoriteSpotInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FavoriteSpotRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_favorite_spot_api_favorite_spots__spot_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                spot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_map_config_api_map_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MapConfigPayload"];
+                };
+            };
+        };
+    };
+    convert_map_coordinates_api_map_convert_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MapConvertPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MapConvertResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     photos_reverse_api_photos_reverse_post: {
         parameters: {
             query?: never;
@@ -1098,6 +2041,105 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_spot_plan_api_spot_plans_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanningRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpotPlan"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_spot_plan_archive_api_spot_plans_archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpotPlan"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanArchive"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replay_spot_plan_archive_api_spot_plans_replay_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanArchive"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanArchive"];
                 };
             };
             /** @description Validation Error */

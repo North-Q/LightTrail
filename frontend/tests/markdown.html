@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head><meta charset="UTF-8"><title>Markdown 渲染检查</title></head>
+  <body>
+    <div id="root"></div>
+    <p id="markdown-result">等待</p>
+    <script type="module">
+      import React from "react";
+      import { createRoot } from "react-dom/client";
+      import { MarkdownMessage } from "../src/components/MarkdownMessage.tsx";
+
+      const sample = "## 拍摄方案\n\n**结论**：改期\n\n| 日期 | 云量 |\n| --- | --- |\n| 10/3 | 95% |\n\n- 检查天气\n\n![远程图片](https://example.com/photo.jpg)";
+      createRoot(document.getElementById("root")).render(React.createElement(MarkdownMessage, { content: sample }));
+      window.setTimeout(() => {
+        const root = document.getElementById("root");
+        const ok = root.querySelector("h2")?.textContent === "拍摄方案"
+          && root.querySelector("strong")?.textContent === "结论"
+          && root.querySelectorAll("table tr").length === 2
+          && root.querySelector("li")?.textContent === "检查天气"
+          && root.querySelector("img") === null;
+        document.getElementById("markdown-result").textContent = ok ? "PASS: Markdown/GFM 已渲染且远程图片未加载" : "FAIL: Markdown/GFM 渲染异常";
+      }, 1000);
+    </script>
+  </body>
+</html>

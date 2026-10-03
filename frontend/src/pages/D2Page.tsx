@@ -1,19 +1,16 @@
-/** 规划页：运行一次规划决策 → 解析结果更新天象时间线与月相；机位来自「我的记忆」档案。 */
+/** 规划页：本轮选择驱动结构化 SpotPlan，赶场调度保持独立。 */
 
-import { useEffect, useState } from "react";
-import { postJson, sendDecide } from "../api/client";
-import type { DecisionCard, ProfilePayload, SSEEvent } from "../api/events";
-import { useSources } from "../context/SourceContext";
-
-interface SunTimes {
-  sunrise: string;
-  sunset: string;
-}
-
-interface MoonInfo {
-  name: string;
-  advice: string;
-}
+import { useEffect, useRef, useState } from "react";
+import { postJson } from "../api/client";
+import { listFavoriteSpots, type FavoriteSpotRecord } from "../api/favoriteSpots";
+import {
+  createSpotPlan, exportPlanArchive, replayPlanArchive,
+  type PlanArchive, type PlanningRequest, type SpotPlan,
+} from "../api/spotPlans";
+import { getActiveSpotId, setActiveSpotId } from "./activeSpot";
+import { parsePlanUrl, PLAN_SUBJECTS, replacePlanUrl } from "./planUrl";
+import { SpotMap } from "./SpotMap";
+import { SpotPlanView, type DisplayPlan } from "./SpotPlanView";
 
 interface ChasePlanResult {
   ordered_site_names: string[];
@@ -43,29 +40,28 @@ function defaultChaseWindow(index: number): ChaseWindow {
   return { start: start.toISOString().slice(0, 16), end: end.toISOString().slice(0, 16) };
 }
 
-/** 结构化结果的字符串字段读取（缺字段返回空串；不再对摘要文本做正则解析，B4-4）。 */
-function asText(value: unknown): string {
-  return typeof value === "string" ? value : "";
-}
-
-/** 结构化结果里的首个对象元素（如银河可见窗口的第一段）。 */
-function firstRecord(value: unknown): Record<string, unknown> | null {
-  if (!Array.isArray(value) || value.length === 0) {
-    return null;
-  }
-  const [head] = value as unknown[];
-  return typeof head === "object" && head !== null ? (head as Record<string, unknown>) : null;
+function spotStatus(spot: FavoriteSpotRecord): string {
+  if (spot.coordinate_state === "missing_coordinates") return "无坐标，不能参与计算";
+  if (spot.coordinate_state === "unknown_system") return "坐标系待确认，不能参与计算";
+  if (spot.coordinate_state === "unsupported_system") return "当前坐标系不能参与 WGS84 计算";
+  if (!spot.tz_offset) return "时区未填，不能参与本次规划";
+  return "可参与规划";
 }
 
 export function D2Page() {
+  const initialUrl = useRef(parsePlanUrl(window.location.hash)).current;
+  const importRef = useRef<HTMLInputElement>(null);
   const [running, setRunning] = useState(false);
-  const [notice, setNotice] = useState("运行一次规划决策，获取当日天文与天气时刻。");
-  const [sun, setSun] = useState<SunTimes | null>(null);
-  const [moon, setMoon] = useState<MoonInfo | null>(null);
-  const [galaxy, setGalaxy] = useState("");
-  const [spots, setSpots] = useState<string[]>([]);
+  const [notice, setNotice] = useState(initialUrl.error);
+  const [spots, setSpots] = useState<FavoriteSpotRecord[]>([]);
+  const [planningSpots, setPlanningSpots] = useState<FavoriteSpotRecord[]>([]);
+  const [planSpotId, setPlanSpotId] = useState(initialUrl.state.spotId);
+  const [planDate, setPlanDate] = useState(initialUrl.state.date);
+  const [planSubject, setPlanSubject] = useState(initialUrl.state.subject);
   const [routeSpots, setRouteSpots] = useState<string[]>([]);
-  const [lastCard, setLastCard] = useState<DecisionCard | null>(null);
+  const [plan, setPlan] = useState<SpotPlan | null>(null);
+  const [archive, setArchive] = useState<PlanArchive | null>(null);
+  const [transferring, setTransferring] = useState(false);
   const [selectedSpots, setSelectedSpots] = useState<string[]>([]);
   const [transportMode, setTransportMode] = useState("driving");
   const [transitCity, setTransitCity] = useState("");
@@ -74,83 +70,108 @@ export function D2Page() {
   const [chaseRunning, setChaseRunning] = useState(false);
   const [chaseResult, setChaseResult] = useState<ChasePlanResult | null>(null);
   const [chaseNotice, setChaseNotice] = useState("");
-  const { addSource } = useSources();
-
   useEffect(() => {
     void (async () => {
       try {
-        const resp = await fetch("/api/profile");
-        if (resp.ok) {
-          const profile = (await resp.json()) as ProfilePayload;
-          const spotNames = (profile.favorite_spots ?? []).map((spot) => asText(spot["name"]));
-          const names = [...(profile.common_locations ?? []), ...spotNames];
-          const uniqueNames = Array.from(new Set(names));
-          setSpots(uniqueNames);
-          setRouteSpots(spotNames);
-          setSelectedSpots(spotNames.slice(0, 2));
-          setSiteWindows(Object.fromEntries(spotNames.slice(0, 2).map((name, index) => [name, defaultChaseWindow(index)])));
+        const saved = await listFavoriteSpots();
+        const validPlanningSpots = saved.items.filter((spot) =>
+          spot.coordinate_state === "ready" && spot.coordinate_system === "WGS84" && Boolean(spot.tz_offset),
+        );
+        const routeNames = Array.from(new Set(validPlanningSpots.map((spot) => spot.name)));
+        setSpots(saved.items);
+        setPlanningSpots(validPlanningSpots);
+        const activeId = initialUrl.error ? "" : initialUrl.state.spotId || getActiveSpotId();
+        const activeSpot = validPlanningSpots.find((spot) => spot.id === activeId);
+        setPlanSpotId(activeSpot?.id ?? "");
+        if (activeId && !activeSpot) {
+          if (initialUrl.state.spotId) setNotice("链接中的机位不属于当前用户或不可参与规划，请重新选择。");
+          else setActiveSpotId("");
         }
+        setRouteSpots(routeNames);
+        setSelectedSpots(routeNames.slice(0, 2));
+        setSiteWindows(Object.fromEntries(routeNames.slice(0, 2).map((name, index) => [name, defaultChaseWindow(index)])));
       } catch {
         setSpots([]);
+        setPlanningSpots([]);
+        setNotice("机位列表读取失败，请检查后端连接。");
       }
     })();
-    try {
-      const raw = localStorage.getItem("lt.last_card");
-      if (raw) {
-        setLastCard((JSON.parse(raw) as { card: DecisionCard }).card);
-      }
-    } catch {
-      setLastCard(null);
-    }
   }, []);
 
   async function runPlan(): Promise<void> {
+    const spot = planningSpots.find((item) => item.id === planSpotId);
+    if (!planDate || !planSubject.trim() || !spot || !spot.tz_offset) {
+      setNotice("请先选择日期、已确认 WGS84 坐标和时区的机位及拍摄题材。");
+      return;
+    }
+    const input: PlanningRequest = {
+      subject_type: planSubject,
+      target_date: planDate,
+      tz_offset: spot.tz_offset,
+      spot: { name: spot.name, site_id: spot.id },
+    };
     setRunning(true);
-    let parsedSun = false;
-    setNotice("正在整理各机位与天象窗口…");
+    setPlan(null);
+    setArchive(null);
+    replacePlanUrl({ subject: planSubject, date: planDate, spotId: planSpotId });
+    setNotice("正在计算本次机位的天文窗口…");
     try {
-      await sendDecide("周末两天三机位对比，帮我把机位与天象窗口排一下", "", (event: SSEEvent) => {
-        if (event.type === "tool_result") {
-          const data = event.data ?? null;
-          if (data) {
-            if (event.name === "sun_times") {
-              const sunrise = asText(data["日出"]);
-              const sunset = asText(data["日落"]);
-              if (sunrise && sunset) {
-                parsedSun = true;
-                setSun({ sunrise, sunset });
-              }
-            }
-            if (event.name === "moon_phase") {
-              const name = asText(data["月相名称"]);
-              if (name) {
-                setMoon({ name, advice: asText(data["月光影响建议"]) });
-              }
-            }
-            if (event.name === "galaxy_visibility") {
-              const window = firstRecord(data["可见窗口"]);
-              const start = window ? asText(window["开始"]) : "";
-              const end = window ? asText(window["结束"]) : "";
-              if (start && end) {
-                setGalaxy(`${start}–${end}`);
-              }
-            }
-          }
-          if (event.data_source) {
-            addSource({ name: event.data_source, note: `${event.name} · ${event.field ?? "结果"}` });
-          }
-        } else if (event.type === "error") {
-          setNotice(`本次查询未完成：${event.message}（可稍后再试）`);
-        } else if (event.type === "done") {
-          setNotice(parsedSun ? "已根据本次查询更新太阳时刻与月相。" : "查询完成，但未取到天文时刻（请检查后端与数据源）。");
-        }
-      });
+      const result = await createSpotPlan(input);
+      setPlan(result);
+      setNotice(result.status === "ready" ? "结构化计划已生成。" : "部分关键事实尚未核实，已列出缺口。");
     } catch (caught) {
-      setNotice(`查询失败：${caught instanceof Error ? caught.message : String(caught)}`);
+      setNotice(`计划生成失败：${caught instanceof Error ? caught.message : String(caught)}`);
     } finally {
       setRunning(false);
     }
   }
+
+  async function downloadPlan(): Promise<void> {
+    if (!plan) return;
+    setTransferring(true);
+    try {
+      const payload = await exportPlanArchive(plan);
+      const content = `${JSON.stringify(payload, null, 2)}\n`;
+      const url = URL.createObjectURL(new Blob([content], { type: "application/json" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `lighttrail-plan-${plan.selected_date ?? "draft"}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      setNotice("计划 JSON 已导出，坐标字段已移除；分享前请检查自填名称和来源。");
+    } catch (caught) {
+      setNotice(`计划导出失败：${caught instanceof Error ? caught.message : String(caught)}`);
+    } finally {
+      setTransferring(false);
+    }
+  }
+
+  async function importPlan(file: File | undefined): Promise<void> {
+    if (!file) return;
+    if (file.size > 1024 * 1024) {
+      setNotice("计划文件超过 1 MB，无法导入。");
+      return;
+    }
+    setTransferring(true);
+    try {
+      const payload: unknown = JSON.parse(await file.text());
+      const validated = await replayPlanArchive(payload);
+      setPlan(null);
+      setArchive(validated);
+      setNotice("已载入冻结计划，未重新获取实时数据。");
+    } catch {
+      setNotice("计划文件无效或版本不受支持，请检查 JSON 内容。");
+    } finally {
+      if (importRef.current) importRef.current.value = "";
+      setTransferring(false);
+    }
+  }
+
+  const replayPlan: DisplayPlan | null = archive
+    ? { ...archive.plan, request: archive.request }
+    : null;
 
   function toggleSpot(name: string): void {
     setSelectedSpots((current) => {
@@ -196,13 +217,6 @@ export function D2Page() {
     }
   }
 
-  const marks = sun
-    ? [
-        { time: sun.sunrise, label: "日出" },
-        { time: sun.sunset, label: "日落" },
-      ]
-    : [];
-
   return (
     <div className="container page-main">
       <header className="page-head">
@@ -210,76 +224,93 @@ export function D2Page() {
           <h1 className="page-title">规划</h1>
           <p className="page-sub">机位 × 天象匹配，把「什么时候、去哪、拍什么」排成一条线。</p>
         </div>
-        <button type="button" className="btn btn-primary" onClick={() => void runPlan()} disabled={running}>
+        <button type="button" className="btn btn-primary" onClick={() => void runPlan()} disabled={running || !planDate || !planSpotId}>
           {running ? "规划中…" : "运行规划"}
         </button>
       </header>
 
-      <p className="page-sub" style={{ margin: "0 0 16px" }}>{notice}</p>
-
-      <section className="grid-2">
-        <div className="card">
-          <span className="card-kicker">机位（来自我的记忆）</span>
-          {spots.length === 0 ? (
-            <p className="trace-empty">档案里还没有常去机位——去「我的记忆」页添加。</p>
-          ) : (
-            <div className="spot-list">
-              {spots.map((name) => (
-                <div className="spot-card" key={name}>
-                  <div>
-                    <strong>{name}</strong>
-                    <p className="page-sub" style={{ margin: "4px 0 0" }}>候选机位 · 已加入档案</p>
-                  </div>
-                </div>
+      <section className="d2-selection" aria-labelledby="d2-selection-title">
+        <h2 id="d2-selection-title">本次拍摄</h2>
+        <div className="d2-selection-fields">
+          <label className="gear-field">
+            <span>拍摄日期</span>
+            <input type="date" value={planDate} onChange={(event) => {
+              setPlanDate(event.target.value); setPlan(null); setArchive(null);
+              replacePlanUrl({ subject: planSubject, date: event.target.value, spotId: planSpotId });
+            }} />
+          </label>
+          <label className="gear-field">
+            <span>拍摄题材</span>
+            <select value={planSubject} onChange={(event) => {
+              setPlanSubject(event.target.value); setPlan(null); setArchive(null);
+              replacePlanUrl({ subject: event.target.value, date: planDate, spotId: planSpotId });
+            }}>
+              {PLAN_SUBJECTS.map((subject) => (
+                <option value={subject} key={subject}>{subject}</option>
               ))}
-            </div>
-          )}
+            </select>
+          </label>
+          <label className="gear-field">
+            <span>目标机位</span>
+            <select value={planSpotId} onChange={(event) => {
+              setPlanSpotId(event.target.value);
+              setActiveSpotId(event.target.value);
+              setPlan(null);
+              setArchive(null);
+              replacePlanUrl({ subject: planSubject, date: planDate, spotId: event.target.value });
+            }}>
+              <option value="">请选择可计算的机位</option>
+              {planningSpots.map((spot) => <option value={spot.id} key={spot.id}>{spot.name}</option>)}
+            </select>
+          </label>
         </div>
-
-        <div className="card">
-          <span className="card-kicker">月相 · 银河可见</span>
-          <ul className="event-list">
-            <li>月相：{moon ? `${moon.name}${moon.advice ? ` · ${moon.advice}` : ""}` : "运行规划后更新"}</li>
-            <li>银河窗口：{galaxy || "运行规划后更新"}</li>
-          </ul>
-        </div>
+        {planningSpots.length === 0 ? (
+          <p className="page-sub">暂无带 WGS84 坐标和时区的机位，请先到「我的记忆」补充。</p>
+        ) : null}
       </section>
 
-      <section className="card" style={{ marginTop: 20 }}>
-        <span className="card-kicker">天象时间线</span>
-        <div className="sky-timeline">
-          {marks.length > 0 ? (
-            <div className="sky-band">
-              {marks.map((mark) => (
-                <span
-                  className="sky-mark"
-                  key={mark.label}
-                  style={{ left: `${(parseInt(mark.time.slice(0, 2), 10) * 60 + parseInt(mark.time.slice(3), 10)) / 4.8}%` }}
-                >
-                  {mark.time} {mark.label}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className="trace-empty">运行一次「规划」后，这里会标出日出与日落时刻（移动端可横向滚动查看）。</p>
-          )}
-        </div>
-      </section>
+      {notice ? <p className="d2-notice" role="status">{notice}</p> : null}
+      <div className="d2-plan-actions">
+        <button type="button" className="btn btn-secondary" disabled={!plan || transferring} onClick={() => void downloadPlan()}>导出 JSON</button>
+        <button type="button" className="btn btn-secondary" disabled={transferring} onClick={() => importRef.current?.click()}>导入 JSON</button>
+        <input ref={importRef} type="file" accept=".json,application/json" aria-label="选择计划 JSON 文件" hidden
+          onChange={(event) => void importPlan(event.target.files?.[0])} />
+      </div>
+      {plan ? <SpotPlanView plan={plan} /> : replayPlan ? <SpotPlanView plan={replayPlan} frozen /> : null}
 
-      {lastCard?.time_window ? (
-        <section className="card" style={{ marginTop: 20 }}>
-          <span className="card-kicker">最近计划窗口</span>
-          <div className="chip-row">
-            <span className="chip">{lastCard.time_window}</span>
-            {(lastCard.locations ?? []).slice(0, 3).map((location) => (
-              <span className="chip" key={`${location.name}`}>{location.name}</span>
-            ))}
+      <section className="d2-spots" aria-labelledby="d2-spots-title">
+        <div className="d2-section-head"><h2 id="d2-spots-title">收藏机位</h2><a href="#/m1">管理机位</a></div>
+        {spots.length === 0 ? <p className="trace-empty">档案中暂无收藏机位。</p> : (
+          <div className="d2-spots-layout">
+          <div className="d2-spot-list">
+            {spots.map((spot) => {
+              const usable = spot.coordinate_state === "ready" && Boolean(spot.tz_offset);
+              return <button type="button" className={planSpotId === spot.id ? "d2-spot is-selected" : "d2-spot"}
+                key={spot.id} disabled={!usable} aria-pressed={usable && planSpotId === spot.id}
+                onClick={() => {
+                  setPlanSpotId(spot.id); setActiveSpotId(spot.id); setPlan(null); setArchive(null);
+                  replacePlanUrl({ subject: planSubject, date: planDate, spotId: spot.id });
+                }}>
+                <strong>{spot.name}</strong><span className={usable ? "d2-spot-status is-ready" : "d2-spot-status"}>{spotStatus(spot)}</span>
+                <small>{spot.coordinate_system ?? "坐标系未确认"} · {spot.tz_offset ?? "时区未填"}{spot.direction_deg == null ? "" : ` · 朝向 ${spot.direction_deg}°`}</small>
+                {spot.subject_types && spot.subject_types.length > 0 ? <small>题材：{spot.subject_types.join("、")}</small> : null}
+                <small>来源：{spot.source}</small>
+              </button>;
+            })}
           </div>
-        </section>
-      ) : null}
+          <SpotMap spots={spots} selectedId={planSpotId} onSelect={(id) => {
+            setPlanSpotId(id);
+            setActiveSpotId(id);
+            setPlan(null);
+            setArchive(null);
+            replacePlanUrl({ subject: planSubject, date: planDate, spotId: id });
+          }} />
+          </div>
+        )}
+      </section>
 
-      <section className="card" style={{ marginTop: 20 }}>
-        <span className="card-kicker">多机位赶场</span>
+      <section className="d2-chase">
+        <h2>多机位赶场</h2>
         <p className="page-sub">选择 2–4 个机位，分别设定拍摄窗口；系统根据通勤时间计算可行顺序。</p>
         <div className="chip-row" style={{ margin: "12px 0" }}>
           {routeSpots.map((name) => (
