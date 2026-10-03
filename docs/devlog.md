@@ -1,5 +1,11 @@
 # LightTrail 开发日志
 
+## 2026-10-03（T2 MemoryManager 并发初始化收敛）
+
+- 为 `_users` 增加字典锁，并以按用户 ID 管理的初始化锁串行化同一用户首次构造；存储读取发生在全局字典锁外，不同用户仍可并行初始化。并发线程二次检查缓存后共享唯一 `_UserMemory`，避免同一 SQLite 文件被多个 `EventStore` 实例并行操作。
+- 新增 12 线程、48 次并发首次访问回归，断言返回同一状态对象且只构造一个 `EventStore` 与一个 `SemanticStore`。
+- 验证：全量 pytest **445 passed**；`ruff check .` 通过；smoke **21/21**；`lint-imports` **3 kept / 0 broken**。本项不改 API 契约，未重跑 `gen:api`；当前生成物 SHA-256 为 `C260627ED05C56310157AB016227ADCF1804C5C1DD261DFA7C27F90159C9D854`。`ruff format --check .` 将在 T4 纳入全仓门禁时统一处理。
+
 ## 2026-10-02（S1-5 计划快照与 S1 本地闸门）
 
 - 新增版本化 `PlanArchive` 契约及 `/api/spot-plans/archive`、`/replay`：从已验证 `SpotPlan` 生成包含本轮 `PlanningRequest`、行动窗口、器材、参数、风险和证据的冻结快照；默认移除机位点和区域中心的结构化经纬度。导入时校验版本、日期、机位、时区、窗口顺序和 `ready` 必需项，回放不重新访问用户档案、天气、地图或 LLM。API 响应禁止缓存。

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 import shutil
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -87,6 +88,8 @@ class MemoryManager:
         """
         self._data_dir = Path(data_dir)
         self._users: dict[str, _UserMemory] = {}
+        self._users_lock = threading.Lock()
+        self._user_state_locks: dict[str, threading.Lock] = {}
         self._injected = (profile, event_store, semantic_store)
         if not any(item is not None for item in self._injected):
             migrate_memory_namespace(self._data_dir)
@@ -407,31 +410,41 @@ class MemoryManager:
         user_id = ctx.user_id
         if not _USER_ID_PATTERN.fullmatch(user_id):
             raise ValueError("user_id 只能包含字母、数字、下划线和连字符")
-        if user_id in self._users:
-            return self._users[user_id]
+        with self._users_lock:
+            cached = self._users.get(user_id)
+            if cached is not None:
+                return cached
+            state_lock = self._user_state_locks.setdefault(user_id, threading.Lock())
 
-        directory = self._data_dir / "users" / user_id / "memory"
-        profile, event_store, semantic_store = self._injected
-        if user_id == LOCAL_USER_ID and any(item is not None for item in self._injected):
-            state = _UserMemory(
-                directory=directory,
-                profile=profile if profile is not None else UserProfile.load(directory),
-                events=event_store
-                if event_store is not None
-                else EventStore(directory / "events.db"),
-                semantic=semantic_store
-                if semantic_store is not None
-                else SemanticStore(directory / "semantic.json"),
-            )
-        else:
-            state = _UserMemory(
-                directory=directory,
-                profile=UserProfile.load(directory),
-                events=EventStore(directory / "events.db"),
-                semantic=SemanticStore(directory / "semantic.json"),
-            )
-        self._users[user_id] = state
-        return state
+        # 同一用户的首次构造串行化，但不同用户可并行加载；全局字典锁不包文件读取。
+        with state_lock:
+            with self._users_lock:
+                cached = self._users.get(user_id)
+                if cached is not None:
+                    return cached
+
+            directory = self._data_dir / "users" / user_id / "memory"
+            profile, event_store, semantic_store = self._injected
+            if user_id == LOCAL_USER_ID and any(item is not None for item in self._injected):
+                state = _UserMemory(
+                    directory=directory,
+                    profile=profile if profile is not None else UserProfile.load(directory),
+                    events=event_store
+                    if event_store is not None
+                    else EventStore(directory / "events.db"),
+                    semantic=semantic_store
+                    if semantic_store is not None
+                    else SemanticStore(directory / "semantic.json"),
+                )
+            else:
+                state = _UserMemory(
+                    directory=directory,
+                    profile=UserProfile.load(directory),
+                    events=EventStore(directory / "events.db"),
+                    semantic=SemanticStore(directory / "semantic.json"),
+                )
+            with self._users_lock:
+                return self._users.setdefault(user_id, state)
 
     @staticmethod
     def _extract_location(profile: UserProfile, intent: str) -> str | None:

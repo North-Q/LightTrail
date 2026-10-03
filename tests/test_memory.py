@@ -14,6 +14,7 @@ import dataclasses
 import json
 import shutil
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -268,6 +269,40 @@ def test_user_id_namespace_is_isolated(memory_dir: Path) -> None:
     assert manager.profile_for(other).camera_body == "索尼 A7C2"
     assert (memory_dir / "users" / "_local" / "memory" / "events.db").exists()
     assert (memory_dir / "users" / "other" / "memory" / "events.db").exists()
+
+
+def test_concurrent_state_initialization_shares_one_store_set(
+    memory_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """同一用户并发首次访问只构造并缓存一套存储对象。"""
+    from lighttrail.memory import manager as manager_module
+
+    event_instances: list[object] = []
+    semantic_instances: list[object] = []
+    original_event_store = manager_module.EventStore
+    original_semantic_store = manager_module.SemanticStore
+
+    def make_event_store(path: str | Path) -> object:
+        instance = original_event_store(path)
+        event_instances.append(instance)
+        return instance
+
+    def make_semantic_store(path: str | Path | None = None) -> object:
+        instance = original_semantic_store(path)
+        semantic_instances.append(instance)
+        return instance
+
+    monkeypatch.setattr(manager_module, "EventStore", make_event_store)
+    monkeypatch.setattr(manager_module, "SemanticStore", make_semantic_store)
+    manager = MemoryManager(memory_dir)
+    context = RequestContext(user_id="concurrent-user")
+
+    with ThreadPoolExecutor(max_workers=12) as executor:
+        states = list(executor.map(lambda _: manager._state(context), range(48)))
+
+    assert all(state is states[0] for state in states)
+    assert len(event_instances) == 1
+    assert len(semantic_instances) == 1
 
 
 def test_memory_migration_is_idempotent(memory_dir: Path) -> None:
