@@ -22,7 +22,6 @@ from lighttrail.composition import build_registry
 from lighttrail.contracts.models import DecisionCard, Intent
 from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.trace import TraceRecorder
-from lighttrail.llm.router import ModelRouter
 from lighttrail.memory import MemoryManager, UserProfile
 from lighttrail.orchestrator import Orchestrator
 from lighttrail.orchestrator.context import PipelineContext
@@ -197,22 +196,25 @@ def test_inspiration_pipeline_walks_steps_and_records_trace() -> None:
 
 
 def test_pipeline_stops_before_llm_when_quota_exhausted() -> None:
-    """管线配额耗尽时不采集、不调用 reason，返回可解释降级卡。"""
+    """统一 plan 入口配额耗尽时不采集、不调用模型，返回可解释降级卡。"""
     ledger = QuotaLedger(windows=(("hours", 3600.0, 1.0),), now=1_800_000_000.0)
     ledger._records.append((1_800_000_000.0, 1.1))
-    calls: list[str] = []
-    env = PipelineEnv(
-        dispatch=lambda name, args: calls.append(name) or "{}",
-        reason=lambda prompt, system: _CARD_JSON,
+    fake = FakeChatClient([])
+    recorder = TraceRecorder()
+    orchestrator = Orchestrator(
+        registry,
+        _runtime(fake, recorder=recorder),
         memory=_MEMORY,
+        recorder=recorder,
+        dispatch=_fake_dispatch,
         quota=ledger,
-        router=ModelRouter(),
     )
-    card = PIPELINES["inspiration"].run(
-        PipelineContext(user_request="这周末想去拍银河", intent=Intent(subject_type="银河")), env
-    )
+    orchestrator.plan("这周末想去拍银河")
+    card = orchestrator.last_card
+    assert card is not None
     assert card.degraded == "quota_exhausted"
-    assert calls == []
+    assert fake.calls == []
+    assert [step.name for step in recorder.to_report().steps] == ["配额_拒绝"]
 
 
 def test_inspiration_pipeline_records_scores() -> None:

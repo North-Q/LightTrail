@@ -254,6 +254,41 @@ class Orchestrator:
         )
         self.last_card: DecisionCard | None = None
 
+    def _quota_card(self, operation: str) -> DecisionCard | None:
+        """统一执行配额拒绝与高水位降级，并记录唯一 trace 判定。"""
+        quota = self._env.quota
+        if quota is None:
+            return None
+        if not quota.check():
+            self._recorder.record_step(
+                "配额_拒绝", input_summary=operation, output_summary="quota_exhausted"
+            )
+            return finalize_card(
+                DecisionCard(
+                    conclusion="当前配额已达上限，本次未发起模型调用。",
+                    evidence=[],
+                    confidence="low",
+                    verdict="wait",
+                    degraded="quota_exhausted",
+                )
+            )
+        if self._router is not None:
+            warning = quota.degrade(RouteIntent.DEEP_REASONING, self._router)
+            if warning is not None:
+                self._recorder.record_step(
+                    "配额_降级", input_summary=operation, output_summary=warning[:120]
+                )
+                return finalize_card(
+                    DecisionCard(
+                        conclusion="当前配额水位较高，已降级为不发起深推理的保守建议。",
+                        evidence=[],
+                        confidence="low",
+                        verdict="wait",
+                        degraded="quota_high_water",
+                    )
+                )
+        return None
+
     # ------ 对外接口 ------
     def plan(self, user_request: str) -> str:
         """E5-3 主入口：一句话出方案（文本渲染）；失败自动降级自由对话。
@@ -274,38 +309,10 @@ class Orchestrator:
             )
             return unsupported_reply
         try:
-            if self._env.quota is not None and not self._env.quota.check():
-                self._recorder.record_step(
-                    "配额_拒绝", input_summary="plan", output_summary="quota_exhausted"
-                )
-                card = finalize_card(
-                    DecisionCard(
-                        conclusion="当前配额已达上限，本次未发起模型调用。",
-                        evidence=[],
-                        confidence="low",
-                        verdict="wait",
-                        degraded="quota_exhausted",
-                    )
-                )
-                self.last_card = card
-                return _render_card(card)
-            if self._env.quota is not None and self._router is not None:
-                warning = self._env.quota.degrade(RouteIntent.DEEP_REASONING, self._router)
-                if warning is not None:
-                    self._recorder.record_step(
-                        "配额_降级", input_summary="plan", output_summary=warning[:120]
-                    )
-                    card = finalize_card(
-                        DecisionCard(
-                            conclusion="当前配额水位较高，已降级为不发起深推理的保守建议。",
-                            evidence=[],
-                            confidence="low",
-                            verdict="wait",
-                            degraded="quota_high_water",
-                        )
-                    )
-                    self.last_card = card
-                    return _render_card(card)
+            quota_card = self._quota_card("plan")
+            if quota_card is not None:
+                self.last_card = quota_card
+                return _render_card(quota_card)
             if self._intent_router.needs_controlled_plan(user_request):
                 self._recorder.record_step(
                     "意图路由_Planner",
@@ -385,6 +392,9 @@ class Orchestrator:
         Raises:
             照片分析 / rSchema 校验失败向上抛（由 review 捕获降级）。
         """
+        quota_card = self._quota_card("review")
+        if quota_card is not None:
+            return quota_card
         plan_params = _extract_plan_params(plan_reference)
         ctx = PipelineContext(
             user_request=f"复盘照片：{image_path}",
@@ -437,6 +447,9 @@ class Orchestrator:
         Raises:
             多模态/数据采集/rSchema 校验失败向上抛（由 reverse_plan 捕获降级）。
         """
+        quota_card = self._quota_card("reverse")
+        if quota_card is not None:
+            return quota_card
         self._recorder.record_step("反推_多模态", input_summary=image_path[:80], output_summary="")
         reverse = self._photo_reverse(image_path, note, equipment)
         if not _candidate_sites(self._env.memory, self._env.request):

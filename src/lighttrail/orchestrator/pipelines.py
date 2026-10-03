@@ -26,7 +26,7 @@ from lighttrail.infra.confidence import confidence_detail
 from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.trace import Recorder, null_trace
 from lighttrail.infra.validation import parse_with_retry
-from lighttrail.llm.router import ModelRouter, RouteIntent
+from lighttrail.llm.router import ModelRouter
 from lighttrail.memory import MemoryManager
 from lighttrail.orchestrator.context import PipelineContext
 
@@ -603,34 +603,6 @@ class Pipeline:
 
     def run(self, ctx: PipelineContext, env: PipelineEnv) -> DecisionCard:
         """执行管线，并统一补全规则推导字段（置信度明细）。"""
-        if env.quota is not None and not env.quota.check():
-            env.recorder.record_step(
-                "配额_拒绝", input_summary=self.name, output_summary="quota_exhausted"
-            )
-            return finalize_card(
-                DecisionCard(
-                    conclusion="当前配额已达上限，本次未发起模型调用。",
-                    evidence=[],
-                    confidence="low",
-                    verdict="wait",
-                    degraded="quota_exhausted",
-                )
-            )
-        if env.quota is not None and env.router is not None:
-            warning = env.quota.degrade(RouteIntent.DEEP_REASONING, env.router)
-            if warning is not None:
-                env.recorder.record_step(
-                    "配额_降级", input_summary=self.name, output_summary=warning[:120]
-                )
-                return finalize_card(
-                    DecisionCard(
-                        conclusion="当前配额水位较高，已降级为不发起深推理的保守建议。",
-                        evidence=[],
-                        confidence="low",
-                        verdict="wait",
-                        degraded="quota_high_water",
-                    )
-                )
         return finalize_card(self._run(ctx, env))
 
     def _run(self, ctx: PipelineContext, env: PipelineEnv) -> DecisionCard:

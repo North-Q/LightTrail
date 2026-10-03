@@ -1,5 +1,11 @@
 # LightTrail 开发日志
 
+## 2026-10-03（T5 收敛配额决策唯一入口）
+
+- 删除 `Pipeline.run` 内与 `Orchestrator.plan` 重复的配额卡片构造；将拒绝/高水位判定收敛到 `Orchestrator._quota_card`。`plan` 在固定管线、受控 Planner 和异常回落之前统一检查；复盘与照片反推入口也调用同一策略，避免移除管线守卫后丢失保护。Planner 执行中的逐步额度检查保留，用于计划运行期间余额变化的中途止损。
+- 新增/调整回归：配额拒绝与高水位在固定管线、Planner 请求及可能回落的请求上得到同一保守卡且不启动模型；管线失败后实际回落 ReAct 时入口配额只检查一次。
+- 验证：全量 pytest **454 passed**；`ruff check .`、`ruff format --check .` 通过；smoke **21/21**；`lint-imports` **3 kept / 0 broken**。不涉及 API 契约，未重跑 `gen:api`；当前生成物 SHA-256 为 `C260627ED05C56310157AB016227ADCF1804C5C1DD261DFA7C27F90159C9D854`。
+
 ## 2026-10-03（T4 执行全仓 Ruff 格式门禁）
 
 - 全仓运行 `ruff format .`，格式化 Python 源码、测试和文档中的 Python 示例；对比变更只包含格式调整，未改动运行逻辑。随后将 `ruff format --check .` 纳入 README 本地验收命令与路线图 §4/R0 验收命令。

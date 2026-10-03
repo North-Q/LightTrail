@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
 from httpx import ASGITransport, AsyncClient
 
 from evals.fake_data import FakeDispatcher
@@ -156,6 +157,76 @@ async def test_high_water_returns_conservative_card_without_model(tmp_path: Path
         )
         assert "90%" in _steps(events)["配额_降级"]
         assert fake.calls == []
+    finally:
+        services.close()
+
+
+@pytest.mark.parametrize(
+    ("route", "user_request"),
+    [
+        ("fixed_pipeline", "今晚火烧云值得冲吗"),
+        ("controlled_planner", "做一个跨题材复合任务拍摄计划"),
+        ("react_fallback_candidate", "今晚火烧云值得冲吗"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("quota_state", "spent", "expected"),
+    [
+        ("rejected", 11, "quota_exhausted"),
+        ("high_water", 9, "quota_high_water"),
+    ],
+)
+async def test_quota_guard_is_uniform_before_all_decision_paths(
+    tmp_path: Path,
+    route: str,
+    user_request: str,
+    quota_state: str,
+    spent: int,
+    expected: str,
+) -> None:
+    """固定管线、Planner 与可回落请求共享同一入口的配额判断。"""
+    quota = QuotaLedger(
+        pricing={"tools-fake": Pricing(1_000_000, 0)},
+        windows=(("hours", 3600.0, 10.0), ("daily", 86400.0, 100.0)),
+        warn_threshold=0.8,
+    )
+    quota.record("tools-fake", spent, 0)
+    responses = ["非 JSON"] * 3 if route == "react_fallback_candidate" else []
+    app, services, fake = _setup(tmp_path, responses, quota=quota)
+    try:
+        events = await _decide(app, user_request)
+        card = next(event["card"] for event in events if event["type"] == "card")
+        steps = _steps(events)
+        assert card["degraded"] == expected
+        assert len([name for name in steps if name.startswith("配额_")]) == 1
+        assert not any(name.startswith(("管线_", "意图路由_Planner", "管线降级")) for name in steps)
+        assert fake.calls == []
+    finally:
+        services.close()
+
+
+async def test_react_fallback_does_not_repeat_plan_quota_check(tmp_path: Path) -> None:
+    """计划执行失败回落 ReAct 时不重复执行已完成的入口配额判定。"""
+    quota = QuotaLedger(
+        pricing={"tools-fake": Pricing(1_000_000, 0), "reason-fake": Pricing(1_000_000, 0)},
+        windows=(("hours", 3600.0, 10_000.0),),
+    )
+    original_check = quota.check
+    checks = 0
+
+    def counted_check(estimate_credits: float = 0.0) -> bool:
+        nonlocal checks
+        checks += 1
+        return original_check(estimate_credits)
+
+    quota.check = counted_check  # type: ignore[method-assign]
+    app, services, fake = _setup(tmp_path, ["非 JSON"] * 3 + ["请先查看云图。"], quota=quota)
+    try:
+        events = await _decide(app, "今晚火烧云值得冲吗")
+        assert "SchemaError" in _steps(events)["管线降级"]
+        assert any(event["type"] == "token" for event in events)
+        assert checks == 1
+        assert fake.calls[-1]["model"] == "tools-fake"
     finally:
         services.close()
 
