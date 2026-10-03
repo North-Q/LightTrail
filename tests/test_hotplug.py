@@ -107,7 +107,9 @@ def test_dynamic_confidence_rule_applies_to_new_tool() -> None:
                     confidence=Confidence.MEDIUM,
                     confidence_rule="forecast",
                 ),
-                func=lambda **_: {"每日预报": [{"日期": datetime.now(timezone.utc).date().isoformat()}]},
+                func=lambda **_: {
+                    "每日预报": [{"日期": datetime.now(timezone.utc).date().isoformat()}]
+                },
             )
         ],
         recorder=recorder,

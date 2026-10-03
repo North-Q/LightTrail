@@ -76,9 +76,17 @@ async def test_web_cli_eval_share_production_scope(tmp_path: Path, capsys: Any) 
     context = RequestContext(user_id="north")
     services.memory.update_profile(
         context,
-        {"camera_body": "松下 S5M2", "favorite_spots": [
-            {"name": "测试机位", "latitude": 31.2, "longitude": 121.5, "coordinate_system": "WGS84"}
-        ]},
+        {
+            "camera_body": "松下 S5M2",
+            "favorite_spots": [
+                {
+                    "name": "测试机位",
+                    "latitude": 31.2,
+                    "longitude": 121.5,
+                    "coordinate_system": "WGS84",
+                }
+            ],
+        },
     )
     app = create_app(ApiDeps(services, SessionManager(tmp_path)))
     app.dependency_overrides[get_request_context] = lambda: context

@@ -53,7 +53,9 @@ def test_estimate_sums_plan() -> None:
 
 def test_custom_pricing_injected() -> None:
     """计价表可注入：换 API 无需改账本逻辑。"""
-    ledger = QuotaLedger(pricing={"custom-model": Pricing(input_per_m=10.0, output_per_m=20.0)}, now=_FIXED_NOW)
+    ledger = QuotaLedger(
+        pricing={"custom-model": Pricing(input_per_m=10.0, output_per_m=20.0)}, now=_FIXED_NOW
+    )
     assert ledger.record("custom-model", 1_000_000, 1_000_000) == pytest.approx(30.0)
     with pytest.raises(QuotaError):
         ledger.record("unknown-model", 1, 1)

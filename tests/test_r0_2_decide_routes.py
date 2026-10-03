@@ -64,7 +64,16 @@ def _setup(
     services = build_application(settings, client=fake, quota=quota, dispatch=FakeDispatcher())
     services.memory.update_profile(
         RequestContext(),
-        {"favorite_spots": [{"name": "测试机位", "latitude": 31.2, "longitude": 121.5, "coordinate_system": "WGS84"}]},
+        {
+            "favorite_spots": [
+                {
+                    "name": "测试机位",
+                    "latitude": 31.2,
+                    "longitude": 121.5,
+                    "coordinate_system": "WGS84",
+                }
+            ]
+        },
     )
     return create_app(ApiDeps(services, SessionManager(tmp_path))), services, fake
 
@@ -87,11 +96,7 @@ async def _decide(app: Any, request: str) -> list[dict[str, Any]]:
 
 def _steps(events: list[dict[str, Any]]) -> dict[str, str]:
     """按名称索引可审计路由与降级原因。"""
-    return {
-        event["name"]: event["output_summary"]
-        for event in events
-        if event["type"] == "step"
-    }
+    return {event["name"]: event["output_summary"] for event in events if event["type"] == "step"}
 
 
 async def test_rule_route_uses_reason_model(tmp_path: Path) -> None:
@@ -145,7 +150,10 @@ async def test_high_water_returns_conservative_card_without_model(tmp_path: Path
     app, services, fake = _setup(tmp_path, [], quota=quota)
     try:
         events = await _decide(app, "今晚火烧云值得冲吗")
-        assert next(event for event in events if event["type"] == "card")["card"]["degraded"] == "quota_high_water"
+        assert (
+            next(event for event in events if event["type"] == "card")["card"]["degraded"]
+            == "quota_high_water"
+        )
         assert "90%" in _steps(events)["配额_降级"]
         assert fake.calls == []
     finally:

@@ -135,7 +135,13 @@ class TraceBridge:
         self._recorder = recorder
         self._unsub: Callable[[], None] | None = None
 
-    def attach(self, queue: asyncio.Queue[dict[str, Any] | None], loop: asyncio.AbstractEventLoop, *, session_id: str = "") -> None:
+    def attach(
+        self,
+        queue: asyncio.Queue[dict[str, Any] | None],
+        loop: asyncio.AbstractEventLoop,
+        *,
+        session_id: str = "",
+    ) -> None:
         """订阅记录器，事件映射后线程安全入队。
 
         Args:
@@ -158,7 +164,9 @@ class TraceBridge:
             self._unsub = None
 
 
-async def pump(queue: asyncio.Queue[dict[str, Any] | None], worker: asyncio.Task) -> AsyncIterator[str]:
+async def pump(
+    queue: asyncio.Queue[dict[str, Any] | None], worker: asyncio.Task
+) -> AsyncIterator[str]:
     """从队列取事件编码为 SSE 帧，直到 done；结束时取消未完成的 worker。
 
     Args:

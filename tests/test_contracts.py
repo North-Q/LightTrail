@@ -105,6 +105,7 @@ def test_tool_context_emit_without_sink_is_noop() -> None:
     ctx = ToolContext(request=RequestContext(), llm=object(), datasource=object())
     ctx.emit("tool", "sun_times", 结果="日出 05:12")  # 不应抛错
 
+
 # ------ B1-2：契约下沉（事件 / 计划 / shim）------
 def test_tool_context_emit_forwards_trace_event() -> None:
     """有 sink 时 emit 投递契约层 TraceEvent（kind/name/payload 口径与 trace 一致）。"""
@@ -170,17 +171,25 @@ def test_sse_event_types_single_source() -> None:
         "done",
     }
 
+
 # ------ B1-4：端口契约（记忆 / 知识库 / 数据源 / 观测）------
 def test_memory_store_protocol_structural() -> None:
     """MemoryStore：包含当前用户事件检索的端口满足结构约束。"""
 
     class _Store:
-        def build_injections(self, ctx: RequestContext, intent: str = "", *, budget: TokenBudget | None = None) -> list[MemoryBlock]:
+        def build_injections(
+            self, ctx: RequestContext, intent: str = "", *, budget: TokenBudget | None = None
+        ) -> list[MemoryBlock]:
             return [MemoryBlock(name="profile", text="档案")]
 
         def search_events(
-            self, ctx: RequestContext, query: str = "", *, location: str | None = None,
-            subject_type: str | None = None, limit: int = 5,
+            self,
+            ctx: RequestContext,
+            query: str = "",
+            *,
+            location: str | None = None,
+            subject_type: str | None = None,
+            limit: int = 5,
         ) -> list[EventRecord]:
             return []
 
@@ -221,7 +230,9 @@ def test_knowledge_provider_has_no_user_id() -> None:
 
 def test_knowledge_chunk_requires_source_and_version() -> None:
     """知识条目必须可溯源、可版本化（source / version 无默认值）。"""
-    chunk = KnowledgeChunk(id="S5M2", text="全画幅 2420 万像素", source="松下官网", version="2026-09")
+    chunk = KnowledgeChunk(
+        id="S5M2", text="全画幅 2420 万像素", source="松下官网", version="2026-09"
+    )
     assert (chunk.id, chunk.source, chunk.version) == ("S5M2", "松下官网", "2026-09")
     fields = set(KnowledgeChunk.__dataclass_fields__)
     assert {"source", "version"} <= fields

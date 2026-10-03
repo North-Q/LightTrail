@@ -56,7 +56,9 @@ def test_sse_payload_models_match_wire_fields() -> None:
     }
     step = to_payload(StepEvent(name="采集_sun_times", session_id="s1", ts="t"))
     assert set(step) == {"type", "name", "input_summary", "output_summary", "session_id", "ts"}
-    result = to_payload(ToolResultEvent(name="sun_times", result="日出: 05:42", session_id="s1", ts="t"))
+    result = to_payload(
+        ToolResultEvent(name="sun_times", result="日出: 05:42", session_id="s1", ts="t")
+    )
     assert result["type"] == "tool_result"
     assert result["confidence"] == "low"
     assert "data" not in result  # 无结构化结果 → 不出现 data 键

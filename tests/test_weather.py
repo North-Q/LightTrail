@@ -17,6 +17,7 @@ from lighttrail.tools.weather import WeatherError
 
 registry = build_registry()
 
+
 def _call(name: str, arguments: dict) -> dict:
     return json.loads(registry.dispatch(name, json.dumps(arguments, ensure_ascii=False)))
 

@@ -22,7 +22,9 @@ from lighttrail.domain.chase import (
 _NOW = datetime(2026, 9, 18, 10, 0, tzinfo=timezone(timedelta(hours=8)))
 
 
-def _site(name: str, latitude: float, longitude: float, start_minutes: int, end_minutes: int) -> ChaseSite:
+def _site(
+    name: str, latitude: float, longitude: float, start_minutes: int, end_minutes: int
+) -> ChaseSite:
     """构造带相对窗口的测试机位。"""
     return ChaseSite(
         name=name,
@@ -122,6 +124,7 @@ def test_amap_transit_requires_city() -> None:
 
 def test_fallback_provider_marks_source_switch() -> None:
     """主服务失败时，备用路线必须保留可解释的切换原因。"""
+
     class BrokenProvider:
         def route(self, *args, **kwargs):
             raise TravelProviderError("主服务限流")
@@ -153,6 +156,7 @@ def test_baidu_driving_maps_response_and_coordinate_order() -> None:
 
 def test_fallback_switches_from_broken_primary_to_baidu() -> None:
     """高德类主服务失败时，应能切到百度 adapter 的统一结果。"""
+
     class BrokenProvider:
         def route(self, *args, **kwargs):
             raise TravelProviderError("高德超时")

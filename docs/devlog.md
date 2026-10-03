@@ -1,5 +1,10 @@
 # LightTrail 开发日志
 
+## 2026-10-03（T4 执行全仓 Ruff 格式门禁）
+
+- 全仓运行 `ruff format .`，格式化 Python 源码、测试和文档中的 Python 示例；对比变更只包含格式调整，未改动运行逻辑。随后将 `ruff format --check .` 纳入 README 本地验收命令与路线图 §4/R0 验收命令。
+- 验证：全量 pytest **447 passed**；`ruff check .` 通过；`ruff format --check .` 显示 **179 files already formatted**；smoke **21/21**；`lint-imports` **3 kept / 0 broken**。不涉及 API 契约，未重跑 `gen:api`；当前生成物 SHA-256 为 `C260627ED05C56310157AB016227ADCF1804C5C1DD261DFA7C27F90159C9D854`。
+
 ## 2026-10-03（T3 照片上传分块限额）
 
 - `/api/photos/review` 与 `/api/photos/reverse` 共用 `_read_photo_upload`：优先使用 `UploadFile.size` 拒绝明显超限文件；未知大小时按最多 1 MB 分块读取，累计超过 10 MB 即在读入完整内容前中断，内存缓冲最多达到上限后一字节。

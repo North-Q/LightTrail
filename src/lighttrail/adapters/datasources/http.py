@@ -14,4 +14,10 @@ from lighttrail.infra.http import (
     get_json_sync,
 )
 
-__all__ = ["DEFAULT_MAX_ATTEMPTS", "DEFAULT_TIMEOUT", "DataSourceError", "get_json", "get_json_sync"]
+__all__ = [
+    "DEFAULT_MAX_ATTEMPTS",
+    "DEFAULT_TIMEOUT",
+    "DataSourceError",
+    "get_json",
+    "get_json_sync",
+]

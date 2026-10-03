@@ -120,7 +120,14 @@ async def test_photo_api_uses_scoped_gear_prompts_and_cleans_uploads(
             {
                 "camera_body": body,
                 "lenses": [lens],
-                "favorite_spots": [{"name": "海边机位", "latitude": 31.2, "longitude": 121.5, "coordinate_system": "WGS84"}],
+                "favorite_spots": [
+                    {
+                        "name": "海边机位",
+                        "latitude": 31.2,
+                        "longitude": 121.5,
+                        "coordinate_system": "WGS84",
+                    }
+                ],
             },
         )
     app = create_app(ApiDeps(services, SessionManager(tmp_path)))

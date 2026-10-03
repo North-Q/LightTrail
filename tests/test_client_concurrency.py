@@ -68,7 +68,9 @@ def _probed_client(*, concurrency: int, fail_times: int = 0) -> tuple[ChatClient
 
 async def _fire(client: ChatClient, n: int = 4) -> list[dict[str, Any]]:
     """并发发起 n 次 acall。"""
-    return await asyncio.gather(*(client.acall([{"role": "user", "content": "hi"}]) for _ in range(n)))
+    return await asyncio.gather(
+        *(client.acall([{"role": "user", "content": "hi"}]) for _ in range(n))
+    )
 
 
 async def test_concurrency_one_serializes() -> None:

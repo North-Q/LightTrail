@@ -83,7 +83,8 @@ def _pick_photo() -> Path:
     candidates = [
         path
         for path in sorted(_PHOTOS_DIR.glob("*"))
-        if path.suffix.lower() in {".jpg", ".jpeg", ".png"} and path.stat().st_size <= _MAX_PHOTO_BYTES
+        if path.suffix.lower() in {".jpg", ".jpeg", ".png"}
+        and path.stat().st_size <= _MAX_PHOTO_BYTES
     ]
     if not candidates:
         raise LiveCheckError(f"{_PHOTOS_DIR} 下没有 ≤10MB 的 jpg/png 照片（可用 --photo 指定）")
@@ -157,14 +158,18 @@ def check_decide(client: httpx.Client, question: str) -> list[str]:
         if required not in kinds:
             problems.append(f"缺 {required} 事件")
     results = [event for event in events if event["type"] == "tool_result"]
-    with_data = [event for event in results if isinstance(event.get("data"), dict) and event["data"]]
+    with_data = [
+        event for event in results if isinstance(event.get("data"), dict) and event["data"]
+    ]
     if not results:
         problems.append("没有 tool_result 事件")
     elif not with_data:
         problems.append("tool_result 全部没有结构化 data（前端无法按字段渲染）")
     else:
         sample = with_data[0]
-        _log(f"  data 样例：{sample['name']} {json.dumps(sample['data'], ensure_ascii=False)[:120]}")
+        _log(
+            f"  data 样例：{sample['name']} {json.dumps(sample['data'], ensure_ascii=False)[:120]}"
+        )
     cards = [event for event in events if event["type"] == "card"]
     if not cards:
         problems.append("没有 card 事件")
@@ -172,16 +177,22 @@ def check_decide(client: httpx.Client, question: str) -> list[str]:
     card = cards[0]["card"]
     detail = card.get("confidence_detail")
     _log(f"  conclusion：{str(card.get('conclusion'))[:80]}")
-    _log(f"  verdict={card.get('verdict')!r} detail={json.dumps(detail, ensure_ascii=False) if detail else None}")
+    _log(
+        f"  verdict={card.get('verdict')!r} detail={json.dumps(detail, ensure_ascii=False) if detail else None}"
+    )
     if not isinstance(detail, dict):
         problems.append("卡片缺 confidence_detail（B4-3 起必填）")
     else:
         score, low, high = detail.get("score"), detail.get("low"), detail.get("high")
         if not isinstance(score, int) or not 0 <= low <= score <= high <= 100:  # type: ignore[operator]
             problems.append(f"置信度区间非法：{low}/{score}/{high}")
-        counted = detail.get("high_count", 0) + detail.get("medium_count", 0) + detail.get("low_count", 0)
+        counted = (
+            detail.get("high_count", 0) + detail.get("medium_count", 0) + detail.get("low_count", 0)
+        )
         if counted != len(card.get("evidence") or []):
-            problems.append(f"置信度计数 {counted} 与 evidence {len(card.get('evidence') or [])} 条不一致")
+            problems.append(
+                f"置信度计数 {counted} 与 evidence {len(card.get('evidence') or [])} 条不一致"
+            )
     if card.get("verdict") not in _VERDICTS:
         problems.append(f"verdict 越界：{card.get('verdict')!r}")
     return problems
@@ -197,7 +208,9 @@ def check_chat(client: httpx.Client) -> list[str]:
     if "token" not in kinds or "done" not in kinds:
         problems.append("缺 token / done 事件")
     if "error" in kinds:
-        problems.append(f"出现 error 事件：{[e.get('message') for e in events if e['type'] == 'error']}")
+        problems.append(
+            f"出现 error 事件：{[e.get('message') for e in events if e['type'] == 'error']}"
+        )
     return problems
 
 
@@ -237,10 +250,17 @@ def check_profile(client: httpx.Client, data_dir: Path) -> list[str]:
     problems: list[str] = []
     try:
         before = client.get("/api/profile").json()
-        updated = client.put("/api/profile", json={"camera_body": "联调临时机身", "skill_level": "联调"}).json()
+        updated = client.put(
+            "/api/profile", json={"camera_body": "联调临时机身", "skill_level": "联调"}
+        ).json()
         after = client.get("/api/profile").json()
-        if updated.get("camera_body") != "联调临时机身" or after.get("camera_body") != "联调临时机身":
-            problems.append(f"档案写入未生效：{updated.get('camera_body')!r} / {after.get('camera_body')!r}")
+        if (
+            updated.get("camera_body") != "联调临时机身"
+            or after.get("camera_body") != "联调临时机身"
+        ):
+            problems.append(
+                f"档案写入未生效：{updated.get('camera_body')!r} / {after.get('camera_body')!r}"
+            )
         if before.get("lenses") != after.get("lenses"):
             problems.append("档案往返把 lens 列表弄丢了")
         _log(f"  PUT 生效：camera_body={after.get('camera_body')!r}")
@@ -263,8 +283,12 @@ def main(argv: list[str] | None = None) -> int:
         进程退出码（0 = 全部通过）。
     """
     parser = argparse.ArgumentParser(prog="live_check", description="LightTrail 真实联调自检")
-    parser.add_argument("--port", default="8790", help="后端端口（默认 8790，避开 Vite 代理的 8765）")
-    parser.add_argument("--photo", default="", help="复盘用照片路径（缺省自动挑 data/photos 里 ≤10MB 的）")
+    parser.add_argument(
+        "--port", default="8790", help="后端端口（默认 8790，避开 Vite 代理的 8765）"
+    )
+    parser.add_argument(
+        "--photo", default="", help="复盘用照片路径（缺省自动挑 data/photos 里 ≤10MB 的）"
+    )
     parser.add_argument("--question", default="今晚上海火烧云值得冲吗？", help="决策/管线问题")
     parser.add_argument("--skip-cli", action="store_true", help="跳过 CLI 检查（省配额）")
     parser.add_argument("--skip-photo", action="store_true", help="跳过照片复盘（省配额）")
@@ -282,7 +306,16 @@ def main(argv: list[str] | None = None) -> int:
     log_path = Path(tempfile.gettempdir()) / f"lt_live_check_{args.port}.log"
     with log_path.open("wb") as handle:
         server = subprocess.Popen(
-            [PY, "-m", "uvicorn", "lighttrail.api.app:app", "--port", args.port, "--log-level", "warning"],
+            [
+                PY,
+                "-m",
+                "uvicorn",
+                "lighttrail.api.app:app",
+                "--port",
+                args.port,
+                "--log-level",
+                "warning",
+            ],
             cwd=str(ROOT),
             stdout=handle,
             stderr=subprocess.STDOUT,
@@ -290,7 +323,9 @@ def main(argv: list[str] | None = None) -> int:
     problems: list[str] = []
     try:
         if not _wait_ready(base):
-            _log(f"后端未就绪，日志尾部：{log_path.read_text(encoding='utf-8', errors='replace')[-500:]}")
+            _log(
+                f"后端未就绪，日志尾部：{log_path.read_text(encoding='utf-8', errors='replace')[-500:]}"
+            )
             return 1
         document = httpx.get(f"{base}/openapi.json", timeout=30).json()
         schemas = set(document["components"]["schemas"])

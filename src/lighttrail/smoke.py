@@ -47,7 +47,9 @@ class FakeChatClient:
         allowed = {k: v for k, v in kwargs.items() if k in {"model", "tools", "temperature"}}
         return self.chat(messages, **allowed)
 
-    def chat(self, messages, *, model=None, tools=None, temperature=0.2, usage_callback=None) -> dict:
+    def chat(
+        self, messages, *, model=None, tools=None, temperature=0.2, usage_callback=None
+    ) -> dict:
         self.calls.append({"messages": messages, "tools": tools})
         return self._responses.pop(0)
 
@@ -82,7 +84,9 @@ def test_registry_and_dispatch() -> None:
     err = json.loads(registry.dispatch("no_such_tool", "{}"))
     check("未知工具返回 error", "error" in err)
 
-    err2 = json.loads(registry.dispatch("equivalent_exposure", '{"f_stop": -1, "shutter_speed": 1, "iso": 100}'))
+    err2 = json.loads(
+        registry.dispatch("equivalent_exposure", '{"f_stop": -1, "shutter_speed": 1, "iso": 100}')
+    )
     check("非法参数返回 error", "error" in err2)
 
 

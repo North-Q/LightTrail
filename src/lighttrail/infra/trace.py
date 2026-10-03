@@ -46,7 +46,16 @@ _PAYLOAD_WHITELIST: dict[str, frozenset[str]] = {
         {"模型", "prompt_summary", "耗时_秒", "tokens", "输入_tokens", "输出_tokens"}
     ),
     KIND_TOOL: frozenset(
-        {"参数摘要", "结果摘要", "结果原文", "结果数据", "数据来源", "置信度", "来源字段", "耗时_ms"}
+        {
+            "参数摘要",
+            "结果摘要",
+            "结果原文",
+            "结果数据",
+            "数据来源",
+            "置信度",
+            "来源字段",
+            "耗时_ms",
+        }
     ),
     KIND_STEP: frozenset({"输入摘要", "输出摘要"}),
 }
@@ -164,7 +173,12 @@ class TraceReport:
     def sources(self) -> tuple[SourceRef, ...]:
         """按调用顺序返回来源标注列表（含 data_source 与置信度）。"""
         return tuple(
-            SourceRef(tool=ref.name, data_source=ref.data_source, confidence=ref.confidence, field=ref.field)
+            SourceRef(
+                tool=ref.name,
+                data_source=ref.data_source,
+                confidence=ref.confidence,
+                field=ref.field,
+            )
             for ref in self.tool_calls
         )
 
@@ -313,7 +327,9 @@ class TraceRecorder:
         except (ValueError, TypeError):
             result_data = {}
         data_source = _extract_source(result_data)
-        resolved_confidence = confidence if confidence is not None else confidence_for_tool(name, result_data)
+        resolved_confidence = (
+            confidence if confidence is not None else confidence_for_tool(name, result_data)
+        )
         field = main_field if main_field is not None else _main_field_for(name, result_data)
         result_summary = _summarize_json(result, _MAX_RESULT_CHARS)
         payload: dict[str, Any] = {

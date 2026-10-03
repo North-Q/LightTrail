@@ -66,7 +66,9 @@ _TIME_KEYWORDS: tuple[str, ...] = (
 # 顺序即优先级：同一句含“规划火烧云”时，规划意图应覆盖题材的临场缺省。
 DEFAULT_INTENT_RULES: tuple[IntentRule, ...] = (
     IntentRule("照片复盘", "review", ("复盘", "点评照片", "分析照片", "修图建议")),
-    IntentRule("拍摄规划", "planning", ("拍摄计划", "规划拍摄", "行程规划", "赶场", "排期", "安排路线")),
+    IntentRule(
+        "拍摄规划", "planning", ("拍摄计划", "规划拍摄", "行程规划", "赶场", "排期", "安排路线")
+    ),
     IntentRule("临场决策", "live", ("值得冲", "该不该出门", "现在能拍", "临场", "火烧云", "晚霞")),
     IntentRule(
         "灵感方案",
@@ -135,9 +137,8 @@ class RuleIntentRouter:
         return intent.model_copy(
             update={
                 "subject_type": subject if subject != "其他" else intent.subject_type,
-                "location": location or (
-                    intent.location if intent.location and intent.location in user_request else ""
-                ),
+                "location": location
+                or (intent.location if intent.location and intent.location in user_request else ""),
                 "time_hint": time_hint or intent.time_hint,
             }
         )

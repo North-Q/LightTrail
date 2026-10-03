@@ -40,7 +40,9 @@ def _card(**overrides) -> DecisionCard:
     """构造测试卡片（可覆盖字段）。"""
     base = {
         "conclusion": "建议 18:10 到达崇明东滩，值得出门。",
-        "evidence": [Source(tool="weather_forecast", field="每日预报", confidence="medium", note="云量 30%")],
+        "evidence": [
+            Source(tool="weather_forecast", field="每日预报", confidence="medium", note="云量 30%")
+        ],
         "confidence": "medium",
     }
     base.update(overrides)
@@ -53,7 +55,10 @@ def _card(**overrides) -> DecisionCard:
 # ------ assert_card ------
 def test_assert_card_passes_valid() -> None:
     """合法卡片：结论/置信度/evidence/机位数全部通过。"""
-    problems = assert_card(_card(), {"min_evidence": 1, "max_locations": 5, "confidence_allowed": ["high", "medium", "low"]})
+    problems = assert_card(
+        _card(),
+        {"min_evidence": 1, "max_locations": 5, "confidence_allowed": ["high", "medium", "low"]},
+    )
     assert problems == []
 
 
@@ -65,7 +70,9 @@ def test_assert_card_rejects_empty_evidence() -> None:
 
 def test_assert_card_rejects_too_many_spots_and_degrade() -> None:
     """机位数超限 / 意外降级标注 → 违规。"""
-    card = _card(locations=[{"name": f"机位{i}", "reason": ""} for i in range(6)], degraded="配额降级")
+    card = _card(
+        locations=[{"name": f"机位{i}", "reason": ""} for i in range(6)], degraded="配额降级"
+    )
     problems = assert_card(card, {"max_locations": 5})
     assert problems  # 机位数与降级均计入
 
@@ -82,7 +89,9 @@ def test_assert_card_keyword_and_time_window() -> None:
 # ------ LocalRubric ------
 def test_local_rubric_dims_in_range() -> None:
     """4 维打分均落在 1-5，且依据完整性随 evidence 数量上升。"""
-    score = LocalRubric().score(_card(evidence=[Source(tool="a", field="f", confidence="low", note="n")]))
+    score = LocalRubric().score(
+        _card(evidence=[Source(tool="a", field="f", confidence="low", note="n")])
+    )
     assert set(score.keys()) == {"决策合理性", "依据完整性", "个性化程度", "不确定性坦白"}
     for entry in score.values():
         assert 1 <= entry["score"] <= 5
@@ -111,7 +120,12 @@ def test_cross_check_catches_500_rule_violation() -> None:
 def test_cross_check_passes_compliant_shutter() -> None:
     """14mm 快门 20s 合规 → 无违规；非快门参数不校验。"""
     cross = ToolCrossCheck()
-    card = _card(params=[ParamSuggestion(name="快门", value="20s", reason=""), ParamSuggestion(name="ISO", value="3200", reason="")])
+    card = _card(
+        params=[
+            ParamSuggestion(name="快门", value="20s", reason=""),
+            ParamSuggestion(name="ISO", value="3200", reason=""),
+        ]
+    )
     assert cross.cross_check(card, focal_mm=14.0) == []
     assert cross.parse_shutter_seconds("1/125") == 1 / 125
     assert cross.parse_shutter_seconds("30s") == 30.0
@@ -171,8 +185,11 @@ def _tampered_result(case_id: str, changes: dict[str, object]) -> list[str]:
 def test_v2_rejects_tianhuangping_answering_shanghai() -> None:
     """问天荒坪却答上海必须失败，即使模型给了合法卡片结构。"""
     problems = _tampered_result(
-        "L2-001", {"conclusion": "2026-10-03去上海拍银河，依据月相名称新月出发。",
-                   "locations": [{"name": "上海", "reason": "模型臆造"}]}
+        "L2-001",
+        {
+            "conclusion": "2026-10-03去上海拍银河，依据月相名称新月出发。",
+            "locations": [{"name": "上海", "reason": "模型臆造"}],
+        },
     )
     assert any("降级" in item or "错误地点" in item for item in problems)
 
@@ -180,8 +197,8 @@ def test_v2_rejects_tianhuangping_answering_shanghai() -> None:
 def test_v2_rejects_tomorrow_chongming_answering_tonight() -> None:
     """问明天崇明却答今晚通用建议必须失败。"""
     problems = _tampered_result(
-        "L2-005", {"conclusion": "今晚可以出去拍晚霞，依据日落18:05。",
-                   "time_window": "今晚 18:00-18:30"}
+        "L2-005",
+        {"conclusion": "今晚可以出去拍晚霞，依据日落18:05。", "time_window": "今晚 18:00-18:30"},
     )
     assert any("降级" in item or "今晚" in item or "日期" in item for item in problems)
 
@@ -190,14 +207,27 @@ def test_v2_rejects_wrong_topic_fact_and_personalization() -> None:
     """错误题材、关键事实和伪造个性化都不能靠关键词或合法 schema 通过。"""
     assert _tampered_result("L2-004", {"subject_type": "银河"})
     fact_problems = _tampered_result(
-        "L2-007", {"conclusion": "2026-10-01去西岸拍日出，日出06:45，建议出发。",
-                   "evidence": [{"tool": "sun_times", "field": "日出", "confidence": "high",
-                                 "note": "离线合成：日出 06:45"}]}
+        "L2-007",
+        {
+            "conclusion": "2026-10-01去西岸拍日出，日出06:45，建议出发。",
+            "evidence": [
+                {
+                    "tool": "sun_times",
+                    "field": "日出",
+                    "confidence": "high",
+                    "note": "离线合成：日出 06:45",
+                }
+            ],
+        },
     )
     assert any("工具事实" in item for item in fact_problems)
     profile_problems = _tampered_result(
-        "L2-001", {"evidence": [{"tool": "moon_phase", "field": "月相名称",
-                                 "confidence": "high", "note": "新月"}]}
+        "L2-001",
+        {
+            "evidence": [
+                {"tool": "moon_phase", "field": "月相名称", "confidence": "high", "note": "新月"}
+            ]
+        },
     )
     assert any("用户器材依据" in item for item in profile_problems)
 
@@ -225,9 +255,18 @@ def test_v2_rejects_wrong_tools_and_stale_tool_date() -> None:
 
     cassette["tool_results"]["weather_forecast"]["每日预报"][0]["日期"] = "2026-09-08"
     calls = [
-        (name, json.dumps({"date": "2026-09-29", "tz_offset": "+08:00",
-                           "latitude": 31.52, "longitude": 121.95,
-                           "sites": [{"题材": "日落"}]}))
+        (
+            name,
+            json.dumps(
+                {
+                    "date": "2026-09-29",
+                    "tz_offset": "+08:00",
+                    "latitude": 31.52,
+                    "longitude": 121.95,
+                    "sites": [{"题材": "日落"}],
+                }
+            ),
+        )
         for name in case["semantic"]["tools"]
     ]
     problems = assert_semantics(card, case, cassette, calls, [])

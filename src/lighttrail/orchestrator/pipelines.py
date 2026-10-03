@@ -32,6 +32,7 @@ from lighttrail.orchestrator.context import PipelineContext
 
 logger = logging.getLogger("lighttrail.orchestrator.pipelines")
 
+
 @dataclass
 class PipelineEnv:
     """管线运行环境（由 Orchestrator 注入，测试可替换为 Fake）。"""
@@ -59,8 +60,12 @@ class DateResolutionError(ValueError):
 _ISO_DATE = re.compile(r"(?<!\d)\d{4}-\d{2}-\d{2}(?!\d)")
 _TZ_OFFSET = re.compile(r"([+-])(\d{2}):(\d{2})\Z")
 _MATCH_SUBJECT = {
-    "火烧云": "日落", "晚霞": "日落", "朝霞": "日出", "黄金时刻": "黄金",
-    "星轨": "星空", "城市风光": "夜景",
+    "火烧云": "日落",
+    "晚霞": "日落",
+    "朝霞": "日出",
+    "黄金时刻": "黄金",
+    "星轨": "星空",
+    "城市风光": "夜景",
 }
 
 
@@ -107,7 +112,9 @@ def _target_date(time_hint: str, request: RequestContext) -> str:
     if "周六" in hint or "周日" in hint:
         weekday = 6 if "周日" in hint else 5
         return (today + timedelta(days=(weekday - today.weekday()) % 7)).isoformat()
-    if not hint or any(word in hint for word in ("今天", "今晚", "清晨", "傍晚", "日出前", "日落后")):
+    if not hint or any(
+        word in hint for word in ("今天", "今晚", "清晨", "傍晚", "日出前", "日落后")
+    ):
         return today.isoformat()
     raise DateResolutionError("无法确认拍摄日期，请提供 YYYY-MM-DD 或明确的相对日期")
 
@@ -168,7 +175,9 @@ def _select_site(
     if len(mentioned) == 1:
         return mentioned[0]
     if len(mentioned) > 1:
-        return _clarification_card("请求涉及多个收藏机位，请明确本次要拍的机位。", "ambiguous_location")
+        return _clarification_card(
+            "请求涉及多个收藏机位，请明确本次要拍的机位。", "ambiguous_location"
+        )
     if len(sites) == 1:
         return sites[0]
     exact_subject = [site for site in sites if site["题材"] == intent.subject_type]
@@ -177,8 +186,7 @@ def _select_site(
     if not exact_subject:
         canonical = _MATCH_SUBJECT.get(intent.subject_type, intent.subject_type)
         compatible = [
-            site for site in sites
-            if _MATCH_SUBJECT.get(site["题材"], site["题材"]) == canonical
+            site for site in sites if _MATCH_SUBJECT.get(site["题材"], site["题材"]) == canonical
         ]
         if len(compatible) == 1:
             return compatible[0]
@@ -215,14 +223,17 @@ def _set_target_data(
     ctx.data["目标机位"] = site["名称"]
     ctx.data["请求题材"] = subject
     ctx.data["候选机位"] = [
-        {**candidate, "档案题材": candidate["题材"], "题材": subject}
-        for candidate in sites
+        {**candidate, "档案题材": candidate["题材"], "题材": subject} for candidate in sites
     ]
 
 
 def _align_card(
-    card: DecisionCard, intent: Intent, site: dict[str, Any], date_iso: str,
-    request: RequestContext, sites: list[dict[str, Any]],
+    card: DecisionCard,
+    intent: Intent,
+    site: dict[str, Any],
+    date_iso: str,
+    request: RequestContext,
+    sites: list[dict[str, Any]],
 ) -> DecisionCard:
     """固定结构化目标；模型地点或窗口冲突时给保守提示。"""
     location_mismatch = any(location.name != site["名称"] for location in card.locations)
@@ -231,12 +242,23 @@ def _align_card(
     target_day = date.fromisoformat(date_iso)
     visible_text = card.conclusion + " " + card.time_window
     text_mismatch = any(
-        candidate["名称"] in visible_text for candidate in sites if candidate["名称"] != site["名称"]
+        candidate["名称"] in visible_text
+        for candidate in sites
+        if candidate["名称"] != site["名称"]
     ) or any(value != date_iso for value in _ISO_DATE.findall(visible_text))
     remaining_text = visible_text
     for keyword in (
-        "下周末", "下周六", "下周日", "这周末", "这周六", "这周日",
-        "本周六", "本周日", "后天", "明天", "今晚",
+        "下周末",
+        "下周六",
+        "下周日",
+        "这周末",
+        "这周六",
+        "这周日",
+        "本周六",
+        "本周日",
+        "后天",
+        "明天",
+        "今晚",
     ):
         if keyword in remaining_text:
             try:
@@ -263,9 +285,9 @@ def _align_card(
                 window_mismatch = True
                 break
             local_date = parsed.astimezone(_request_timezone(request)).date()
-            allowed_dates = {target_day} if index == 0 else {
-                target_day, target_day + timedelta(days=1)
-            }
+            allowed_dates = (
+                {target_day} if index == 0 else {target_day, target_day + timedelta(days=1)}
+            )
             if local_date not in allowed_dates:
                 window_mismatch = True
                 break
@@ -305,7 +327,10 @@ def _collection_steps(
     subject = subject_type or ""
     if subject in ("星空", "银河", "星轨"):
         return [
-            ("moon_phase", json.dumps({"date": date_iso, "tz_offset": tz_offset}, ensure_ascii=False)),
+            (
+                "moon_phase",
+                json.dumps({"date": date_iso, "tz_offset": tz_offset}, ensure_ascii=False),
+            ),
             (
                 "moon_events",
                 json.dumps(
@@ -656,9 +681,7 @@ class PlanningPipeline(Pipeline):
         _check_step_limit(env, len(steps) + 1)
         ctx.data = _collect(env, ctx, steps)
         _set_target_data(ctx, sites, site, date_iso)
-        ctx.data["match_sites"] = _match_candidate_sites(
-            env, sites, date_iso, intent.subject_type
-        )
+        ctx.data["match_sites"] = _match_candidate_sites(env, sites, date_iso, intent.subject_type)
         ctx.scores = _score(ctx.data)
         prompt = _build_synthesis_prompt(ctx, env)
         ctx.card = parse_with_retry(DecisionCard, lambda p: env.reason(p, ""), prompt)
@@ -679,8 +702,11 @@ class LiveDecisionPipeline(Pipeline):
             return target
         site, sites, date_iso = target
         steps = _collection_steps(
-            ctx.intent.subject_type, site["纬度"], site["经度"],
-            date_iso, env.request.tz_offset,
+            ctx.intent.subject_type,
+            site["纬度"],
+            site["经度"],
+            date_iso,
+            env.request.tz_offset,
         )
         _check_step_limit(env, len(steps) + 1)
         ctx.data = _collect(env, ctx, steps)

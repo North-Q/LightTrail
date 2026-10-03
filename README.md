@@ -118,6 +118,7 @@ $npmCache = Join-Path (Get-Location) ".npm-cache"
 npm --prefix frontend ci --cache $npmCache
 .\.venv\Scripts\python.exe -m pytest -q
 .\.venv\Scripts\python.exe -m ruff check .
+.\.venv\Scripts\python.exe -m ruff format --check .
 .\.venv\Scripts\python.exe -m lighttrail.smoke
 .\.venv\Scripts\lint-imports.exe
 .\.venv\Scripts\python.exe -m evals.runner --level L2

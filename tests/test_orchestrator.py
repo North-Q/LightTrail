@@ -46,7 +46,11 @@ from lighttrail.tools import (  # noqa: F401  触发注册
 registry = build_registry()
 _MEMORY = MemoryManager(
     Path(tempfile.mkdtemp(prefix="lt_pipeline_memory_")),
-    profile=UserProfile(favorite_spots=[{"name": "测试机位", "latitude": 31.2, "longitude": 121.5, "coordinate_system": "WGS84"}]),
+    profile=UserProfile(
+        favorite_spots=[
+            {"name": "测试机位", "latitude": 31.2, "longitude": 121.5, "coordinate_system": "WGS84"}
+        ]
+    ),
 )
 
 
@@ -68,12 +72,19 @@ class FakeChatClient:
 
 _INTENT_JSON = json.dumps(
     {
-        "intent": {"subject_type": "银河", "location": "", "time_hint": "这周末", "mode": "inspiration"},
+        "intent": {
+            "subject_type": "银河",
+            "location": "",
+            "time_hint": "这周末",
+            "mode": "inspiration",
+        },
         "confidence": 0.9,
         "reason": "题材和时间明确",
     },
     ensure_ascii=False,
 )
+
+
 def _runtime(
     fake: FakeChatClient,
     *,
@@ -94,7 +105,14 @@ def _runtime(
 _CARD_JSON = json.dumps(
     {
         "conclusion": "周末银河可见，建议 20:30-23:00 前往测试机位。",
-        "evidence": [{"tool": "galaxy_visibility", "field": "可见窗口", "confidence": "high", "note": "窗口 20:10-23:50"}],
+        "evidence": [
+            {
+                "tool": "galaxy_visibility",
+                "field": "可见窗口",
+                "confidence": "high",
+                "note": "窗口 20:10-23:50",
+            }
+        ],
         "confidence": "medium",
         "time_window": "20:30-23:00",
         "locations": [{"name": "测试机位", "reason": "光害低，银心朝向开阔"}],
@@ -110,10 +128,21 @@ def _fake_dispatch(name: str, args: str) -> str:
     """Fake 数据源：按工具名回罐装 JSON（不触网）。"""
     data = {
         "moon_phase": {"月相名称": "新月", "照亮比例（%）": 2, "月光影响建议": "低"},
-        "galaxy_visibility": {"可见窗口": [{"开始": "20:10", "结束": "23:50"}], "最高高度角": 55, "提示": "好"},
-        "weather_forecast": {"每日预报": [{"日期": "2026-09-08", "平均云量（%）": 30}], "数据来源": "Open-Meteo（免费）"},
+        "galaxy_visibility": {
+            "可见窗口": [{"开始": "20:10", "结束": "23:50"}],
+            "最高高度角": 55,
+            "提示": "好",
+        },
+        "weather_forecast": {
+            "每日预报": [{"日期": "2026-09-08", "平均云量（%）": 30}],
+            "数据来源": "Open-Meteo（免费）",
+        },
         "sun_times": {"日出": "05:42", "日落": "18:06"},
-        "sunset_glow_score": {"评分（0-100）": 62, "等级": "中等（可看趋势再定）", "数据来源": "Open-Meteo（免费）"},
+        "sunset_glow_score": {
+            "评分（0-100）": 62,
+            "等级": "中等（可看趋势再定）",
+            "数据来源": "Open-Meteo（免费）",
+        },
     }
     return json.dumps(data.get(name, {"error": f"未知工具 {name}"}), ensure_ascii=False)
 
@@ -200,7 +229,11 @@ def test_inspiration_pipeline_records_scores() -> None:
 
 def test_empty_profile_honestly_degrades_without_coordinates(tmp_path: Path) -> None:
     """空档案不再回退上海占位坐标，而是提示先录入机位。"""
-    env = PipelineEnv(dispatch=_fake_dispatch, reason=lambda prompt, system: _CARD_JSON, memory=MemoryManager(tmp_path))
+    env = PipelineEnv(
+        dispatch=_fake_dispatch,
+        reason=lambda prompt, system: _CARD_JSON,
+        memory=MemoryManager(tmp_path),
+    )
     card = PIPELINES["inspiration"].run(
         PipelineContext(user_request="今晚拍银河", intent=Intent(subject_type="银河")), env
     )
@@ -220,11 +253,11 @@ def test_review_pipeline_missing_image_returns_skeleton() -> None:
 def test_orchestrator_plan_full_flow() -> None:
     """明确银河请求由规则直达灵感管线，不额外调用意图模型。"""
     recorder = TraceRecorder()
-    fake = FakeChatClient(
-        [{"role": "assistant", "content": _CARD_JSON}]
-    )
+    fake = FakeChatClient([{"role": "assistant", "content": _CARD_JSON}])
     runtime = _runtime(fake, recorder=recorder)
-    orc = Orchestrator(registry, runtime, memory=_MEMORY, recorder=recorder, dispatch=_fake_dispatch)
+    orc = Orchestrator(
+        registry, runtime, memory=_MEMORY, recorder=recorder, dispatch=_fake_dispatch
+    )
     text = orc.plan("这周末想去拍银河")
 
     assert "## 拍摄方案" in text
@@ -247,7 +280,9 @@ def test_orchestrator_honestly_rejects_out_of_tool_request() -> None:
     """超出工具集的代办需求不调用 LLM，也不伪装成拍摄决策。"""
     fake = FakeChatClient([])
     recorder = TraceRecorder()
-    orc = Orchestrator(registry, _runtime(fake, recorder=recorder), recorder=recorder, dispatch=_fake_dispatch)
+    orc = Orchestrator(
+        registry, _runtime(fake, recorder=recorder), recorder=recorder, dispatch=_fake_dispatch
+    )
 
     reply = orc.plan("帮我订机票去冰岛拍极光")
 
@@ -258,6 +293,7 @@ def test_orchestrator_honestly_rejects_out_of_tool_request() -> None:
 
 def test_orchestrator_routes_compound_request_to_planner() -> None:
     """明确复合任务绕开固定管线，进入受控 Planner。"""
+
     class _FakePlanner:
         def make_plan(self, goal: str) -> str:
             assert "复合任务" in goal
@@ -304,7 +340,11 @@ def test_orchestrator_parse_intent_falls_back_to_default_model() -> None:
 def test_orchestrator_rejects_low_confidence_llm_route() -> None:
     """低于部署阈值的 LLM 判定不应被静默接受。"""
     low_confidence = json.dumps(
-        {"intent": {"subject_type": "其他", "mode": "inspiration"}, "confidence": 0.3, "reason": "模糊"},
+        {
+            "intent": {"subject_type": "其他", "mode": "inspiration"},
+            "confidence": 0.3,
+            "reason": "模糊",
+        },
         ensure_ascii=False,
     )
     runtime = _runtime(FakeChatClient([{"role": "assistant", "content": low_confidence}]))
@@ -321,7 +361,9 @@ def test_orchestrator_plan_falls_back_to_react_on_bad_card() -> None:
     reply = {"role": "assistant", "content": "我建议先看云图再决定。"}
     fake = FakeChatClient([bad_card, bad_card, bad_card, reply])
     runtime = _runtime(fake, recorder=recorder)
-    orc = Orchestrator(registry, runtime, memory=_MEMORY, recorder=recorder, dispatch=_fake_dispatch)
+    orc = Orchestrator(
+        registry, runtime, memory=_MEMORY, recorder=recorder, dispatch=_fake_dispatch
+    )
     text = orc.plan("今晚火烧云值得冲吗")
 
     assert text == "我建议先看云图再决定。"

@@ -22,10 +22,12 @@ _SPEC_GET_CURRENT_TIME = ToolSpec(
             }
         },
     },
-    capabilities=frozenset(['tools']),
+    capabilities=frozenset(["tools"]),
     main_field="时间",
     confidence=Confidence.HIGH,
 )
+
+
 def get_current_time(tz: str = "+08:00") -> dict:
     """返回指定时区的当前日期时间（ISO 8601 格式）。"""
     try:

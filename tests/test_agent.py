@@ -16,6 +16,7 @@ from lighttrail.tools import basic, exposure  # noqa: F401  确保工具已注�
 
 registry = build_registry()
 
+
 class FakeChatClient:
     """按脚本预置响应序列的伪客户端，用于离线验证 runtime 循环。"""
 
@@ -23,7 +24,9 @@ class FakeChatClient:
         self._responses = list(responses)
         self.calls: list[dict] = []
 
-    def chat(self, messages, *, model=None, tools=None, temperature=0.2, usage_callback=None) -> dict:
+    def chat(
+        self, messages, *, model=None, tools=None, temperature=0.2, usage_callback=None
+    ) -> dict:
         self.calls.append({"messages": messages, "model": model, "tools": tools})
         return self._responses.pop(0)
 

@@ -109,7 +109,13 @@ def _tool_call(name: str, args: dict[str, Any], call_id: str = "c1") -> dict[str
     return {
         "role": "assistant",
         "content": "",
-        "tool_calls": [{"id": call_id, "type": "function", "function": {"name": name, "arguments": json.dumps(args)}}],
+        "tool_calls": [
+            {
+                "id": call_id,
+                "type": "function",
+                "function": {"name": name, "arguments": json.dumps(args)},
+            }
+        ],
     }
 
 
@@ -117,7 +123,9 @@ def test_arun_runs_react_loop_and_traces_spec_metadata() -> None:
     """端到端：注册表工具被框架调用，trace 工具/LLM 事件口径与旧实现一致。"""
     recorder = TraceRecorder()
     registry = _registry(PureTool(spec=_spec("doubler", "把整数翻倍"), func=_doubler))
-    provider = _FakeProvider([_tool_call("doubler", {"x": 21}), {"role": "assistant", "content": "结果是 42"}])
+    provider = _FakeProvider(
+        [_tool_call("doubler", {"x": 21}), {"role": "assistant", "content": "结果是 42"}]
+    )
     runtime = AgentRuntime(
         _model(provider, "ecnu-plus", recorder),
         registry,
@@ -141,9 +149,14 @@ def test_system_prompt_includes_new_tool_automatically() -> None:
     """热插拔：注册表新增工具后，能力叙述自动包含（提示词无需手改）。"""
     registry = _registry(
         PureTool(spec=_spec("doubler", "把整数翻倍"), func=_doubler),
-        PureTool(spec=_spec("great_circle", "把名称转大写（新工具）", parameter="name"), func=_great_circle),
+        PureTool(
+            spec=_spec("great_circle", "把名称转大写（新工具）", parameter="name"),
+            func=_great_circle,
+        ),
     )
-    runtime = AgentRuntime(_model(_FakeProvider([{"role": "assistant", "content": "ok"}]), "m"), registry)
+    runtime = AgentRuntime(
+        _model(_FakeProvider([{"role": "assistant", "content": "ok"}]), "m"), registry
+    )
     prompt = runtime.system_prompt()
     assert "doubler：把整数翻倍" in prompt
     assert "great_circle：把名称转大写（新工具）" in prompt
@@ -170,7 +183,10 @@ def test_reason_thinking_passes_extra_params() -> None:
     """reason_thinking 开启时 thinking / reasoning_effort 透传到 provider（ADR-003）。"""
     provider = _FakeProvider([{"role": "assistant", "content": "ok"}])
     runtime = AgentRuntime(
-        _model(provider, "m"), _registry(), reason_model=_model(provider, "ecnu-max"), reason_thinking=True
+        _model(provider, "m"),
+        _registry(),
+        reason_model=_model(provider, "ecnu-max"),
+        reason_thinking=True,
     )
 
     runtime.reason("判断", reasoning_effort="high")
@@ -202,7 +218,9 @@ def test_trace_layer_visible_to_next_run() -> None:
     因此轨迹层在**同轮内的第二轮请求**不可见（旧 Agent 每轮重算 system）。工具结果本身仍
     通过 role=tool 消息进入上下文，⑤层是跨轮补充；如需轮内刷新，B3/B7 再评估事件钩子。
     """
-    provider = _FakeProvider([_tool_call("doubler", {"x": 1}), {"role": "assistant", "content": "好了"}])
+    provider = _FakeProvider(
+        [_tool_call("doubler", {"x": 1}), {"role": "assistant", "content": "好了"}]
+    )
     registry = _registry(PureTool(spec=_spec("doubler", "把整数翻倍"), func=_doubler))
     recorder = TraceRecorder()
     runtime = AgentRuntime(_model(provider, "ecnu-plus", recorder), registry, recorder=recorder)

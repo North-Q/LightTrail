@@ -185,10 +185,11 @@ _SPEC_SUN_TIMES = ToolSpec(
         },
         "required": ["latitude", "longitude", "date"],
     },
-    capabilities=frozenset(['tools']),
+    capabilities=frozenset(["tools"]),
     main_field="太阳时刻",
     confidence=Confidence.HIGH,
 )
+
 
 def sun_times(latitude: float, longitude: float, date: str, tz_offset: str = "+08:00") -> dict:
     """计算指定地点与日期的太阳关键时刻。
@@ -277,10 +278,11 @@ _SPEC_SUN_POSITION = ToolSpec(
         },
         "required": ["latitude", "longitude", "date_time"],
     },
-    capabilities=frozenset(['tools']),
+    capabilities=frozenset(["tools"]),
     main_field="太阳方位",
     confidence=Confidence.HIGH,
 )
+
 
 def sun_position(
     latitude: float, longitude: float, date_time: str, tz_offset: str = "+08:00"
@@ -354,10 +356,11 @@ _SPEC_MOON_PHASE = ToolSpec(
         },
         "required": ["date"],
     },
-    capabilities=frozenset(['tools']),
+    capabilities=frozenset(["tools"]),
     main_field="月相",
     confidence=Confidence.HIGH,
 )
+
 
 def moon_phase(date: str, tz_offset: str = "+08:00") -> dict:
     """计算指定日期的月相与月光影响。
@@ -443,10 +446,11 @@ _SPEC_MOON_EVENTS = ToolSpec(
         },
         "required": ["latitude", "longitude", "date"],
     },
-    capabilities=frozenset(['tools']),
+    capabilities=frozenset(["tools"]),
     main_field="月升月落",
     confidence=Confidence.HIGH,
 )
+
 
 def moon_events(latitude: float, longitude: float, date: str, tz_offset: str = "+08:00") -> dict:
     """计算指定日期与地点的月升月落。
@@ -583,10 +587,11 @@ _SPEC_GALAXY_VISIBILITY = ToolSpec(
         },
         "required": ["latitude", "longitude", "date"],
     },
-    capabilities=frozenset(['tools']),
+    capabilities=frozenset(["tools"]),
     main_field="银心可见窗口",
     confidence=Confidence.HIGH,
 )
+
 
 def galaxy_visibility(
     latitude: float,

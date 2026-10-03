@@ -17,6 +17,7 @@ from lighttrail.tools.exposure import StarShutterTool
 
 registry = build_registry()
 
+
 def _call(name: str, arguments: dict) -> dict:
     """通过注册表分发工具并解析结果。"""
     return json.loads(registry.dispatch(name, json.dumps(arguments, ensure_ascii=False)))
@@ -62,7 +63,9 @@ def test_star_shutter_uses_profile_camera_knowledge() -> None:
             return []
 
     result = StarShutterTool()(
-        ToolContext(RequestContext(), llm=None, datasource=None, memory=_Memory(), knowledge=_Knowledge()),  # type: ignore[arg-type]
+        ToolContext(
+            RequestContext(), llm=None, datasource=None, memory=_Memory(), knowledge=_Knowledge()
+        ),  # type: ignore[arg-type]
         focal_length=14,
         aperture=2.8,
     ).data

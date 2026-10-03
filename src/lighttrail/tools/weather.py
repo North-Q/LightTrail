@@ -103,11 +103,12 @@ _SPEC_WEATHER_FORECAST = ToolSpec(
         },
         "required": ["latitude", "longitude"],
     },
-    capabilities=frozenset(['tools']),
+    capabilities=frozenset(["tools"]),
     main_field="每日预报",
     confidence=Confidence.MEDIUM,
     confidence_rule="forecast",
 )
+
 
 def weather_forecast(
     latitude: float, longitude: float, days: int = 3, tz_offset: str = "+08:00"
@@ -236,10 +237,11 @@ _SPEC_SUNSET_GLOW_SCORE = ToolSpec(
         },
         "required": ["latitude", "longitude", "date"],
     },
-    capabilities=frozenset(['tools']),
+    capabilities=frozenset(["tools"]),
     main_field="评分",
     confidence=Confidence.MEDIUM,
 )
+
 
 def sunset_glow_score(
     latitude: float, longitude: float, date: str, tz_offset: str = "+08:00"

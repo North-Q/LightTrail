@@ -133,7 +133,9 @@ def test_lru_eviction_keeps_disk(session_dir: Path) -> None:
     manager.save(session_b)
 
     session_c = manager.create()  # 触发淘汰：A 最久未访问
-    assert manager.get(session_a.session_id) is None or session_a.session_id != session_c.session_id  # 内存已淘汰
+    assert (
+        manager.get(session_a.session_id) is None or session_a.session_id != session_c.session_id
+    )  # 内存已淘汰
 
     # A 的磁盘文件仍在，restore 可恢复
     assert (session_dir / "sessions" / f"{session_a.session_id}.json").exists()
@@ -219,6 +221,7 @@ def test_corrupt_json_returns_none(session_dir: Path) -> None:
     fresh = _manager(session_dir)  # 模拟重启：无内存缓存，恢复只认磁盘
     assert fresh.restore(session.session_id) is None
     assert fresh.get(session.session_id) is None
+
 
 # ------ B0-1：并发与隔离（淘汰不死锁 / 原子写 / 快照隔离）------
 def test_eviction_path_of_unsaved_session_does_not_deadlock(session_dir: Path) -> None:

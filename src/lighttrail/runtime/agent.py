@@ -237,7 +237,9 @@ class AgentRuntime:
     ) -> str:
         """同步门面：深推理（事件循环内请 await areason）。"""
         return _run_sync(
-            self.areason(prompt, system=system, reasoning_effort=reasoning_effort, temperature=temperature)
+            self.areason(
+                prompt, system=system, reasoning_effort=reasoning_effort, temperature=temperature
+            )
         )
 
     # ------ 对外接口：上下文与历史 ------

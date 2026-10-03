@@ -158,8 +158,20 @@ async def test_production_decide_respects_place_date_and_current_subject(tmp_pat
         context,
         {
             "favorite_spots": [
-                {"name": "东岸", "latitude": 31.1, "longitude": 121.4, "coordinate_system": "WGS84", "subject": "日落"},
-                {"name": "西岸", "latitude": 30.9, "longitude": 121.9, "coordinate_system": "WGS84", "subject": "银河"},
+                {
+                    "name": "东岸",
+                    "latitude": 31.1,
+                    "longitude": 121.4,
+                    "coordinate_system": "WGS84",
+                    "subject": "日落",
+                },
+                {
+                    "name": "西岸",
+                    "latitude": 30.9,
+                    "longitude": 121.9,
+                    "coordinate_system": "WGS84",
+                    "subject": "银河",
+                },
             ]
         },
     )
@@ -240,7 +252,12 @@ async def test_conflicting_model_location_is_marked_and_corrected(tmp_path: Path
     services = build_application(settings, client=fake, dispatch=FakeDispatcher())
     context = _request()
     services.memory.update_profile(
-        context, {"favorite_spots": [{"name": "西岸", "latitude": 30.9, "longitude": 121.9, "coordinate_system": "WGS84"}]}
+        context,
+        {
+            "favorite_spots": [
+                {"name": "西岸", "latitude": 30.9, "longitude": 121.9, "coordinate_system": "WGS84"}
+            ]
+        },
     )
     app = create_app(ApiDeps(services, SessionManager(tmp_path)))
     app.dependency_overrides[get_request_context] = lambda: context

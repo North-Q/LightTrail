@@ -305,23 +305,32 @@ contracts ─→ ∅           （零依赖，仅 stdlib + pydantic）
 from typing import Protocol, Any
 from dataclasses import dataclass, field
 
-class Confidence(StrEnum): HIGH="high"; MEDIUM="medium"; LOW="low"
+
+class Confidence(StrEnum):
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
 
 @dataclass(frozen=True)
 class ToolSpec:
     """工具的完整自描述——注册、trace、置信度、能力叙述全部来源于此（消灭 _MAIN_FIELD 漂移）。"""
+
     name: str
-    description: str                     # 面向模型
-    parameters: dict[str, Any]           # JSON Schema
-    capabilities: frozenset[str] = frozenset()   # {"tools"} 等，供 Router
-    main_field: str = ""                 # 替代 trace._MAIN_FIELD
-    confidence: Confidence = Confidence.LOW      # 替代 confidence.py 三集合
+    description: str  # 面向模型
+    parameters: dict[str, Any]  # JSON Schema
+    capabilities: frozenset[str] = frozenset()  # {"tools"} 等，供 Router
+    main_field: str = ""  # 替代 trace._MAIN_FIELD
+    confidence: Confidence = Confidence.LOW  # 替代 confidence.py 三集合
     source_keys: tuple[str, ...] = ("数据来源", "来源", "data_source")
+
     def to_openai_schema(self) -> dict[str, Any]: ...
+
 
 @dataclass
 class ToolContext:
     """工具运行上下文（注入式，替代 _DEFAULT_CLIENT/_DEFAULT_STORE/全局 registry）。"""
+
     llm: "LLMProvider"
     datasource: "DataSource"
     memory: "MemoryStore | None" = None
@@ -330,19 +339,32 @@ class ToolContext:
 
     def emit(self, kind: str, name: str, **payload) -> None: ...
 
+
 class Tool(Protocol):
     spec: ToolSpec
+
     def __call__(self, ctx: ToolContext, **kwargs: Any) -> "ToolResult": ...
+
 
 # ---- contracts/llm.py ----
 class LLMProvider(Protocol):
-    async def complete(self, messages, *, model=None, tools=None, temperature=0.2,
-                       thinking=None, reasoning_effort=None) -> dict[str, Any]: ...
+    async def complete(
+        self,
+        messages,
+        *,
+        model=None,
+        tools=None,
+        temperature=0.2,
+        thinking=None,
+        reasoning_effort=None,
+    ) -> dict[str, Any]: ...
     def queue_position(self) -> int: ...
+
 
 # ---- contracts/datasource.py ----
 class DataSource(Protocol):
     async def get(self, name: str, params: dict[str, Any]) -> dict[str, Any]: ...
+
 
 # ---- contracts/observability.py ----
 class TraceSink(Protocol):
@@ -351,11 +373,13 @@ class TraceSink(Protocol):
     def to_prompt_section(self, limit: int = 12) -> str: ...
     def cursor(self) -> int: ...
 
+
 # ---- contracts/memory.py ----
 class MemoryStore(Protocol):
     def build_injections(self, intent: str, *, budget: "TokenBudget") -> list["MemoryBlock"]: ...
     def write_event(self, event: "EventRecord") -> int: ...
     def propose_semantic(self, content: str, keywords: Sequence[str]) -> int: ...
+
 
 # ---- contracts/result.py ----
 @dataclass(frozen=True)
@@ -363,28 +387,41 @@ class ToolResult:
     data: dict[str, Any]
     main_field: str = ""
     confidence: Confidence = Confidence.LOW
+
     def to_json(self) -> str: ...
+
 
 # ---- runtime/registry.py ----
 class ToolRegistry:
     """声明式收集：由 composition root 用 ToolSpec 列表构造，不再有模块级单例。"""
+
     def __init__(self, specs: Iterable[ToolSpec]) -> None: ...
     def names(self) -> list[str]: ...
     def to_openai_schema(self) -> list[dict[str, Any]]: ...
     async def dispatch(self, name: str, arguments_json: str, ctx: ToolContext) -> str: ...
 
+
 # ---- runtime/agent.py ----
 class AgentRuntime:
-    def __init__(self, llm: LLMProvider, registry: ToolRegistry, *,
-                 context: ContextBuilder, router: ModelRouter, sink: TraceSink,
-                 max_tool_rounds: int = 8) -> None: ...
+    def __init__(
+        self,
+        llm: LLMProvider,
+        registry: ToolRegistry,
+        *,
+        context: ContextBuilder,
+        router: ModelRouter,
+        sink: TraceSink,
+        max_tool_rounds: int = 8,
+    ) -> None: ...
     async def run(self, messages: list[dict[str, Any]], ctx: ToolContext) -> "RunResult": ...
     async def reason(self, prompt: str, *, system: str = "", **kw) -> str: ...
+
 
 # ---- runtime/middleware.py ----
 class Middleware(Protocol):
     async def on_llm_call(self, req: "LLMRequest") -> "LLMResponse": ...
     async def on_tool_call(self, call: "ToolCall") -> "ToolResult": ...
+
     # trace / quota / retry 均为 middleware，横切不再散落
 ```
 
@@ -428,8 +465,8 @@ async def collect(env, ctx, steps: list[tuple[str, str]]) -> dict[str, Any]:
 
     async def one(tool: str, args: str) -> None:
         try:
-            raw = await env.dispatch_async(tool, args)      # 走各自 DataSource（httpx）
-        except Exception as exc:                             # 子源降级（保持现有约定）
+            raw = await env.dispatch_async(tool, args)  # 走各自 DataSource（httpx）
+        except Exception as exc:  # 子源降级（保持现有约定）
             results[tool] = {"error": str(exc)[:120]}
         else:
             results[tool] = json.loads(raw)

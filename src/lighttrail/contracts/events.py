@@ -153,7 +153,14 @@ class DoneEvent(BaseModel):
 
 # SSE 事件负载判别联合（type 字段判别）：OpenAPI 生成前端类型的单一真源
 SSEEventPayload = Annotated[
-    QueuedEvent | StepEvent | ToolCallEvent | ToolResultEvent | TokenEvent | CardEvent | ErrorEvent | DoneEvent,
+    QueuedEvent
+    | StepEvent
+    | ToolCallEvent
+    | ToolResultEvent
+    | TokenEvent
+    | CardEvent
+    | ErrorEvent
+    | DoneEvent,
     Field(discriminator="type"),
 ]
 

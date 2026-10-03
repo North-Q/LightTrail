@@ -63,7 +63,9 @@ class SemanticStore:
         """
         if not intent:
             return []
-        hits = [entry.content for entry in self._entries if any(kw in intent for kw in entry.keywords)]
+        hits = [
+            entry.content for entry in self._entries if any(kw in intent for kw in entry.keywords)
+        ]
         return hits[:_MAX_INJECT]
 
     def contains(self, content: str) -> bool:
@@ -139,7 +141,9 @@ class SemanticStore:
         except (ValueError, OSError):
             entries = []
         self._entries = [
-            SemanticEntry(str(item.get("content", "")).strip(), tuple(item.get("keywords", []) or []))
+            SemanticEntry(
+                str(item.get("content", "")).strip(), tuple(item.get("keywords", []) or [])
+            )
             for item in entries
             if isinstance(item, dict) and str(item.get("content", "")).strip()
         ]
@@ -219,4 +223,3 @@ def extract_from_events(
         if len(candidates) >= limit:
             break
     return candidates
-

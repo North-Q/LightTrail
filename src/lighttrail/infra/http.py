@@ -88,9 +88,7 @@ async def get_json(
                 if response.status_code in _RETRY_STATUS:
                     raise _RetryableStatus(response.status_code, response.text[:200])
                 if response.status_code >= 400:
-                    raise DataSourceError(
-                        f"HTTP {response.status_code}：{response.text[:200]}"
-                    )
+                    raise DataSourceError(f"HTTP {response.status_code}：{response.text[:200]}")
                 return response.json()
     except _RetryableStatus as exc:
         raise DataSourceError(f"取数失败（已重试 {max_attempts} 次）：{exc}") from exc
@@ -142,4 +140,10 @@ def get_json_sync(
     raise DataSourceError("同步取数不能在事件循环内调用，请改用 get_json()")
 
 
-__all__ = ["DEFAULT_MAX_ATTEMPTS", "DEFAULT_TIMEOUT", "DataSourceError", "get_json", "get_json_sync"]
+__all__ = [
+    "DEFAULT_MAX_ATTEMPTS",
+    "DEFAULT_TIMEOUT",
+    "DataSourceError",
+    "get_json",
+    "get_json_sync",
+]

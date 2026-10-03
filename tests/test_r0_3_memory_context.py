@@ -38,14 +38,16 @@ def _tool_call(query: str) -> dict[str, Any]:
     return {
         "role": "assistant",
         "content": "",
-        "tool_calls": [{
-            "id": "memory-call",
-            "type": "function",
-            "function": {
-                "name": "search_memory",
-                "arguments": json.dumps({"query": query}, ensure_ascii=False),
-            },
-        }],
+        "tool_calls": [
+            {
+                "id": "memory-call",
+                "type": "function",
+                "function": {
+                    "name": "search_memory",
+                    "arguments": json.dumps({"query": query}, ensure_ascii=False),
+                },
+            }
+        ],
     }
 
 
@@ -68,10 +70,14 @@ async def _chat(app: Any, user_id: str, message: str) -> list[dict[str, Any]]:
 
 async def test_react_memory_reads_only_current_user_and_no_legacy_db(tmp_path: Path) -> None:
     """双用户的注入和 search_memory 互不串读，也不新建旧根目录事件库。"""
-    fake = _ScriptClient([
-        _tool_call(""), {"role": "assistant", "content": "已查看历史记录。"},
-        _tool_call(""), {"role": "assistant", "content": "已查看历史记录。"},
-    ])
+    fake = _ScriptClient(
+        [
+            _tool_call(""),
+            {"role": "assistant", "content": "已查看历史记录。"},
+            _tool_call(""),
+            {"role": "assistant", "content": "已查看历史记录。"},
+        ]
+    )
     services = build_application(
         Settings(_env_file=None, api_key="offline", data_dir=str(tmp_path), reason_thinking=False),
         client=fake,
@@ -81,11 +87,17 @@ async def test_react_memory_reads_only_current_user_and_no_legacy_db(tmp_path: P
     services.memory.update_profile(north, {"camera_body": "北方相机"})
     services.memory.update_profile(south, {"camera_body": "南方相机"})
     services.memory.add_event(
-        north, "2026-09-01T18:00:00+08:00", "北方机位", subject_type="火烧云",
+        north,
+        "2026-09-01T18:00:00+08:00",
+        "北方机位",
+        subject_type="火烧云",
         summary="北方独有历史",
     )
     services.memory.add_event(
-        south, "2026-09-02T18:00:00+08:00", "南方机位", subject_type="火烧云",
+        south,
+        "2026-09-02T18:00:00+08:00",
+        "南方机位",
+        subject_type="火烧云",
         summary="南方独有历史",
     )
     app = create_app(ApiDeps(services, SessionManager(tmp_path)))
@@ -102,14 +114,16 @@ async def test_react_memory_reads_only_current_user_and_no_legacy_db(tmp_path: P
             ("south", south_events, "南方独有历史", "北方独有历史"),
         ):
             memory_result = next(
-                event for event in events
+                event
+                for event in events
                 if event["type"] == "tool_result" and event["name"] == "search_memory"
             )
             assert own in json.dumps(memory_result["data"], ensure_ascii=False)
             assert other not in json.dumps(memory_result["data"], ensure_ascii=False)
             assert memory_result["data_source"] == f"用户事件记忆：{user_id}"
             memory_step = next(
-                event for event in events
+                event
+                for event in events
                 if event["type"] == "step" and event["name"] == "记忆_注入"
             )
             assert f"users/{user_id}/memory/" in memory_step["output_summary"]
@@ -123,10 +137,12 @@ async def test_react_memory_reads_only_current_user_and_no_legacy_db(tmp_path: P
 
 async def test_global_knowledge_hits_both_users_and_trace_names_source(tmp_path: Path) -> None:
     """同一只读知识索引在两个请求中命中，trace 写出全局来源。"""
-    fake = _ScriptClient([
-        {"role": "assistant", "content": "卷云信息已获取。"},
-        {"role": "assistant", "content": "卷云信息已获取。"},
-    ])
+    fake = _ScriptClient(
+        [
+            {"role": "assistant", "content": "卷云信息已获取。"},
+            {"role": "assistant", "content": "卷云信息已获取。"},
+        ]
+    )
     services = build_application(
         Settings(_env_file=None, api_key="offline", data_dir=str(tmp_path), reason_thinking=False),
         client=fake,
@@ -139,7 +155,8 @@ async def test_global_knowledge_hits_both_users_and_trace_names_source(tmp_path:
             assert "卷云冰晶对长波散射敏感" in prompt
             assert "来源：architecture-v4-proposal.md" in prompt
             knowledge_step = next(
-                event for event in events
+                event
+                for event in events
                 if event["type"] == "step" and event["name"] == "知识_命中"
             )
             assert "全局只读知识" in knowledge_step["output_summary"]

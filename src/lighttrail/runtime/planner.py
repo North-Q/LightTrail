@@ -61,15 +61,22 @@ class Planner:
         """生成并校验受控计划，超限计划由契约拒绝。"""
         prompt = (
             f"目标：{goal}\n可用工具：{', '.join(self._registry.names())}\n"
-            "只输出 JSON：{\"steps\":[{\"tool\":\"工具名\",\"args\":{},\"purpose\":\"原因\"}]}"
+            '只输出 JSON：{"steps":[{"tool":"工具名","args":{},"purpose":"原因"}]}'
         )
-        payload = parse_with_retry(_PlanPayload, lambda text: self._complete(text, _PLAN_SYSTEM), prompt)
+        payload = parse_with_retry(
+            _PlanPayload, lambda text: self._complete(text, _PLAN_SYSTEM), prompt
+        )
         plan = Plan(
             goal=goal,
-            steps=tuple(PlanStep(tool=item.tool, args=item.args, purpose=item.purpose) for item in payload.steps),
+            steps=tuple(
+                PlanStep(tool=item.tool, args=item.args, purpose=item.purpose)
+                for item in payload.steps
+            ),
             max_steps=self._max_steps,
         )
-        self._recorder.record_step("规划_产出", input_summary=goal[:80], output_summary=f"{len(plan.steps)} 步")
+        self._recorder.record_step(
+            "规划_产出", input_summary=goal[:80], output_summary=f"{len(plan.steps)} 步"
+        )
         return plan
 
     def execute(self, plan: Plan, ctx: ToolContext | None = None) -> DecisionCard:
@@ -79,15 +86,23 @@ class Planner:
         for index, step in enumerate(plan.steps, start=1):
             if self._quota is not None and not self._quota.check():
                 degraded = "quota_exhausted"
-                self._recorder.record_step("规划_配额拒绝", input_summary=step.tool, output_summary=degraded)
+                self._recorder.record_step(
+                    "规划_配额拒绝", input_summary=step.tool, output_summary=degraded
+                )
                 break
-            raw = self._registry.dispatch(step.tool, json.dumps(step.args, ensure_ascii=False), ctx, recorder=self._recorder)
+            raw = self._registry.dispatch(
+                step.tool, json.dumps(step.args, ensure_ascii=False), ctx, recorder=self._recorder
+            )
             try:
                 data = json.loads(raw)
             except ValueError:
                 data = {"raw": raw}
-            results.append({"step": index, "tool": step.tool, "purpose": step.purpose, "result": data})
-            self._recorder.record_step("规划_执行", input_summary=step.tool, output_summary=str(data)[:120])
+            results.append(
+                {"step": index, "tool": step.tool, "purpose": step.purpose, "result": data}
+            )
+            self._recorder.record_step(
+                "规划_执行", input_summary=step.tool, output_summary=str(data)[:120]
+            )
             if isinstance(data, dict) and "error" in data:
                 degraded = f"plan_step_failed:{step.tool}"
                 break

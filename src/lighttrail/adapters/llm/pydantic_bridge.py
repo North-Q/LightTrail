@@ -158,7 +158,9 @@ class LightTrailModel(Model):
             prompt_tokens=usage.get("input"),
             completion_tokens=usage.get("output"),
         )
-        return _to_model_response(reply, model_name=self._lt_model_name, usage=usage, provider_name=self._lt_system)
+        return _to_model_response(
+            reply, model_name=self._lt_model_name, usage=usage, provider_name=self._lt_system
+        )
 
     def request_stream(
         self,
@@ -342,7 +344,9 @@ def _to_model_response(
         )
     return ModelResponse(
         parts=parts,
-        usage=RequestUsage(input_tokens=usage.get("input", 0), output_tokens=usage.get("output", 0)),
+        usage=RequestUsage(
+            input_tokens=usage.get("input", 0), output_tokens=usage.get("output", 0)
+        ),
         model_name=model_name,
         finish_reason="tool_call" if tool_calls else "stop",
         provider_name=provider_name,
@@ -350,6 +354,7 @@ def _to_model_response(
 
 
 __all__ = ["LightTrailModel", "from_openai_history", "to_openai_history"]
+
 
 # ------ 会话历史双向转换（会话层用 OpenAI dict 作持久化格式）------
 def to_openai_history(messages: Sequence[ModelMessage]) -> list[dict[str, Any]]:
@@ -378,7 +383,11 @@ def to_openai_history(messages: Sequence[ModelMessage]) -> list[dict[str, Any]]:
                     history.append({"role": "user", "content": _map_user_content(part.content)})
                 elif isinstance(part, (ToolReturnPart, RetryPromptPart)):
                     history.append(
-                        {"role": "tool", "tool_call_id": part.tool_call_id, "content": _stringify(part.content)}
+                        {
+                            "role": "tool",
+                            "tool_call_id": part.tool_call_id,
+                            "content": _stringify(part.content),
+                        }
                     )
     return history
 

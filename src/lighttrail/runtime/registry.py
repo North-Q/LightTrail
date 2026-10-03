@@ -130,7 +130,9 @@ class ToolRegistry:
 
     def describe_tools(self) -> str:
         """生成工具清单文本（供 ContextBuilder 能力叙述自动生成）。"""
-        return "\n".join(f"- {spec.name}：{spec.description.splitlines()[0]}" for spec in self.specs())
+        return "\n".join(
+            f"- {spec.name}：{spec.description.splitlines()[0]}" for spec in self.specs()
+        )
 
     # ------ 分发 ------
     def dispatch(
@@ -192,7 +194,11 @@ class ToolRegistry:
             # 声明式工具已产出面向模型的字符串（ToolResult.content），不再二次编码
             result_text = result
         else:
-            result_text = json.dumps(result, ensure_ascii=False, default=str) if not isinstance(result, str) else result
+            result_text = (
+                json.dumps(result, ensure_ascii=False, default=str)
+                if not isinstance(result, str)
+                else result
+            )
         active_recorder.record_tool(
             name,
             arguments_json,

@@ -38,6 +38,7 @@ def _configure_stdio() -> None:
         if callable(reconfigure):
             reconfigure(errors="replace")
 
+
 _HELP = """内置命令：
   /exit  退出
   /reset 清空对话历史
@@ -62,7 +63,11 @@ def _print_progress(event: TraceEvent) -> None:
         elif name == "意图理解":
             print("[意图] 正在解析请求…", file=sys.stderr, flush=True)
         elif name == "综合_reason":
-            print("[综合] 深推理中（思考模式，可能需要 30~120 秒），请稍候…", file=sys.stderr, flush=True)
+            print(
+                "[综合] 深推理中（思考模式，可能需要 30~120 秒），请稍候…",
+                file=sys.stderr,
+                flush=True,
+            )
         elif name == "管线降级":
             print("[管线] 异常，降级到自由对话…", file=sys.stderr, flush=True)
         elif name == "reason_thinking":
@@ -89,7 +94,9 @@ def main(
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
-    parser = argparse.ArgumentParser(prog="lighttrail", description="LightTrail · 光迹（拍摄决策引擎）")
+    parser = argparse.ArgumentParser(
+        prog="lighttrail", description="LightTrail · 光迹（拍摄决策引擎）"
+    )
     parser.add_argument(
         "--pipeline",
         nargs="*",
@@ -101,7 +108,9 @@ def main(
     _configure_stdio()
     settings = services.settings if services is not None else load_settings()
     if services is None and not settings.has_api_key:
-        print("未检测到有效 API Key。请复制 .env.example 为 .env，填入 LLM_API_KEY 后重试（ECNU_API_KEY 兼容）。")
+        print(
+            "未检测到有效 API Key。请复制 .env.example 为 .env，填入 LLM_API_KEY 后重试（ECNU_API_KEY 兼容）。"
+        )
         return 1
 
     active_services = services if services is not None else build_application(settings)

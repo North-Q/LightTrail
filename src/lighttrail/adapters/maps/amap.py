@@ -93,7 +93,9 @@ class AMapRoutingAdapter:
 
         if transport_mode == "cycling":
             if int(payload.get("errcode", -1)) != 0:
-                raise TravelProviderError(f"高德路线服务返回失败：{payload.get('errmsg', '未知错误')}")
+                raise TravelProviderError(
+                    f"高德路线服务返回失败：{payload.get('errmsg', '未知错误')}"
+                )
         elif str(payload.get("status", "")) != "1":
             info = str(payload.get("info", "未知错误"))
             raise TravelProviderError(f"高德路线服务返回失败：{info}")

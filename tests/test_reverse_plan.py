@@ -75,7 +75,14 @@ _REVERSE_JSON = json.dumps(
 _CARD_JSON = json.dumps(
     {
         "conclusion": "周末傍晚去临港海边复刻，日落前 40 分钟到机位。",
-        "evidence": [{"tool": "reverse_engineer_photo", "field": "复刻计划", "confidence": "medium", "note": "参考图反推"}],
+        "evidence": [
+            {
+                "tool": "reverse_engineer_photo",
+                "field": "复刻计划",
+                "confidence": "medium",
+                "note": "参考图反推",
+            }
+        ],
         "confidence": "medium",
         "time_window": "16:30-17:10",
         "locations": [{"name": "临港海边", "reason": "开阔东南向，符合逆光日落特征"}],
@@ -173,10 +180,23 @@ def test_orchestrator_reverse_plan_full_flow(workdir: Path) -> None:
     runtime = _runtime(agent_fake)
 
     def _fake_reverse(image_path: str, note: str, equipment: str) -> dict:
-        return photo.reverse_engineer_photo(image_path, note=note, equipment=equipment, client=photo_fake)
+        return photo.reverse_engineer_photo(
+            image_path, note=note, equipment=equipment, client=photo_fake
+        )
 
     memory = MemoryManager(workdir)
-    memory.update_profile({"favorite_spots": [{"name": "临港海边", "latitude": 30.9, "longitude": 121.9, "coordinate_system": "WGS84"}]})
+    memory.update_profile(
+        {
+            "favorite_spots": [
+                {
+                    "name": "临港海边",
+                    "latitude": 30.9,
+                    "longitude": 121.9,
+                    "coordinate_system": "WGS84",
+                }
+            ]
+        }
+    )
     orc = Orchestrator(
         registry, runtime, memory=memory, dispatch=_fake_dispatch, photo_reverse=_fake_reverse
     )
@@ -203,12 +223,16 @@ def test_orchestrator_reverse_plan_fallback_on_failure(workdir: Path) -> None:
             {"role": "assistant", "content": "依旧坏"},
         ]
     )
-    agent_fake = FakeChatClient([{"role": "assistant", "content": "复刻不了的话我可以帮你找类似的机位。"}])
+    agent_fake = FakeChatClient(
+        [{"role": "assistant", "content": "复刻不了的话我可以帮你找类似的机位。"}]
+    )
     # photo_fake 恒坏 → reverse_engineer_photo 抛 PhotoError → 降级 agent.run
     runtime = _runtime(agent_fake)
 
     def _fake_reverse(image_path: str, note: str, equipment: str) -> dict:
-        return photo.reverse_engineer_photo(image_path, note=note, equipment=equipment, client=photo_fake)
+        return photo.reverse_engineer_photo(
+            image_path, note=note, equipment=equipment, client=photo_fake
+        )
 
     orc = Orchestrator(registry, runtime, dispatch=_fake_dispatch, photo_reverse=_fake_reverse)
     text = orc.reverse_plan(str(image))

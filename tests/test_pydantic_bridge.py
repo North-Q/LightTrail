@@ -95,13 +95,21 @@ def _tool_call_reply(name: str, args: dict[str, Any], call_id: str = "c1") -> di
     return {
         "role": "assistant",
         "content": "",
-        "tool_calls": [{"id": call_id, "type": "function", "function": {"name": name, "arguments": json.dumps(args)}}],
+        "tool_calls": [
+            {
+                "id": call_id,
+                "type": "function",
+                "function": {"name": name, "arguments": json.dumps(args)},
+            }
+        ],
     }
 
 
 async def test_agent_loop_runs_through_bridge() -> None:
     """端到端：框架循环 → 桥 → provider → ChatClient（工具调用 + 结果回传 + 终答）。"""
-    fake = _FakeChatClient([_tool_call_reply("_doubler", {"x": 21}), {"role": "assistant", "content": "结果是 42"}])
+    fake = _FakeChatClient(
+        [_tool_call_reply("_doubler", {"x": 21}), {"role": "assistant", "content": "结果是 42"}]
+    )
     model = LightTrailModel(ChatClientProvider(fake), model_name="ecnu-plus")
     agent = Agent(model, instructions="你是摄影师助手", tools=[_doubler])
 
@@ -129,7 +137,9 @@ async def test_reason_params_passed_to_provider() -> None:
     model = LightTrailModel(
         ChatClientProvider(fake),
         model_name="ecnu-max",
-        settings=ModelSettings(extra_body={"thinking": {"type": "enabled"}, "reasoning_effort": "high"}),
+        settings=ModelSettings(
+            extra_body={"thinking": {"type": "enabled"}, "reasoning_effort": "high"}
+        ),
     )
     await Agent(model).run("综合判断")
 
@@ -156,10 +166,17 @@ async def test_usage_forwarded_to_request_usage() -> None:
 def test_map_messages_shapes() -> None:
     """消息映射：system 前置、assistant 合并 tool_calls、工具结果与重试提示分流。"""
     messages = [
-        ModelRequest(parts=[SystemPromptPart(content="平台规则"), UserPromptPart(content="第一问")], instructions="系统指令"),
-        ModelResponse(parts=[TextPart(content="回答"), ToolCallPart("_doubler", {"x": 2}, tool_call_id="c9")]),
+        ModelRequest(
+            parts=[SystemPromptPart(content="平台规则"), UserPromptPart(content="第一问")],
+            instructions="系统指令",
+        ),
+        ModelResponse(
+            parts=[TextPart(content="回答"), ToolCallPart("_doubler", {"x": 2}, tool_call_id="c9")]
+        ),
         ModelRequest(parts=[ToolReturnPart("_doubler", 4, tool_call_id="c9")]),
-        ModelRequest(parts=[RetryPromptPart("参数不合法", tool_name="_doubler", tool_call_id="c9")]),
+        ModelRequest(
+            parts=[RetryPromptPart("参数不合法", tool_name="_doubler", tool_call_id="c9")]
+        ),
         ModelRequest(parts=[UserPromptPart(content="继续")]),
     ]
 
@@ -182,7 +199,9 @@ def test_map_messages_keeps_only_latest_instructions() -> None:
     messages = [
         ModelRequest(parts=[UserPromptPart(content="第一问")], instructions="SYS-1"),
         ModelResponse(parts=[ToolCallPart("_doubler", {"x": 1}, tool_call_id="c1")]),
-        ModelRequest(parts=[ToolReturnPart("_doubler", 2, tool_call_id="c1")], instructions="SYS-2（含轨迹）"),
+        ModelRequest(
+            parts=[ToolReturnPart("_doubler", 2, tool_call_id="c1")], instructions="SYS-2（含轨迹）"
+        ),
     ]
 
     mapped = _map_messages(messages)

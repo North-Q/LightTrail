@@ -62,10 +62,12 @@ _SPEC_EQUIVALENT_EXPOSURE = ToolSpec(
         },
         "required": ["f_stop", "shutter_speed", "iso"],
     },
-    capabilities=frozenset(['tools']),
+    capabilities=frozenset(["tools"]),
     main_field="等效方案",
     confidence=Confidence.HIGH,
 )
+
+
 def equivalent_exposure(
     f_stop: float, shutter_speed: float, iso: int, adjust_stops: float = 0
 ) -> dict:
@@ -154,10 +156,12 @@ _SPEC_STAR_SHUTTER_RULE = ToolSpec(
         },
         "required": ["focal_length", "aperture"],
     },
-    capabilities=frozenset(['tools']),
+    capabilities=frozenset(["tools"]),
     main_field="最大快门",
     confidence=Confidence.HIGH,
 )
+
+
 def star_shutter_rule(
     focal_length: float,
     aperture: float,
@@ -216,7 +220,11 @@ class StarShutterTool:
     def __call__(self, ctx: ToolContext, **kwargs: Any) -> ToolResult:
         """执行快门计算，并在可用时填充知识库像素间距。"""
         source = ""
-        if kwargs.get("pixel_pitch") is None and ctx.memory is not None and ctx.knowledge is not None:
+        if (
+            kwargs.get("pixel_pitch") is None
+            and ctx.memory is not None
+            and ctx.knowledge is not None
+        ):
             key = _camera_key(ctx.memory.profile_for(ctx.request).camera_body)
             chunk = ctx.knowledge.lookup(key, table="camera_specs") if key else None
             if chunk is not None:
@@ -274,10 +282,12 @@ _SPEC_ND_LONG_EXPOSURE = ToolSpec(
         },
         "required": ["base_shutter"],
     },
-    capabilities=frozenset(['tools']),
+    capabilities=frozenset(["tools"]),
     main_field="曝光快门",
     confidence=Confidence.HIGH,
 )
+
+
 def nd_long_exposure(
     base_shutter: float,
     nd_stops: float | None = None,

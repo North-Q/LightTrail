@@ -34,7 +34,12 @@ LAYER_PROFILE = "profile"
 LAYER_KNOWLEDGE = "knowledge"
 LAYER_TRACE = "trace"
 _LAYER_ORDER: tuple[str, ...] = (
-    LAYER_ROLE, LAYER_CONDUCT, LAYER_TOOLS, LAYER_PROFILE, LAYER_KNOWLEDGE, LAYER_TRACE
+    LAYER_ROLE,
+    LAYER_CONDUCT,
+    LAYER_TOOLS,
+    LAYER_PROFILE,
+    LAYER_KNOWLEDGE,
+    LAYER_TRACE,
 )
 
 # 各层的中文标题（分层段落的 markdown 小标题，便于回归 diff）

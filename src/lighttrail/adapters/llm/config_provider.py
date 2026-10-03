@@ -91,7 +91,9 @@ class EnvKeyVault:
         Raises:
             KeyVaultError: 恒定抛出（不静默失败）。
         """
-        raise KeyVaultError("部署级 KeyVault 只读：per-user Key 需 EncryptedStoreKeyVault（未实现）")
+        raise KeyVaultError(
+            "部署级 KeyVault 只读：per-user Key 需 EncryptedStoreKeyVault（未实现）"
+        )
 
 
 __all__ = ["DeploymentConfigProvider", "EnvKeyVault", "KeyVaultError"]

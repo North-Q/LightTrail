@@ -89,6 +89,8 @@ def test_concurrency_override(clean_env: None, monkeypatch: pytest.MonkeyPatch) 
     """LLM_CONCURRENCY 可覆盖（纯配置，无平台语义）。"""
     monkeypatch.setenv("LLM_CONCURRENCY", "8")
     assert _load().concurrency == 8
+
+
 def test_guardrail_defaults_and_overrides(clean_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
     """护栏项（D5）默认 12/12/8，且全部可配置。"""
     monkeypatch.setenv("REACT_MAX_ROUNDS", "6")
@@ -96,7 +98,11 @@ def test_guardrail_defaults_and_overrides(clean_env: None, monkeypatch: pytest.M
     monkeypatch.setenv("PLAN_MAX_STEPS", "3")
     monkeypatch.setenv("ROUTING_CONFIDENCE_THRESHOLD", "0.75")
     settings = _load()
-    assert (settings.react_max_rounds, settings.pipeline_max_steps, settings.plan_max_steps) == (6, 5, 3)
+    assert (settings.react_max_rounds, settings.pipeline_max_steps, settings.plan_max_steps) == (
+        6,
+        5,
+        3,
+    )
     assert settings.routing_confidence_threshold == pytest.approx(0.75)
 
 

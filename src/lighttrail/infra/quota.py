@@ -109,7 +109,9 @@ class QuotaLedger:
         self._lock = threading.Lock()
 
     # ------ 对外接口：记账 ------
-    def record(self, model: str, in_tokens: int, out_tokens: int, *, cached_input_tokens: int = 0) -> float:
+    def record(
+        self, model: str, in_tokens: int, out_tokens: int, *, cached_input_tokens: int = 0
+    ) -> float:
         """按计价表把一次调用的 token 用量折算为 credits 并记账。
 
         Args:

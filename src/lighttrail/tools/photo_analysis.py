@@ -161,10 +161,11 @@ _SPEC_ANALYZE_PHOTO = ToolSpec(
         },
         "required": ["image_path"],
     },
-    capabilities=frozenset(['tools', 'vision']),
+    capabilities=frozenset(["tools", "vision"]),
     main_field="总体评语",
     confidence=Confidence.LOW,
 )
+
 
 def analyze_photo(
     image_path: str,
@@ -197,7 +198,10 @@ def analyze_photo(
     def _chat(prompt_text: str) -> str:
         # 纠错指令由 parse_with_retry 拼进 prompt（B3-2：不再手写校验重试循环）
         return _multimodal_call(
-            client, encoded, prompt_text, system_prompt=_ANALYZE_SYSTEM,
+            client,
+            encoded,
+            prompt_text,
+            system_prompt=_ANALYZE_SYSTEM,
             router=active_router,
         )
 
@@ -210,17 +214,20 @@ def analyze_photo(
 
 def _build_analysis_prompt(exif: dict[str, str], gear: str, focus: str) -> str:
     """组装分析指令文本。"""
-    lines = ["请分析这张照片并只输出一个 JSON 对象（不要任何其他文字），结构如下：", "{",
-             "  \"scene\": \"场景识别（一句）\",",
-             "  \"subject\": \"主体\",",
-             "  \"composition\": \"构图评价与问题（一句）\",",
-             "  \"exposure\": \"曝光评价（一句）\",",
-             "  \"color\": \"色彩评价（一句）\",",
-             "  \"assessment\": \"总体评语（一句）\",",
-             "  \"prescription\": \"可执行处方：结合器材给出下次具体参数与时机（必填）\",",
-             "  \"suggestions\": [{\"name\": \"光圈\", \"value\": \"f/2.8\", \"reason\": \"…\"}],",
-             "  \"confidence\": \"high|medium|low\"",
-             "}"]
+    lines = [
+        "请分析这张照片并只输出一个 JSON 对象（不要任何其他文字），结构如下：",
+        "{",
+        '  "scene": "场景识别（一句）",',
+        '  "subject": "主体",',
+        '  "composition": "构图评价与问题（一句）",',
+        '  "exposure": "曝光评价（一句）",',
+        '  "color": "色彩评价（一句）",',
+        '  "assessment": "总体评语（一句）",',
+        '  "prescription": "可执行处方：结合器材给出下次具体参数与时机（必填）",',
+        '  "suggestions": [{"name": "光圈", "value": "f/2.8", "reason": "…"}],',
+        '  "confidence": "high|medium|low"',
+        "}",
+    ]
     if exif:
         lines.append(f"已读到的 EXIF 参数：{json.dumps(exif, ensure_ascii=False)}")
     if gear:
@@ -275,7 +282,10 @@ def _report_to_result(report: PhotoAnalysisReport, exif: dict[str, str], size_kb
         "色彩评价": report.color,
         "总体评语": report.assessment,
         "可执行处方": report.prescription,
-        "参数建议": [{"参数": item.name, "值": item.value, "理由": item.reason} for item in report.suggestions],
+        "参数建议": [
+            {"参数": item.name, "值": item.value, "理由": item.reason}
+            for item in report.suggestions
+        ],
         "已识别EXIF": exif,
         "置信度": report.confidence,
         "图片摘要": f"编码后约 {size_kb:.0f}KB（最长边≤1024px）",
@@ -316,10 +326,11 @@ _SPEC_REVERSE_ENGINEER_PHOTO = ToolSpec(
         },
         "required": ["image_path"],
     },
-    capabilities=frozenset(['tools', 'vision']),
+    capabilities=frozenset(["tools", "vision"]),
     main_field="复刻计划",
     confidence=Confidence.LOW,
 )
+
 
 def reverse_engineer_photo(
     image_path: str,
@@ -354,7 +365,10 @@ def reverse_engineer_photo(
 
     def _chat(prompt_text: str) -> str:
         return _multimodal_call(
-            client, encoded, prompt_text, system_prompt=_REVERSE_SYSTEM,
+            client,
+            encoded,
+            prompt_text,
+            system_prompt=_REVERSE_SYSTEM,
             router=active_router,
         )
 
@@ -369,7 +383,10 @@ def reverse_engineer_photo(
         "机位特征": report.site_features,
         "后期风格": report.post_style,
         "复刻计划": report.replication_plan,
-        "参数建议": [{"参数": item.name, "值": item.value, "理由": item.reason} for item in report.suggestions],
+        "参数建议": [
+            {"参数": item.name, "值": item.value, "理由": item.reason}
+            for item in report.suggestions
+        ],
         "已识别EXIF": exif,
         "置信度": report.confidence,
     }
@@ -377,16 +394,19 @@ def reverse_engineer_photo(
 
 def _build_reverse_prompt(exif: dict[str, str], gear: str, note: str) -> str:
     """组装反推指令文本（要求输出 PhotoReverseReport JSON 结构）。"""
-    lines = ["请反推这张参考图并只输出一个 JSON 对象（不要任何其他文字），结构如下：", "{",
-             "  \"scene\": \"场景识别（如海边日落/城市悬日/银河拱桥）\",",
-             "  \"light_direction\": \"光线方向（顺/侧/逆光，日出或日落侧）\",",
-             "  \"estimated_time\": \"推断拍摄时段与季节（如夏季傍晚日落前 20 分钟）\",",
-             "  \"site_features\": \"机位特征（海拔/前景/朝向/遮挡）\",",
-             "  \"post_style\": \"后期风格（色彩/对比/合成）\",",
-             "  \"replication_plan\": \"复刻计划：在哪拍、什么时候去、怎么拍（必填三要素）\",",
-             "  \"suggestions\": [{\"name\": \"焦段\", \"value\": \"24mm\", \"reason\": \"…\"}],",
-             "  \"confidence\": \"high|medium|low\"",
-             "}"]
+    lines = [
+        "请反推这张参考图并只输出一个 JSON 对象（不要任何其他文字），结构如下：",
+        "{",
+        '  "scene": "场景识别（如海边日落/城市悬日/银河拱桥）",',
+        '  "light_direction": "光线方向（顺/侧/逆光，日出或日落侧）",',
+        '  "estimated_time": "推断拍摄时段与季节（如夏季傍晚日落前 20 分钟）",',
+        '  "site_features": "机位特征（海拔/前景/朝向/遮挡）",',
+        '  "post_style": "后期风格（色彩/对比/合成）",',
+        '  "replication_plan": "复刻计划：在哪拍、什么时候去、怎么拍（必填三要素）",',
+        '  "suggestions": [{"name": "焦段", "value": "24mm", "reason": "…"}],',
+        '  "confidence": "high|medium|low"',
+        "}",
+    ]
     if exif:
         lines.append(f"参考图 EXIF 参数：{json.dumps(exif, ensure_ascii=False)}")
     if gear:
@@ -433,7 +453,9 @@ class ReverseEngineerPhotoTool:
 
     def __call__(self, ctx: ToolContext, **kwargs: Any) -> ToolResult:
         """以当前用户上下文执行照片反推。"""
-        data = reverse_engineer_photo(client=self._client_factory(), ctx=ctx, router=self._router, **kwargs)
+        data = reverse_engineer_photo(
+            client=self._client_factory(), ctx=ctx, router=self._router, **kwargs
+        )
         return ToolResult(content=json.dumps(data, ensure_ascii=False, default=str), data=data)
 
 
@@ -449,7 +471,10 @@ def build_tools(
     Returns:
         本模块的声明式工具元组。
     """
-    return (AnalyzePhotoTool(client_factory, router), ReverseEngineerPhotoTool(client_factory, router))
+    return (
+        AnalyzePhotoTool(client_factory, router),
+        ReverseEngineerPhotoTool(client_factory, router),
+    )
 
 
 __all__ = [

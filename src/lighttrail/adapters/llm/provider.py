@@ -53,6 +53,7 @@ class ChatClientProvider:
         Raises:
             LLMError: 调用失败（重试耗尽或参数错误）。
         """
+
         # 端口契约是 (输入, 输出) 两个整数；ChatClient 回传的是 UsageStats 对象——
         # 适配在这里完成（真实链路只有经适配器才能过，测试 fake 必须镜像真实签名）。
         def _on_usage(stats: UsageStats) -> None:

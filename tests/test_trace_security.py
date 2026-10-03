@@ -46,7 +46,14 @@ def test_recorder_drops_non_whitelisted_payload_keys() -> None:
     assert recorder.to_report().tool_calls[0].result_summary == "日出 05:12"
     # 事件载荷只留白名单键（"请求体原文"/"未知键" 被丢弃）
     assert set(captured[0].payload) <= {
-        "参数摘要", "结果摘要", "结果原文", "结果数据", "数据来源", "置信度", "来源字段", "耗时_ms"
+        "参数摘要",
+        "结果摘要",
+        "结果原文",
+        "结果数据",
+        "数据来源",
+        "置信度",
+        "来源字段",
+        "耗时_ms",
     }
 
 
@@ -71,7 +78,13 @@ def test_otel_attributes_mapping() -> None:
         TraceEvent(
             kind=KIND_LLM,
             name="ecnu-plus",
-            payload={"模型": "ecnu-plus", "tokens": 150, "输入_tokens": 120, "输出_tokens": 30, "耗时_秒": 1.5},
+            payload={
+                "模型": "ecnu-plus",
+                "tokens": 150,
+                "输入_tokens": 120,
+                "输出_tokens": 30,
+                "耗时_秒": 1.5,
+            },
         )
     )
     assert llm["gen_ai.operation.name"] == "chat"
@@ -84,7 +97,12 @@ def test_otel_attributes_mapping() -> None:
         TraceEvent(
             kind=KIND_TOOL,
             name="sun_times",
-            payload={"数据来源": "astral", "置信度": "high", "来源字段": "太阳时刻", "耗时_ms": 3.2},
+            payload={
+                "数据来源": "astral",
+                "置信度": "high",
+                "来源字段": "太阳时刻",
+                "耗时_ms": 3.2,
+            },
         )
     )
     assert tool["gen_ai.operation.name"] == "execute_tool"

@@ -12,6 +12,7 @@ from lighttrail.composition import build_registry
 
 registry = build_registry()
 
+
 def test_get_current_time() -> None:
     """get_current_time 应返回含 iso 字段的时间字典。"""
     result = json.loads(registry.dispatch("get_current_time", "{}"))

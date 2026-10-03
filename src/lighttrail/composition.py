@@ -244,7 +244,9 @@ def build_registry(
         return ToolRegistry(spec_tools, recorder=recorder)
     factory = photo_client_factory or (lambda: build_client(load_settings()))
     active_router = photo_router or ModelRouter()
-    return ToolRegistry((*TOOLS, *photo_analysis.build_tools(factory, active_router)), recorder=recorder)
+    return ToolRegistry(
+        (*TOOLS, *photo_analysis.build_tools(factory, active_router)), recorder=recorder
+    )
 
 
 def build_ledger(settings: Settings, *, now: float | None = None) -> QuotaLedger:
@@ -356,6 +358,7 @@ def build_context(
                 input_summary=query[:80],
                 output_summary=f"全局只读知识：{sources}"[:120],
             )
+
     budgets = None
     if settings is not None and hasattr(settings, "context_role_budget"):
         budgets = {

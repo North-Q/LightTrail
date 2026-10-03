@@ -32,7 +32,11 @@ from lighttrail.tools import (  # noqa: F401  触发注册
 registry = build_registry()
 _MEMORY = MemoryManager(
     Path(tempfile.mkdtemp(prefix="lt_e2e_memory_")),
-    profile=UserProfile(favorite_spots=[{"name": "测试机位", "latitude": 31.2, "longitude": 121.5, "coordinate_system": "WGS84"}]),
+    profile=UserProfile(
+        favorite_spots=[
+            {"name": "测试机位", "latitude": 31.2, "longitude": 121.5, "coordinate_system": "WGS84"}
+        ]
+    ),
 )
 
 # E8 黄金用例集雏形：典型请求 + 预期题材 + 关键断言词
@@ -60,14 +64,24 @@ class FakeChatClient:
 
 
 def _intent_json(subject: str, mode: str = "inspiration") -> str:
-    return json.dumps({"subject_type": subject, "location": "", "time_hint": "这周末", "mode": mode}, ensure_ascii=False)
+    return json.dumps(
+        {"subject_type": subject, "location": "", "time_hint": "这周末", "mode": mode},
+        ensure_ascii=False,
+    )
 
 
 def _card_json(conclusion: str = "周末银河可见，建议 20:30-23:00 前往测试机位。") -> str:
     return json.dumps(
         {
             "conclusion": conclusion,
-            "evidence": [{"tool": "galaxy_visibility", "field": "可见窗口", "confidence": "high", "note": "20:10-23:50"}],
+            "evidence": [
+                {
+                    "tool": "galaxy_visibility",
+                    "field": "可见窗口",
+                    "confidence": "high",
+                    "note": "20:10-23:50",
+                }
+            ],
             "confidence": "medium",
             "time_window": "20:30-23:00",
             "locations": [{"name": "测试机位", "reason": "光害低"}],
@@ -84,10 +98,21 @@ def _fake_dispatch(name: str, args: str) -> str:
     data = {
         "moon_phase": {"月相名称": "新月", "照亮比例（%）": 2, "月光影响建议": "低"},
         "moon_events": {"月出": "19:30", "月落": "05:40"},
-        "galaxy_visibility": {"可见窗口": [{"开始": "20:10", "结束": "23:50"}], "最高高度角": 55, "提示": "好"},
-        "weather_forecast": {"每日预报": [{"日期": "2026-09-08", "平均云量（%）": 30}], "数据来源": "Open-Meteo（免费）"},
+        "galaxy_visibility": {
+            "可见窗口": [{"开始": "20:10", "结束": "23:50"}],
+            "最高高度角": 55,
+            "提示": "好",
+        },
+        "weather_forecast": {
+            "每日预报": [{"日期": "2026-09-08", "平均云量（%）": 30}],
+            "数据来源": "Open-Meteo（免费）",
+        },
         "sun_times": {"日出": "05:42", "日落": "18:06"},
-        "sunset_glow_score": {"评分（0-100）": 62, "等级": "中等（可看趋势再定）", "数据来源": "Open-Meteo（免费）"},
+        "sunset_glow_score": {
+            "评分（0-100）": 62,
+            "等级": "中等（可看趋势再定）",
+            "数据来源": "Open-Meteo（免费）",
+        },
         "match_sites": {"匹配结果": [{"名称": "测试机位", "匹配度": 4.5}]},
     }
     return json.dumps(data.get(name, {"error": f"未知工具 {name}"}), ensure_ascii=False)
@@ -137,9 +162,7 @@ def test_e2e_galaxy_plan_and_followup_react() -> None:
 def test_e2e_fire_cloud_live_decision() -> None:
     """临场场景：火烧云 → live 管线 → 去/等/放弃决策卡。"""
     card = _card_json("建议 18:10 到机位蹲守，风险中等可接受。")
-    fake = FakeChatClient(
-        [{"role": "assistant", "content": card}]
-    )
+    fake = FakeChatClient([{"role": "assistant", "content": card}])
     runtime = _runtime(fake)
     orc = Orchestrator(registry, runtime, memory=_MEMORY, dispatch=_fake_dispatch)
     text = orc.plan("明天傍晚去拍火烧云值得吗")
@@ -167,7 +190,16 @@ def test_cli_pipeline_entry_prints_card(monkeypatch, capsys, tmp_path: Path) -> 
     fake = FakeChatClient([{"role": "assistant", "content": _card_json()}])
     services = build_application(settings, client=fake, dispatch=_fake_dispatch)
     services.memory.update_profile(
-        {"favorite_spots": [{"name": "测试机位", "latitude": 31.2, "longitude": 121.5, "coordinate_system": "WGS84"}]}
+        {
+            "favorite_spots": [
+                {
+                    "name": "测试机位",
+                    "latitude": 31.2,
+                    "longitude": 121.5,
+                    "coordinate_system": "WGS84",
+                }
+            ]
+        }
     )
     monkeypatch.setattr(cli_mod, "load_settings", lambda: settings)
     monkeypatch.setattr(cli_mod, "build_application", lambda config: services)
@@ -182,7 +214,14 @@ def test_cli_pipeline_entry_prints_card(monkeypatch, capsys, tmp_path: Path) -> 
 _REVIEW_CARD = json.dumps(
     {
         "conclusion": "整体不错，暗部再提一档即可；下次早 20 分钟到位。",
-        "evidence": [{"tool": "analyze_photo", "field": "总体评语", "confidence": "medium", "note": "EXIF 实拍"}],
+        "evidence": [
+            {
+                "tool": "analyze_photo",
+                "field": "总体评语",
+                "confidence": "medium",
+                "note": "EXIF 实拍",
+            }
+        ],
         "confidence": "medium",
         "time_window": "下次日落前 40 分钟",
         "locations": [],
@@ -239,7 +278,9 @@ def test_review_pipeline_reports_plan_diff() -> None:
     fake = _review_fake_agent_client()
     runtime = _runtime(fake)
     orc = Orchestrator(registry, runtime, dispatch=_fake_dispatch, photo_analyze=_fake_analyze)
-    plan_json = json.dumps({"params": [{"name": "光圈", "value": "f/8", "reason": "计划建议"}]}, ensure_ascii=False)
+    plan_json = json.dumps(
+        {"params": [{"name": "光圈", "value": "f/8", "reason": "计划建议"}]}, ensure_ascii=False
+    )
     orc.review("D:/photos/sample.jpg", plan_reference=plan_json)
     prompt = fake.calls[0]["messages"][-1]["content"]
     assert "计划光圈 f/8，实拍 f/5.6" in prompt
@@ -253,4 +294,3 @@ def test_review_pipeline_missing_image_returns_skeleton() -> None:
     text = orc.review("")
     assert "image_path" in text
     assert fake.calls == []
-

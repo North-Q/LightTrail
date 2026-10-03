@@ -94,6 +94,7 @@ def test_bad_arguments_return_structured_error() -> None:
     payload = json.loads(registry.dispatch("probe", json.dumps({"unexpected": 1})))
     assert "error" in payload
 
+
 def test_dynamic_confidence_rule_uses_result_data() -> None:
     """动态置信度规则（预报时效）：由 ToolSpec.confidence_rule 声明并按结果解析。"""
     recorder = TraceRecorder()

@@ -19,6 +19,7 @@ from lighttrail.tools import basic, exposure  # noqa: F401  确保工具已注�
 
 registry = build_registry()
 
+
 class FakeChatClient:
     """记录调用参数的伪客户端（可预置 thinking 内容）。"""
 
@@ -146,6 +147,7 @@ def test_reason_without_thinking_no_step() -> None:
     runtime = _runtime(fake, recorder=recorder)
     runtime.reason("简单问题")
     assert [s.name for s in recorder.to_report().steps] == []
+
 
 def test_reason_records_usage_tokens() -> None:
     """B0-2：深推理通道同样把 usage 计入 TraceReport（tokens 非 None）。"""

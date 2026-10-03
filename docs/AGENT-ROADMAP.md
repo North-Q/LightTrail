@@ -219,6 +219,7 @@
   ```powershell
   .\.venv\Scripts\python.exe -m pytest -q
   .\.venv\Scripts\python.exe -m ruff check .
+  .\.venv\Scripts\python.exe -m ruff format --check .
   .\.venv\Scripts\python.exe -m lighttrail.smoke
   .\.venv\Scripts\lint-imports.exe
   npm --prefix frontend run gen:api

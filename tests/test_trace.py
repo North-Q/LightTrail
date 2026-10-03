@@ -185,7 +185,9 @@ class _FakeChatClient:
         self._responses = list(responses)
         self.calls: list = []
 
-    def chat(self, messages, *, model=None, tools=None, temperature=0.2, usage_callback=None) -> dict:
+    def chat(
+        self, messages, *, model=None, tools=None, temperature=0.2, usage_callback=None
+    ) -> dict:
         self.calls.append({"messages": messages, "model": model, "tools": tools})
         return self._responses.pop(0)
 
@@ -214,7 +216,9 @@ def _tool_call_msg() -> dict:
     }
 
 
-def _runtime(fake, *, recorder: TraceRecorder | None = None, model: str = "ecnu-plus") -> AgentRuntime:
+def _runtime(
+    fake, *, recorder: TraceRecorder | None = None, model: str = "ecnu-plus"
+) -> AgentRuntime:
     """把伪客户端经自定义 Model 桥接成 AgentRuntime（记录器同时注入桥与 runtime）。"""
     provider = ChatClientProvider(fake)
     return AgentRuntime(
@@ -305,7 +309,9 @@ class _UsageFakeChatClient(_FakeChatClient):
         super().__init__(responses)
         self.usage = usage
 
-    def chat(self, messages, *, model=None, tools=None, temperature=0.2, usage_callback=None) -> dict:
+    def chat(
+        self, messages, *, model=None, tools=None, temperature=0.2, usage_callback=None
+    ) -> dict:
         if usage_callback is not None:
             usage_callback(self.usage)
         return super().chat(messages, model=model, tools=tools, temperature=temperature)

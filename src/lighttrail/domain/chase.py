@@ -224,7 +224,10 @@ class ChasePlanner:
 
         best = max(
             feasible,
-            key=lambda item: (item.total_effective_shooting_s, sum(leg.margin_s for leg in item.legs)),
+            key=lambda item: (
+                item.total_effective_shooting_s,
+                sum(leg.margin_s for leg in item.legs),
+            ),
         )
         return ChasePlan(
             ordered_site_names=best.ordered_site_names,
@@ -262,7 +265,9 @@ class ChasePlanner:
                     transit_city=transit_city,
                 )
                 arrive_at = current + timedelta(seconds=route.duration_s + transition_buffer_s)
-                latest_leave = site.window_end - timedelta(seconds=min_shooting_s + route.duration_s + transition_buffer_s)
+                latest_leave = site.window_end - timedelta(
+                    seconds=min_shooting_s + route.duration_s + transition_buffer_s
+                )
                 effective_start = max(arrive_at, site.window_start)
                 effective_shooting = int((site.window_end - effective_start).total_seconds())
                 margin = int((latest_leave - current).total_seconds())
@@ -324,7 +329,10 @@ def _haversine_m(origin: GeoPoint, destination: GeoPoint) -> int:
     )
     delta_lat = lat2 - lat1
     delta_lon = lon2 - lon1
-    a = math.sin(delta_lat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(delta_lon / 2) ** 2
+    a = (
+        math.sin(delta_lat / 2) ** 2
+        + math.cos(lat1) * math.cos(lat2) * math.sin(delta_lon / 2) ** 2
+    )
     return int(2 * radius_m * math.asin(math.sqrt(a)))
 
 

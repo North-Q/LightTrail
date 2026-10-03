@@ -55,7 +55,9 @@ _MAX_SPREAD = 26
 _SPREAD_PER_EVIDENCE = 2
 
 
-def resolve_confidence(spec: ToolSpec, result_data: dict[str, Any], *, now: datetime | None = None) -> str:
+def resolve_confidence(
+    spec: ToolSpec, result_data: dict[str, Any], *, now: datetime | None = None
+) -> str:
     """按 ToolSpec 声明解析置信度（动态规则优先，静态声明兜底）。
 
     Args:
@@ -71,7 +73,9 @@ def resolve_confidence(spec: ToolSpec, result_data: dict[str, Any], *, now: date
     return spec.confidence.value
 
 
-def confidence_for_tool(name: str, result_data: dict[str, Any], *, now: datetime | None = None) -> str:
+def confidence_for_tool(
+    name: str, result_data: dict[str, Any], *, now: datetime | None = None
+) -> str:
     """按规则派生某次工具调用的置信度。
 
     Args:
@@ -117,7 +121,9 @@ def confidence_detail(level: str, evidence: Sequence[Source]) -> ConfidenceDetai
     if normalized not in _LEVEL_WEIGHT:
         normalized = _CONF_LOW
     if total:
-        score = round(100 * sum(_LEVEL_WEIGHT[key] * count for key, count in counts.items()) / total)
+        score = round(
+            100 * sum(_LEVEL_WEIGHT[key] * count for key, count in counts.items()) / total
+        )
         spread = max(_MIN_SPREAD, _MAX_SPREAD - _SPREAD_PER_EVIDENCE * total)
         basis = (
             f"按 {total} 条依据的来源级别加权（确定性 high {counts[_CONF_HIGH]} 条 / "

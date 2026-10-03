@@ -61,14 +61,24 @@ class FakeChatClient:
 
 
 def _intent_json(subject: str, mode: str) -> str:
-    return json.dumps({"subject_type": subject, "location": "", "time_hint": "今晚", "mode": mode}, ensure_ascii=False)
+    return json.dumps(
+        {"subject_type": subject, "location": "", "time_hint": "今晚", "mode": mode},
+        ensure_ascii=False,
+    )
 
 
 def _card_json(conclusion: str = "建议 18:10 到机位蹲守，风险中等可接受。") -> str:
     return json.dumps(
         {
             "conclusion": conclusion,
-            "evidence": [{"tool": "sunset_glow_score", "field": "评分", "confidence": "medium", "note": "62 分"}],
+            "evidence": [
+                {
+                    "tool": "sunset_glow_score",
+                    "field": "评分",
+                    "confidence": "medium",
+                    "note": "62 分",
+                }
+            ],
             "confidence": "medium",
             "time_window": "18:00-18:40",
             "locations": [{"name": "崇明东滩", "reason": "朝西开阔"}],
@@ -84,10 +94,21 @@ def _fake_dispatch(name: str, args: str) -> str:
     """Fake 数据源（不触网）。"""
     data = {
         "moon_phase": {"月相名称": "新月", "照亮比例（%）": 2, "月光影响建议": "低"},
-        "galaxy_visibility": {"可见窗口": [{"开始": "20:10", "结束": "23:50"}], "最高高度角": 55, "提示": "好"},
-        "weather_forecast": {"每日预报": [{"日期": "2026-09-08", "平均云量（%）": 30}], "数据来源": "Open-Meteo（免费）"},
+        "galaxy_visibility": {
+            "可见窗口": [{"开始": "20:10", "结束": "23:50"}],
+            "最高高度角": 55,
+            "提示": "好",
+        },
+        "weather_forecast": {
+            "每日预报": [{"日期": "2026-09-08", "平均云量（%）": 30}],
+            "数据来源": "Open-Meteo（免费）",
+        },
         "sun_times": {"日出": "05:42", "日落": "18:06"},
-        "sunset_glow_score": {"评分（0-100）": 62, "等级": "中等（可看趋势再定）", "数据来源": "Open-Meteo（免费）"},
+        "sunset_glow_score": {
+            "评分（0-100）": 62,
+            "等级": "中等（可看趋势再定）",
+            "数据来源": "Open-Meteo（免费）",
+        },
     }
     return json.dumps(data.get(name, {"error": f"未知工具 {name}"}), ensure_ascii=False)
 
@@ -109,7 +130,18 @@ def make_app(data_dir: Path):
     def _build(responses: list[dict]) -> tuple[object, FakeChatClient]:
         fake = FakeChatClient(responses)
         memory = MemoryManager(data_dir)
-        memory.update_profile({"favorite_spots": [{"name": "测试机位", "latitude": 31.2, "longitude": 121.5, "coordinate_system": "WGS84"}]})
+        memory.update_profile(
+            {
+                "favorite_spots": [
+                    {
+                        "name": "测试机位",
+                        "latitude": 31.2,
+                        "longitude": 121.5,
+                        "coordinate_system": "WGS84",
+                    }
+                ]
+            }
+        )
         services = build_application(
             Settings(_env_file=None, data_dir=str(data_dir), reason_thinking=False),
             client=fake,

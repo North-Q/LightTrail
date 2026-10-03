@@ -177,6 +177,8 @@ def test_sediment_skips_locations_without_coordinates(workdir: Path) -> None:
     """无坐标事件不沉淀（数据前提缺失时跳过，不写脏数据）。"""
     manager = _manager(workdir)
     for index in range(2):
-        manager.add_event(f"2026-05-{index + 1:02d}T19:00:00+08:00", "无名滩涂", subject_type="日落")
+        manager.add_event(
+            f"2026-05-{index + 1:02d}T19:00:00+08:00", "无名滩涂", subject_type="日落"
+        )
     assert manager.sediment_favorite_spots(min_count=2) == []
     assert manager.profile.favorite_spots == []

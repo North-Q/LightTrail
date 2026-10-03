@@ -73,7 +73,12 @@ def _docstring_ids(tree: ast.AST) -> set[int]:
 
 # 禁止边：领域 / 运行时 / 契约不得依赖适配层与交互层（v4 §2.2，import-linter 的 AST 兜底）
 _FORBIDDEN_SOURCES = ("contracts", "runtime", "tools", "memory")
-_FORBIDDEN_TARGETS = ("lighttrail.adapters", "lighttrail.api", "lighttrail.cli", "lighttrail.orchestrator")
+_FORBIDDEN_TARGETS = (
+    "lighttrail.adapters",
+    "lighttrail.api",
+    "lighttrail.cli",
+    "lighttrail.orchestrator",
+)
 
 
 def test_forbidden_layer_edges_absent() -> None:
@@ -82,8 +87,10 @@ def test_forbidden_layer_edges_absent() -> None:
     for source in _FORBIDDEN_SOURCES:
         for path in _python_files(SRC / source):
             for name in _import_names(path):
-                if any(name == target or name.startswith(f'{target}.') for target in _FORBIDDEN_TARGETS):
-                    offenders.append(f'{path.name}: {name}')
+                if any(
+                    name == target or name.startswith(f"{target}.") for target in _FORBIDDEN_TARGETS
+                ):
+                    offenders.append(f"{path.name}: {name}")
     assert offenders == []
 
 

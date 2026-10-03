@@ -27,6 +27,7 @@ from lighttrail.tools.photo_analysis import PhotoError, analyze_photo
 
 registry = build_registry()
 
+
 @pytest.fixture()
 def workdir() -> Path:
     """自建临时目录（pytest tmp_path 受沙箱 ACL 限制）。"""
@@ -173,7 +174,9 @@ def test_analyze_photo_gear_from_profile(workdir: Path) -> None:
     """无显式 equipment 时读取档案器材注入处方 prompt。"""
     memory = MemoryManager(workdir)
     request = RequestContext(user_id="north")
-    memory.update_profile(request, {"camera_body": "松下 S5M2（全画幅）", "lenses": ["24-105mm F4", "契卡 14mm 定焦"]})
+    memory.update_profile(
+        request, {"camera_body": "松下 S5M2（全画幅）", "lenses": ["24-105mm F4", "契卡 14mm 定焦"]}
+    )
     (workdir / "profile.json").write_text(
         json.dumps({"camera_body": "旧路径相机"}, ensure_ascii=False), encoding="utf-8"
     )
@@ -231,4 +234,3 @@ def test_e6_golden_cases_json_valid() -> None:
     for case in cases:
         assert case["type"] in {"photo_analyze", "reverse", "review"}
         assert case["request"] and case["expect"]
-

@@ -185,32 +185,44 @@ forbidden_modules = ["lighttrail.interface"]
 
 ```python
 # ---- contracts/tool.py ----
-class Confidence(StrEnum): HIGH="high"; MEDIUM="medium"; LOW="low"
+class Confidence(StrEnum):
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
 
 @dataclass(frozen=True)
 class ToolSpec:
     """工具完整自描述：注册/trace/置信度/能力叙述全部来源于此（消灭 _MAIN_FIELD 漂移）。"""
+
     name: str
-    description: str                       # 面向模型（含「何时使用」，见 §4 工具描述三法则）
-    parameters: dict[str, Any]             # JSON Schema
-    capabilities: frozenset[str] = frozenset()   # {"tools"} 等，供 Router
-    main_field: str = ""                   # 替代 trace._MAIN_FIELD
-    confidence: Confidence = Confidence.LOW      # 替代 confidence.py 三集合
+    description: str  # 面向模型（含「何时使用」，见 §4 工具描述三法则）
+    parameters: dict[str, Any]  # JSON Schema
+    capabilities: frozenset[str] = frozenset()  # {"tools"} 等，供 Router
+    main_field: str = ""  # 替代 trace._MAIN_FIELD
+    confidence: Confidence = Confidence.LOW  # 替代 confidence.py 三集合
+
     def to_openai_schema(self) -> dict[str, Any]: ...
+
 
 @dataclass
 class ToolContext:
     """工具运行上下文（注入式，替代 _DEFAULT_CLIENT/_DEFAULT_STORE/全局 registry）。"""
+
     request: "RequestContext"
     llm: "LLMProvider"
     datasource: "DataSource"
     memory: "MemoryStore | None" = None
     sink: "TraceSink | None" = None
+
     def emit(self, kind: str, name: str, **payload) -> None: ...
+
 
 class Tool(Protocol):
     spec: ToolSpec
+
     def __call__(self, ctx: ToolContext, **kwargs: Any) -> "ToolResult": ...
+
 
 # ---- contracts/context.py（用户体系预留，本期即落地）----
 @dataclass(frozen=True)
@@ -218,9 +230,11 @@ class RequestContext:
     """一次请求的身份与配置上下文，贯穿 session/memory/quota/LLM 配置解析。
     本期恒为本地单用户（user_id="_local"），但签名上无处不在——
     未来接用户体系时业务代码零改动，只换装配根的构造方式。"""
+
     user_id: str = "_local"
     session_id: str = ""
-    llm_overrides: "LLMConfig | None" = None   # per-user Key 的落点（本期恒 None）
+    llm_overrides: "LLMConfig | None" = None  # per-user Key 的落点（本期恒 None）
+
 
 # ---- contracts/llm.py ----
 @dataclass(frozen=True)
@@ -229,58 +243,81 @@ class LLMConfig:
     base_url: str
     model: str
     model_reason: str
-    concurrency: int = 4          # 纯配置，无平台语义（见 §3 D5）
+    concurrency: int = 4  # 纯配置，无平台语义（见 §3 D5）
     reason_thinking: bool = True
 
+
 class LLMProvider(Protocol):
-    async def complete(self, messages, *, model=None, tools=None, temperature=0.2,
-                       thinking=None, reasoning_effort=None) -> dict[str, Any]: ...
+    async def complete(
+        self,
+        messages,
+        *,
+        model=None,
+        tools=None,
+        temperature=0.2,
+        thinking=None,
+        reasoning_effort=None,
+    ) -> dict[str, Any]: ...
     def queue_position(self) -> int: ...
+
 
 class UserConfigProvider(Protocol):
     """LLM 配置优先级链的唯一入口（详见 §7.2）。
     本期实现：DeploymentConfigProvider（只读 .env/默认值）。"""
+
     def resolve(self, ctx: RequestContext) -> LLMConfig: ...
+
 
 class KeyVault(Protocol):
     """密钥保管抽象。本期实现：EnvKeyVault（从部署级配置取）。
     未来实现：EncryptedStoreKeyVault（per-user Key 加密落盘）。"""
+
     def get_api_key(self, user_id: str) -> str | None: ...
     def set_api_key(self, user_id: str, key: str) -> None: ...
+
 
 # ---- contracts/datasource.py / observability.py ----
 class DataSource(Protocol):
     async def get(self, name: str, params: dict[str, Any]) -> dict[str, Any]: ...
+
 
 class TraceSink(Protocol):
     def emit(self, event: "TraceEvent") -> None: ...
     def subscribe(self, cb: Callable[["TraceEvent"], None]) -> Callable[[], None]: ...
     def to_prompt_section(self, limit: int = 12) -> str: ...
 
+
 # ---- contracts/memory.py ----
 class MemoryStore(Protocol):
     """记忆（per-user、可写）。所有读写经 RequestContext.user_id 隔离命名空间（详见 §7.1）。"""
-    def build_injections(self, ctx: RequestContext, intent: str,
-                         *, budget: "TokenBudget") -> list["MemoryBlock"]: ...
+
+    def build_injections(
+        self, ctx: RequestContext, intent: str, *, budget: "TokenBudget"
+    ) -> list["MemoryBlock"]: ...
     def write_event(self, ctx: RequestContext, event: "EventRecord") -> int: ...
-    def propose_semantic(self, ctx: RequestContext, content: str,
-                         keywords: Sequence[str]) -> int: ...
+    def propose_semantic(
+        self, ctx: RequestContext, content: str, keywords: Sequence[str]
+    ) -> int: ...
+
 
 # ---- contracts/knowledge.py（D10 修订：知识库 = 全局只读，不接 user_id）----
 @dataclass(frozen=True)
 class KnowledgeChunk:
     id: str
     text: str
-    source: str          # 出处（论文/标准/经验），供溯源
+    source: str  # 出处（论文/标准/经验），供溯源
     version: str
+
 
 class KnowledgeProvider(Protocol):
     """知识库（'我知道世界'）：全局只读，检索不接 user_id。
     形态一：结构化判据表（键值/规则，精确查表）。
     形态二：SQLite FTS5 文本检索（中文 trigram/jieba）。
     向量检索为后续升级项（触发条件见 §7.5）。"""
+
     def lookup(self, key: str, *, table: str = "") -> "KnowledgeChunk | None": ...
     def search(self, query: str, *, k: int = 3, scope: str = "") -> list["KnowledgeChunk"]: ...
+
 
 # ---- contracts/plan.py（D3 修订：受控 Plan-Execute 通道）----
 @dataclass(frozen=True)
@@ -289,29 +326,37 @@ class PlanStep:
     args: dict[str, Any]
     purpose: str = ""
 
+
 @dataclass(frozen=True)
 class Plan:
     """受控计划：一等对象，可落 trace、可测、有步数上限。"""
+
     goal: str
     steps: tuple[PlanStep, ...]
     max_steps: int = 8
 
+
 # ---- runtime/registry.py ----
 class ToolRegistry:
     """声明式收集：由装配根用 ToolSpec 列表构造，不再有模块级单例。"""
+
     def __init__(self, specs: Iterable[ToolSpec]) -> None: ...
     async def dispatch(self, name: str, arguments_json: str, ctx: ToolContext) -> str: ...
+
 
 # ---- runtime/agent.py ----
 class AgentRuntime:
     """PydanticAI Agent 的组装门面：ReAct 对话、意图解析、reason 综合共用一套装配。
     LLM 交互经自定义 Model 桥走我们的 LLMProvider（ADR-002/003 适配层不丢）。"""
+
     async def run(self, messages: list[dict], ctx: ToolContext) -> "RunResult": ...
     async def reason(self, prompt: str, *, system: str = "", **kw) -> str: ...
+
 
 # ---- runtime/planner.py（D3 修订：受控规划通道执行器）----
 class Planner:
     """受控 Plan-Execute：LLM 产 Plan（pydantic 校验），按步执行，每步过 dispatch/trace/配额。"""
+
     async def make_plan(self, goal: str, ctx: ToolContext) -> Plan: ...
     async def execute(self, plan: Plan, ctx: ToolContext) -> "DecisionCard": ...
 ```
@@ -582,7 +627,7 @@ def judge_shutter_advice(model_card: DecisionCard, focal: float) -> tuple[bool, 
     advised = _extract_shutter(model_card.params)
     if advised is None:
         return True, "卡片未给快门建议，跳过"
-    rule = star_shutter_rule(eff_focal=focal)            # 纯计算，可复现
+    rule = star_shutter_rule(eff_focal=focal)  # 纯计算，可复现
     limit = rule["500 法则最大快门（秒）"]
     if advised > limit * 1.1:
         return False, f"模型建议 {advised}s 超过 500 法则上限 {limit}s，星点会拖线"

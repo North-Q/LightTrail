@@ -68,14 +68,24 @@ class FakeChatClient:
 
 
 def _intent_json(subject: str, mode: str) -> str:
-    return json.dumps({"subject_type": subject, "location": "", "time_hint": "今晚", "mode": mode}, ensure_ascii=False)
+    return json.dumps(
+        {"subject_type": subject, "location": "", "time_hint": "今晚", "mode": mode},
+        ensure_ascii=False,
+    )
 
 
 def _card_json(conclusion: str = "建议 18:10 到机位蹲守，风险中等可接受。") -> str:
     return json.dumps(
         {
             "conclusion": conclusion,
-            "evidence": [{"tool": "sunset_glow_score", "field": "评分", "confidence": "medium", "note": "62 分"}],
+            "evidence": [
+                {
+                    "tool": "sunset_glow_score",
+                    "field": "评分",
+                    "confidence": "medium",
+                    "note": "62 分",
+                }
+            ],
             "confidence": "medium",
             "time_window": "18:00-18:40",
             "locations": [{"name": "测试机位", "reason": "朝西开阔"}],
@@ -101,10 +111,21 @@ def _fake_dispatch(name: str, args: str) -> str:
     """Fake 数据源（不触网）。"""
     data = {
         "moon_phase": {"月相名称": "新月", "照亮比例（%）": 2, "月光影响建议": "低"},
-        "galaxy_visibility": {"可见窗口": [{"开始": "20:10", "结束": "23:50"}], "最高高度角": 55, "提示": "好"},
-        "weather_forecast": {"每日预报": [{"日期": "2026-09-08", "平均云量（%）": 30}], "数据来源": "Open-Meteo（免费）"},
+        "galaxy_visibility": {
+            "可见窗口": [{"开始": "20:10", "结束": "23:50"}],
+            "最高高度角": 55,
+            "提示": "好",
+        },
+        "weather_forecast": {
+            "每日预报": [{"日期": "2026-09-08", "平均云量（%）": 30}],
+            "数据来源": "Open-Meteo（免费）",
+        },
         "sun_times": {"日出": "05:42", "日落": "18:06"},
-        "sunset_glow_score": {"评分（0-100）": 62, "等级": "中等（可看趋势再定）", "数据来源": "Open-Meteo（免费）"},
+        "sunset_glow_score": {
+            "评分（0-100）": 62,
+            "等级": "中等（可看趋势再定）",
+            "数据来源": "Open-Meteo（免费）",
+        },
     }
     return json.dumps(data.get(name, {"error": f"未知工具 {name}"}), ensure_ascii=False)
 
@@ -147,7 +168,18 @@ def make_app(data_dir: Path):
     ) -> tuple[object, FakeChatClient]:
         fake = FakeChatClient(responses)
         memory = MemoryManager(data_dir)
-        memory.update_profile({"favorite_spots": [{"name": "测试机位", "latitude": 31.2, "longitude": 121.5, "coordinate_system": "WGS84"}]})
+        memory.update_profile(
+            {
+                "favorite_spots": [
+                    {
+                        "name": "测试机位",
+                        "latitude": 31.2,
+                        "longitude": 121.5,
+                        "coordinate_system": "WGS84",
+                    }
+                ]
+            }
+        )
         services = build_application(
             Settings(_env_file=None, data_dir=str(data_dir), reason_thinking=False),
             client=fake,
@@ -186,7 +218,9 @@ async def _collect_sse(client: AsyncClient, method: str, url: str, **kwargs) -> 
 
 async def test_chat_sse_full_protocol(make_app) -> None:
     """/api/chat：queued → tool_call/tool_result → token → done。"""
-    app, _ = make_app([_tool_call_msg(), {"role": "assistant", "content": "现在是北京时间 22:30。"}])
+    app, _ = make_app(
+        [_tool_call_msg(), {"role": "assistant", "content": "现在是北京时间 22:30。"}]
+    )
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         events = await _collect_sse(client, "POST", "/api/chat", json={"message": "现在几点？"})
@@ -224,7 +258,7 @@ async def test_chat_error_event(make_app) -> None:
             raise LLMError("simulated failure")
 
     def queue_position(self) -> int:
-            return 0
+        return 0
 
     app, _ = make_app([])
     app.state.deps.services.client.acall = _BrokenClient().acall  # 覆盖底层调用
@@ -247,7 +281,9 @@ async def test_decide_sse_card(make_app) -> None:
     )
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        events = await _collect_sse(client, "POST", "/api/decide", json={"request": "今晚火烧云值得冲吗"})
+        events = await _collect_sse(
+            client, "POST", "/api/decide", json={"request": "今晚火烧云值得冲吗"}
+        )
 
     types = [e["type"] for e in events]
     assert types[0] == "queued"
@@ -260,7 +296,9 @@ async def test_decide_sse_card(make_app) -> None:
 
 async def test_photos_review_sse(make_app) -> None:
     """/api/photos/review：multipart 上传 → card + done。"""
-    app, _ = make_app([{"role": "assistant", "content": _card_json("复盘结论：构图可再精简前景。")}])
+    app, _ = make_app(
+        [{"role": "assistant", "content": _card_json("复盘结论：构图可再精简前景。")}]
+    )
     transport = ASGITransport(app=app)
     png_bytes = b"\x89PNG\r\n\x1a\n" + b"0" * 64
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -303,7 +341,9 @@ async def test_photos_review_save_failure_still_finishes_sse(make_app, monkeypat
 
 async def test_photos_reverse_sse(make_app) -> None:
     """/api/photos/reverse：参考图进入复刻计划，而非复盘管线。"""
-    app, _ = make_app([{"role": "assistant", "content": _card_json("复刻计划：日落前到西向机位。")}])
+    app, _ = make_app(
+        [{"role": "assistant", "content": _card_json("复刻计划：日落前到西向机位。")}]
+    )
     transport = ASGITransport(app=app)
     png_bytes = b"\x89PNG\r\n\x1a\n" + b"0" * 64
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -373,7 +413,11 @@ async def test_profile_get_put(make_app) -> None:
 
         put = await client.put(
             "/api/profile",
-            json={"camera_body": "松下 S5M2", "lenses": ["24-105mm F4", "契卡 14mm"], "skill_level": "进阶"},
+            json={
+                "camera_body": "松下 S5M2",
+                "lenses": ["24-105mm F4", "契卡 14mm"],
+                "skill_level": "进阶",
+            },
         )
         assert put.status_code == 200
         assert put.json()["camera_body"] == "松下 S5M2"
@@ -402,7 +446,9 @@ async def test_favorite_spot_crud_and_profile_write_guard(make_app, data_dir: Pa
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         assert (await client.put("/api/profile", json={"favorite_spots": []})).status_code == 422
-        assert (await client.post("/api/favorite-spots", json={**spot, "latitude": 91})).status_code == 422
+        assert (
+            await client.post("/api/favorite-spots", json={**spot, "latitude": 91})
+        ).status_code == 422
         created = await client.post("/api/favorite-spots", json=spot)
         assert created.status_code == 201, created.text
         record = created.json()
@@ -464,8 +510,18 @@ async def test_chase_plan_uses_profile_sites_and_manual_fallback(make_app) -> No
     app.state.deps.services.memory.update_profile(
         {
             "favorite_spots": [
-                {"name": "机位 A", "latitude": 31.2304, "longitude": 121.4737, "coordinate_system": "WGS84"},
-                {"name": "机位 B", "latitude": 31.2404, "longitude": 121.4837, "coordinate_system": "WGS84"},
+                {
+                    "name": "机位 A",
+                    "latitude": 31.2304,
+                    "longitude": 121.4737,
+                    "coordinate_system": "WGS84",
+                },
+                {
+                    "name": "机位 B",
+                    "latitude": 31.2404,
+                    "longitude": 121.4837,
+                    "coordinate_system": "WGS84",
+                },
             ]
         }
     )
@@ -503,7 +559,9 @@ async def test_event_write_requires_explicit_request(make_app) -> None:
     app, _ = make_app([])
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post("/api/events", json={"location": "临港", "subject_type": "火烧云"})
+        response = await client.post(
+            "/api/events", json={"location": "临港", "subject_type": "火烧云"}
+        )
     assert response.status_code == 200
     assert response.json()["event_id"] == 1
 

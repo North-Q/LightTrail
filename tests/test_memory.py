@@ -34,7 +34,9 @@ class _FakeChatClient:
     def __init__(self) -> None:
         self.calls: list = []
 
-    def chat(self, messages, *, model=None, tools=None, temperature=0.2, usage_callback=None) -> dict:
+    def chat(
+        self, messages, *, model=None, tools=None, temperature=0.2, usage_callback=None
+    ) -> dict:
         self.calls.append({"messages": messages, "model": model, "tools": tools})
         return {"role": "assistant", "content": "好的。"}
 
@@ -63,7 +65,9 @@ def _example_profile() -> dict:
 
 
 def _write_profile(data_dir, fields: dict) -> None:
-    Path(data_dir, "profile.json").write_text(json.dumps(fields, ensure_ascii=False), encoding="utf-8")
+    Path(data_dir, "profile.json").write_text(
+        json.dumps(fields, ensure_ascii=False), encoding="utf-8"
+    )
 
 
 def test_load_absent_returns_empty_profile(memory_dir) -> None:
@@ -141,8 +145,6 @@ def test_agent_injects_profile_into_layer_four(memory_dir) -> None:
     assert "松下 S5M2" in system
 
 
-
-
 # ------ 语义记忆（E3-3）------
 def test_semantic_store_load_and_match(memory_dir) -> None:
     """semantic.json 存在时按关键词命中注入，无关意图不命中。"""
@@ -150,7 +152,10 @@ def test_semantic_store_load_and_match(memory_dir) -> None:
         json.dumps(
             {
                 "entries": [
-                    {"content": "偏好低云量+高云为主的晚霞，成功率约 7 成", "keywords": ["火烧云", "晚霞"]},
+                    {
+                        "content": "偏好低云量+高云为主的晚霞，成功率约 7 成",
+                        "keywords": ["火烧云", "晚霞"],
+                    },
                     {"content": "新月前后拍银河出片率最高", "keywords": ["银河", "星空"]},
                 ]
             },

@@ -36,7 +36,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 # 学校开发者平台默认参数（默认值，均可被环境变量覆盖）
 DEFAULT_BASE_URL = "https://chat.ecnu.edu.cn/open/api/v1"
-DEFAULT_MODEL = "ecnu-plus"      # 工具调用链路主模型（支持 thinking + 工具调用）
+DEFAULT_MODEL = "ecnu-plus"  # 工具调用链路主模型（支持 thinking + 工具调用）
 DEFAULT_MODEL_REASON = "ecnu-max"  # 强推理模型（1M 上下文，支持 thinking）
 
 # 数据目录（记忆/会话数据本地存放处，已 gitignore）
@@ -139,7 +139,9 @@ class Settings(BaseSettings):
     context_trace_budget: int = Field(default=DEFAULT_CONTEXT_TRACE_BUDGET, ge=1)
 
     # ------ 地图路线服务（C1-1）------
-    amap_web_service_key: str = Field(default="", validation_alias="AMAP_WEB_SERVICE_KEY", repr=False)
+    amap_web_service_key: str = Field(
+        default="", validation_alias="AMAP_WEB_SERVICE_KEY", repr=False
+    )
     amap_js_api_key: str = Field(default="", validation_alias="AMAP_JS_API_KEY", repr=False)
     amap_security_js_code: str = Field(
         default="", validation_alias="AMAP_SECURITY_JS_CODE", repr=False
@@ -174,9 +176,12 @@ class Settings(BaseSettings):
     def _parse_timeout(cls, value: Any) -> Any:
         """把 "30,120" / "[30, 120]" / "30 120" 统一解析为 (连接超时, 读取超时)。"""
         if isinstance(value, str):
-            parts = [part for part in value.strip().strip("[]()").replace(" ", ",").split(",") if part]
+            parts = [
+                part for part in value.strip().strip("[]()").replace(" ", ",").split(",") if part
+            ]
             return tuple(float(part) for part in parts)
         return value
+
 
 def load_settings() -> Settings:
     """加载配置快照（.env + 环境变量 + 内置默认；非法值直接抛 ValidationError）。

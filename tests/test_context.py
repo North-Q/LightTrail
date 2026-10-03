@@ -136,7 +136,9 @@ def test_build_messages_static_across_history() -> None:
     """to_openai_messages 的 system 段不随 history 变化。"""
     builder = _now_builder()
     m1 = builder.to_openai_messages([{"role": "user", "content": "a"}])
-    m2 = builder.to_openai_messages([{"role": "user", "content": "b"}, {"role": "assistant", "content": "c"}])
+    m2 = builder.to_openai_messages(
+        [{"role": "user", "content": "b"}, {"role": "assistant", "content": "c"}]
+    )
     assert m1[0]["content"] == m2[0]["content"]
     assert m1[1:] == [{"role": "user", "content": "a"}]
     assert m2[1:] == [
@@ -220,7 +222,10 @@ def test_build_legacy_passthrough() -> None:
     """旧 build() 保持透传：system_prompt 原样输出，不做分层。"""
     builder = _now_builder()
     messages = builder.build("原始提示", [{"role": "user", "content": "hi"}])
-    assert messages == [{"role": "system", "content": "原始提示"}, {"role": "user", "content": "hi"}]
+    assert messages == [
+        {"role": "system", "content": "原始提示"},
+        {"role": "user", "content": "hi"},
+    ]
 
 
 # ------ Agent 集成 ------
@@ -231,7 +236,9 @@ class _FakeChatClient:
         self._responses = list(responses)
         self.calls: list[dict] = []
 
-    def chat(self, messages, *, model=None, tools=None, temperature=0.2, usage_callback=None) -> dict:
+    def chat(
+        self, messages, *, model=None, tools=None, temperature=0.2, usage_callback=None
+    ) -> dict:
         self.calls.append({"messages": messages, "model": model, "tools": tools})
         return self._responses.pop(0)
 

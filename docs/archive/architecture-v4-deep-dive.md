@@ -189,10 +189,10 @@ def judge_shutter_advice(model_card: DecisionCard, focal: float) -> tuple[bool, 
     if advised is None:
         return True, "卡片未给快门建议，跳过"
     # 2) 用确定性工具独立算一遍（同样的机身参数）
-    rule = star_shutter_rule(eff_focal=focal)          # 纯计算，可复现
+    rule = star_shutter_rule(eff_focal=focal)  # 纯计算，可复现
     limit = rule["500 法则最大快门（秒）"]
     # 3) 比对：模型建议超过上限 → 判定为"违反物理法则"的假阳性
-    if advised > limit * 1.1:                           # 留 10% 容差
+    if advised > limit * 1.1:  # 留 10% 容差
         return False, f"模型建议快门 {advised}s 超过 500 法则上限 {limit}s，星点会拖线"
     return True, ""
 ```
@@ -517,19 +517,23 @@ D3 否掉 LLM 自主规划的理由是「已知流程交给 LLM 规划等于放�
 ```python
 # contracts/memory.py —— 记忆（per-user，可写）
 class MemoryStore(Protocol):
-    def build_injections(self, ctx: RequestContext, intent: str,
-                         *, budget: TokenBudget) -> list[MemoryBlock]: ...
+    def build_injections(
+        self, ctx: RequestContext, intent: str, *, budget: TokenBudget
+    ) -> list[MemoryBlock]: ...
+
 
 # contracts/knowledge.py —— 知识库（全局只读）
 @dataclass(frozen=True)
 class KnowledgeChunk:
     id: str
     text: str
-    source: str          # 出处（论文/标准），供溯源
+    source: str  # 出处（论文/标准），供溯源
     version: str
+
 
 class KnowledgeProvider(Protocol):
     """全局只读知识检索；不接 user_id。"""
+
     def search(self, query: str, *, k: int = 3, scope: str = "") -> list[KnowledgeChunk]: ...
 ```
 

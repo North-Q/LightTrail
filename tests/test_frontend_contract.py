@@ -24,7 +24,13 @@ FRONTEND_SRC = ROOT / "frontend" / "src"
 GENERATED = FRONTEND_SRC / "api" / "generated.ts"
 
 # 已删除的伪造数据 / 手抄契约辅助（回归即失败）
-_FORBIDDEN_SYMBOLS = ("confidenceMath", "verdictFrom", "parseTime", "SessionPayload", "SSEEventBase")
+_FORBIDDEN_SYMBOLS = (
+    "confidenceMath",
+    "verdictFrom",
+    "parseTime",
+    "SessionPayload",
+    "SSEEventBase",
+)
 # 旧置信度常量表的魔数写法（B4-3 删除）
 _FORBIDDEN_CONFIDENCE_RETURNS = ("return 78", "return 58", "return 34")
 # 契约类型的手抄形态（生成物之外不得再声明）
