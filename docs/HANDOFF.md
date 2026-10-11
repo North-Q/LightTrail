@@ -1,6 +1,6 @@
 # LightTrail 最新会话交接
 
-核对日期：2026-10-11（Asia/Shanghai，+08:00）。**U5产品批次已收口；当前执行规则修正与Git存量整理。** 恢复顺序：[AGENTS](../AGENTS.md)→[路线图](AGENT-ROADMAP.md)→本文件→[架构](architecture.md)、[U5验收](audit/2026-10-11/u5-verification.md)及当前Git审查记录，再核对实际工作区。
+核对日期：2026-10-11（Asia/Shanghai，+08:00）。**U5产品批次已收口；规则修正与公开Git存量整理已验收，代码已同步。** 恢复顺序：[AGENTS](../AGENTS.md)→[路线图](AGENT-ROADMAP.md)→本文件→[架构](architecture.md)、[U5验收](audit/2026-10-11/u5-verification.md)及[Git审查](audit/2026-10-11/git-sync-review.md)，再核对实际工作区。
 
 ## 当前目标、批次位置与约束
 
@@ -44,7 +44,7 @@ V01–V15全部通过。独立Python进程active/withdrawn恢复：只GET、模�
 
 ## 阻塞、下一步与停止条件
 
-U5产品批次已达到停止条件；当前继续已授权的Git整理。原32个提交的最新HEAD仍有数据全失败返回go/high的缺陷，因此不能仅推旧HEAD；必须将公开U1–U5修复纳入拟提交快照，通过离线验证及额外审查后再同步。不得把旧HEAD的458项通过或脏工作区的729项通过当作拟推送快照的充分证明。禁止使用原真实脚本或材料；不进入U6或Agent记忆接线。
+U5产品批次及本次公开存量整理均已验收；代码已普通推送，完成本文档记录同步后收口。原32个提交的最新HEAD仍有数据全失败返回go/high的缺陷，已经将公开U1–U5修复纳入代码提交并对隔离快照验证；没有仅推旧HEAD。不得把历史458项通过代替最新资格验证。下一项由用户明确新范围，不自动进入U6、真实新轮次或Agent记忆接线。
 
 ## 历史事实、已有授权与待确认
 
@@ -54,7 +54,16 @@ U5产品批次已达到停止条件；当前继续已授权的Git整理。原32�
 
 ## 工作区与保护
 
-本次开始于main / HEAD 4b04b81，远程main实时核对为532bc43，32个本地提交未push，暂存为空。用户已授权将U1–U5公开存量整理提交；当前按明确文件清单暂存，未reset/stash/clean或改写旧历史。私有材料及原真实证据未读取、复制、哈希或回放。排除并保留来源不明%SystemDrive%目录及四份evals/results/202610*.json；冻结文档归档不为格式检查改写。最终代码与同步哈希将在提交后记录。
+本次开始于main / HEAD 4b04b81，远程main为532bc43，32个本地提交未push，暂存为空。已按授权、明确文件清单创建存量提交`c281f775dfc970ef6fd2b2837bebd64b63c3c074`，不倒造历史批次；475个文件差异，未reset/stash/clean或改写旧历史。私有材料及原真实证据未读取、复制、哈希或回放。排除并保留来源不明%SystemDrive%目录及四份evals/results/202610*.json；26份冻结归档哈希一致。
+
+## Git同步记录
+
+- 已验收代码提交：`c281f775dfc970ef6fd2b2837bebd64b63c3c074`，不是WIP。隔离验证树为`3c165514509173063fba0ccef329a210878b4a40`；提交src/tests/frontend/evals子树与该树一致。
+- 普通push成功：origin/main从`532bc43aedfcd673e6c460c93681f3d087b71317`到上述代码提交，旧32个提交与本次存量提交已同步。push后实时核对远程HEAD与本地相等；未推送计数0，暂存为空。
+- 审查覆盖远程基线至代码HEAD的33个提交、849个历史blob及提交元数据；候选凭据为合成测试假值，公开截图已逐张检查。额外自审、验证边界与命令证据见同步审查记录。
+- 此处Git哈希是本次记录更新前已核实的代码基线。包含本段的文档收口提交用`git log -1 --format=%H -- docs/HANDOFF.md`定位，最终HEAD以实际Git及`git ls-remote --heads origin main`为准；不循环追写自身哈希。
+- 未提交项：上述来源不明目录及四份运行JSON，均不属于公开代码备份范围。没有未验收WIP混入main。私有目录与本批新合成产物仍受Git忽略。
+- 授权边界：本次同步授权已执行；后续新任务不自动继承持续push许可。未调用真实业务API、部署、发布或进入U6。
 
 新合成数据、网络账本、JUnit、辅助脚本及浏览器证据仅在忽略的.pytest-run-u5-implementation/20261011/；浏览器原始目录见最新验收/摘要。原隐私位置仍为.pytest-run-u4-event-fix/20261009/live-private/及.pytest-run-u4-morning-preflight/20261009/authorized-inputs.json；本批未读取、复制、哈希或回放。合成服务已正常停止，不清理原材料；Git忽略不等于加密。
 
