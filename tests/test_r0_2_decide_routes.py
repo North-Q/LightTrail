@@ -86,7 +86,7 @@ def _events(body: str) -> list[dict[str, Any]]:
 
 async def _decide(app: Any, request: str) -> list[dict[str, Any]]:
     """通过真实 ASGI 端点发起一次决策。"""
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://localhost") as client:
         response = await client.post("/api/decide", json={"request": request})
     assert response.status_code == 200
     events = _events(response.text)
@@ -132,10 +132,12 @@ async def test_failed_pipeline_falls_back_to_react(tmp_path: Path) -> None:
     app, services, fake = _setup(tmp_path, ["非 JSON"] * 3 + ["先看云图再决定。"])
     try:
         events = await _decide(app, "今晚火烧云值得冲吗")
-        assert "SchemaError" in _steps(events)["管线降级"]
-        assert any(event["type"] == "token" and "云图" in event["content"] for event in events)
-        assert not any(event["type"] == "card" for event in events)
-        assert fake.calls[-1]["model"] == "tools-fake"
+        assert (
+            next(event["card"] for event in events if event["type"] == "card")["verdict"] == "wait"
+        )
+        assert not any(event["type"] == "token" for event in events)
+        assert len(fake.calls) == 3
+        assert fake.calls[-1]["model"] == "reason-fake"
     finally:
         services.close()
 
@@ -223,10 +225,12 @@ async def test_react_fallback_does_not_repeat_plan_quota_check(tmp_path: Path) -
     app, services, fake = _setup(tmp_path, ["非 JSON"] * 3 + ["请先查看云图。"], quota=quota)
     try:
         events = await _decide(app, "今晚火烧云值得冲吗")
-        assert "SchemaError" in _steps(events)["管线降级"]
-        assert any(event["type"] == "token" for event in events)
+        assert (
+            next(event["card"] for event in events if event["type"] == "card")["verdict"] == "wait"
+        )
+        assert not any(event["type"] == "token" for event in events)
         assert checks == 1
-        assert fake.calls[-1]["model"] == "tools-fake"
+        assert fake.calls[-1]["model"] == "reason-fake"
     finally:
         services.close()
 
@@ -250,8 +254,11 @@ async def test_pipeline_step_limit_is_injected_and_traced(tmp_path: Path) -> Non
     try:
         events = await _decide(app, "今晚火烧云值得冲吗")
         assert "上限 1 步" in _steps(events)["管线_步数超限"]
-        assert "PipelineStepLimitError" in _steps(events)["管线降级"]
+        assert (
+            next(event["card"] for event in events if event["type"] == "card")["degraded"]
+            == "decision_failed"
+        )
         assert not any(event["type"] == "tool_call" for event in events)
-        assert [call["model"] for call in fake.calls] == ["tools-fake"]
+        assert fake.calls == []
     finally:
         services.close()

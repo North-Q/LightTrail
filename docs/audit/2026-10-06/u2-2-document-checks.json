@@ -1,0 +1,33 @@
+{
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "TODO.md",
+    "docs/AGENT-ROADMAP.md",
+    "docs/FEATURES.md",
+    "docs/architecture.md",
+    "docs/devlog.md",
+    "docs/audit/2026-10-06/u2-2-verification.md"
+  ],
+  "local_links_checked": 41,
+  "missing_links": [],
+  "current_test_count_consistent": true,
+  "U2_2_complete_other_batches_not_started": true,
+  "baseline_files": 139,
+  "unchanged_existing_files": 130,
+  "authorized_updated_files": [
+    "AGENTS.md",
+    "README.md",
+    "TODO.md",
+    "docs/AGENT-ROADMAP.md",
+    "docs/FEATURES.md",
+    "docs/architecture.md",
+    "docs/devlog.md",
+    "src/lighttrail/composition.py",
+    "src/lighttrail/orchestrator/pipelines.py"
+  ],
+  "unexpected_updates": [],
+  "U1_pipeline_outside_parameter_comparison_preserved": true,
+  "U2_1_composition_outside_knowledge_wiring_preserved": true,
+  "U1_U2_1_core_and_verification_bytes_preserved": true
+}

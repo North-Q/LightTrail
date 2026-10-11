@@ -1,0 +1,17 @@
+{
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "TODO.md",
+    "docs/AGENT-ROADMAP.md",
+    "docs/FEATURES.md",
+    "docs/architecture.md",
+    "docs/devlog.md",
+    "docs/audit/2026-10-06/u1-verification.md",
+    "frontend/README.md"
+  ],
+  "local_links_checked": 36,
+  "missing_links": [],
+  "current_test_count_consistent": true,
+  "U1_complete_U2_not_started": true
+}

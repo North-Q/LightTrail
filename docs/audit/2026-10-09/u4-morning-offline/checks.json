@@ -1,0 +1,42 @@
+{
+  "related_pytest": {
+    "passed": 83,
+    "failed": 0,
+    "seconds": 14.07
+  },
+  "smoke": {
+    "passed": 21,
+    "failed": 0
+  },
+  "import_linter": {
+    "kept": 3,
+    "broken": 0,
+    "files": 88,
+    "dependencies": 244
+  },
+  "production_code_changed_in_this_batch": false,
+  "real_business_requests": {
+    "model": 0,
+    "weather": 0,
+    "maps": 0
+  },
+  "real_usage": "未发送，无本轮真实usage；不是供应商失败请求零扣费的证明",
+  "protected_baseline_files": 568,
+  "baseline_modified_only_allowed_documentation": [
+    "AGENTS.md",
+    "docs/AGENT-ROADMAP.md",
+    "docs/DATA-BOUNDARIES.md",
+    "docs/FEATURES.md",
+    "docs/architecture.md",
+    "docs/audit/2026-10-07/u4-acceptance-plan.md",
+    "docs/devlog.md"
+  ],
+  "unexpected_modified_files": [],
+  "deleted_baseline_files": [],
+  "personal_input_file_git_ignored": true,
+  "local_markdown_links_checked": 84,
+  "broken_local_links": [],
+  "git_diff_check_passed": true,
+  "published_evidence_contains_only_synthetic_location": true,
+  "fake_key_hidden_in_supplier_request_evidence": true
+}

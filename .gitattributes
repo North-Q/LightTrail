@@ -1,0 +1,4 @@
+# 原始SSE帧必须以空行结尾；证据保留逐字节内容，仅豁免末尾空行检查。
+docs/audit/**/response.sse.txt whitespace=-blank-at-eof
+# 审查前原稿属于冻结归档，manifest记录其哈希，禁止为格式检查改写证据。
+docs/archive/audit-20261006/docs/CODE-REVIEW-REPORT-2026-10-03.md whitespace=-blank-at-eof

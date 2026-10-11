@@ -102,7 +102,7 @@ def test_report_sources_and_confidence_rules() -> None:
     recorder.record_tool("weather_forecast", "{}", _j(数据来源="Open-Meteo（免费）"))
     recorder.record_tool("some_unknown", "{}", _j(值=1))
     sources = recorder.to_report().sources
-    assert [s.confidence for s in sources] == ["high", "medium", "low"]
+    assert [s.confidence for s in sources] == ["high", "low", "low"]
     assert sources[1].data_source == "Open-Meteo（免费）"
 
 

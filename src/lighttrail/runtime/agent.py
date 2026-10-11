@@ -27,6 +27,7 @@ from pydantic_ai.tools import Tool as PydanticTool
 from pydantic_ai.usage import UsageLimits
 
 from lighttrail.contracts.tool import ToolContext
+from lighttrail.infra.async_runner import run_sync
 from lighttrail.infra.trace import Recorder, TraceReport, null_trace
 from lighttrail.runtime.context import ContextBuilder
 from lighttrail.runtime.registry import ToolRegistry
@@ -301,7 +302,7 @@ class AgentRuntime:
 
 
 def _run_sync(coro: Any) -> Any:
-    """在无事件循环的调用方执行协程（Web 端在 worker 线程调用同样安全）。
+    """在持久共享循环执行协程，资源由应用在最后一次调用后显式关闭。
 
     Args:
         coro: 待执行协程。
@@ -315,7 +316,8 @@ def _run_sync(coro: Any) -> Any:
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        return asyncio.run(coro)
+        return run_sync(coro)
+    coro.close()
     raise RuntimeError("AgentRuntime 的同步门面不能在事件循环内调用，请改用 arun/areason")
 
 

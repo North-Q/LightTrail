@@ -6,6 +6,13 @@ import { pipeSSE } from "./sse";
 /** 后端基址：默认走 Vite 代理（/api → 127.0.0.1:8766），可被环境变量覆盖。 */
 const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
 
+/** 读取本地元数据，支持页面离开时中止等待。 */
+export async function getJSON<T>(url: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(BASE + url, { signal });
+  if (!response.ok) throw new Error(`读取失败（${response.status}）`);
+  return response.json() as Promise<T>;
+}
+
 /** POST JSON 并流式读取 SSE：onEvent 按到达顺序回调，AbortSignal 可中断。 */
 export async function postSSE(
   url: string,
@@ -22,7 +29,7 @@ export async function postSSE(
   if (!resp.ok) {
     throw new Error(`请求失败（${resp.status}）：${(await resp.text()).slice(0, 200)}`);
   }
-  await pipeSSE(resp, onEvent);
+  await pipeSSE(resp, onEvent, signal);
 }
 
 /** POST multipart（照片上传）并流式读取 SSE：用于 /api/photos/review 照片复盘/反推。 */
@@ -40,7 +47,7 @@ export async function postFormSSE(
   if (!resp.ok) {
     throw new Error(`请求失败（${resp.status}）：${(await resp.text()).slice(0, 200)}`);
   }
-  await pipeSSE(resp, onEvent);
+  await pipeSSE(resp, onEvent, signal);
 }
 
 /** EventSource 封装：对 GET 型 SSE 端点建立连接，返回断开函数。 */
@@ -72,8 +79,10 @@ export function sendChat(
   sessionId: string,
   onEvent: (event: SSEEvent) => void,
   signal?: AbortSignal,
+  resultId = "",
+  requery = false,
 ): Promise<void> {
-  return postSSE("/api/chat", { message, session_id: sessionId }, onEvent, signal);
+  return postSSE("/api/chat", { message, session_id: sessionId, result_id: resultId, requery }, onEvent, signal);
 }
 
 /** 发送一句话决策。 */
@@ -82,13 +91,15 @@ export function sendDecide(
   sessionId: string,
   onEvent: (event: SSEEvent) => void,
   signal?: AbortSignal,
+  resultId = "",
+  requery = false,
 ): Promise<void> {
-  return postSSE("/api/decide", { request, session_id: sessionId }, onEvent, signal);
+  return postSSE("/api/decide", { request, session_id: sessionId, result_id: resultId, requery }, onEvent, signal);
 }
 
 /** 拉取会话详情（历史 + 工作区，含最近决策卡）。 */
-export async function getSession(sessionId: string): Promise<SessionDetail> {
-  const resp = await fetch(BASE + `/api/sessions/${sessionId}`);
+export async function getSession(sessionId: string, signal?: AbortSignal): Promise<SessionDetail> {
+  const resp = await fetch(BASE + `/api/sessions/${encodeURIComponent(sessionId)}`, { signal, cache: "no-store" });
   if (!resp.ok) {
     throw new Error(`会话不存在（${resp.status}）`);
   }
@@ -96,11 +107,12 @@ export async function getSession(sessionId: string): Promise<SessionDetail> {
 }
 
 /** 发送普通 JSON 请求；用于不需要 SSE 的确定性领域接口。 */
-export async function postJson<T>(url: string, body: Record<string, unknown>): Promise<T> {
+export async function postJson<T>(url: string, body: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
   const resp = await fetch(BASE + url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    signal,
   });
   if (!resp.ok) {
     throw new Error(`请求失败（${resp.status}）：${(await resp.text()).slice(0, 200)}`);

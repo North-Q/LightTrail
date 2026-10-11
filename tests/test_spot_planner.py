@@ -176,7 +176,9 @@ async def test_spot_plan_api_uses_current_user_id_and_no_store(tmp_path: Path) -
     payload = _request(spot_id=saved.id).model_dump(mode="json")
     try:
         app.dependency_overrides[get_request_context] = lambda: first
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://localhost"
+        ) as client:
             response = await client.post("/api/spot-plans", json=payload)
             assert response.status_code == 200, response.text
             assert response.headers["cache-control"] == "private, no-store"

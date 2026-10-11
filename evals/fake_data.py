@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from lighttrail.infra.quota import QuotaLedger
@@ -61,8 +62,14 @@ class FakeDispatcher:
     """
 
     def __init__(
-        self, scenario: str = "normal", *, payloads: dict[str, dict[str, Any]] | None = None
+        self,
+        scenario: str = "normal",
+        *,
+        payloads: dict[str, dict[str, Any]] | None = None,
+        now: datetime | None = None,
     ) -> None:
+        self._now = now or datetime.now(timezone.utc)
+        self._overrides = set(payloads or {})
         self._data = _default_payload()
         if scenario == "missing_weather":
             self._data["weather_forecast"] = {"error": "未配置天气 API Key（边界用例）"}
@@ -86,7 +93,45 @@ class FakeDispatcher:
         """工具名 → 结果 JSON（与 registry.dispatch 同签名）。"""
         self.calls.append((name, args))
         if name in self._data:
-            return json.dumps(self._data[name], ensure_ascii=False)
+            result = dict(self._data[name])
+            values = json.loads(args)
+            tz_offset = values.get("tz_offset", "+08:00")
+            sign = 1 if tz_offset[0] == "+" else -1
+            tz = timezone(sign * timedelta(hours=int(tz_offset[1:3]), minutes=int(tz_offset[4:6])))
+            today = self._now.astimezone(tz).date()
+            if name not in self._overrides and "error" not in result:
+                if name == "sun_times":
+                    result.update({"日期": values["date"], "时区": tz_offset})
+                if name in {"weather_forecast", "sunset_glow_score"}:
+                    result.update(
+                        {
+                            "位置": f"{values['latitude']},{values['longitude']}",
+                            "时区": tz_offset,
+                            "获取时间": self._now.isoformat(),
+                            "有效开始时间": f"{today}T00:00:00{tz_offset}",
+                            "有效结束时间": f"{today + timedelta(days=7)}T00:00:00{tz_offset}",
+                        }
+                    )
+                if name == "weather_forecast":
+                    result["每日预报"] = [
+                        {
+                            "日期": (today + timedelta(days=i)).isoformat(),
+                            "平均云量（%）": 30,
+                            "最低能见度（km）": 25,
+                            "最高降水概率（%）": 10,
+                            "最大风速（km/h）": 15,
+                        }
+                        for i in range(7)
+                    ]
+                if name == "sunset_glow_score":
+                    result.update(
+                        {
+                            "日期": values["date"],
+                            "缺失字段": [],
+                            "目标时刻": f"{values['date']}T18:06:00{tz_offset}",
+                        }
+                    )
+            return json.dumps(result, ensure_ascii=False)
         return json.dumps({"error": f"FakeDispatcher 无数据：{name}"}, ensure_ascii=False)
 
 

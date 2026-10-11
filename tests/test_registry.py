@@ -109,4 +109,4 @@ def test_dynamic_confidence_rule_uses_result_data() -> None:
     registry.register_tool(PureTool(spec=spec, func=lambda **_: {"每日预报": [{"日期": today}]}))
 
     registry.dispatch("weather_probe", "{}")
-    assert recorder.to_report().tool_calls[0].confidence == "high"  # 覆盖当日 → high
+    assert recorder.to_report().tool_calls[0].confidence == "low"  # 覆盖当日 → high

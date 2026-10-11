@@ -1,0 +1,132 @@
+{
+  "baseline_files": 190,
+  "unchanged": 165,
+  "authorized_increments": [
+    "docs/DATA-BOUNDARIES.md",
+    "docs/FEATURES.md",
+    "frontend/src/components/DataNotice.tsx",
+    "frontend/tests/u2-1-browser.tsx",
+    "AGENTS.md",
+    "README.md",
+    "TODO.md",
+    "docs/AGENT-ROADMAP.md",
+    "docs/architecture.md",
+    "docs/devlog.md",
+    "frontend/README.md",
+    "frontend/package.json",
+    "frontend/src/api/client.ts",
+    "frontend/src/api/generated.ts",
+    "frontend/src/api/spotPlans.ts",
+    "frontend/src/pages/D1Page.tsx",
+    "frontend/src/pages/D2Page.tsx",
+    "frontend/src/pages/D3Page.tsx",
+    "frontend/src/pages/HomePage.tsx",
+    "src/lighttrail/api/routes.py",
+    "src/lighttrail/api/session.py",
+    "src/lighttrail/infra/redact.py",
+    "src/lighttrail/orchestrator/orchestrator.py",
+    "tests/test_api_concurrency.py",
+    "tests/test_frontend_contract.py"
+  ],
+  "missing": [],
+  "unauthorized_changes": [],
+  "core_guard_files_unchanged": {
+    "src/lighttrail/orchestrator/evidence.py": true,
+    "src/lighttrail/infra/forecast.py": true,
+    "src/lighttrail/tools/weather.py": true,
+    "src/lighttrail/adapters/llm/client.py": true,
+    "src/lighttrail/domain/knowledge/provider.py": true,
+    "src/lighttrail/tools/astronomy.py": true,
+    "src/lighttrail/tools/exposure.py": true,
+    "src/lighttrail/tools/basic.py": true,
+    "src/lighttrail/api/security.py": true,
+    "src/lighttrail/tools/photo_analysis.py": true,
+    "tests/test_decision_evidence.py": true,
+    "tests/test_weather_validity.py": true,
+    "tests/test_request_budget.py": true,
+    "tests/test_u2_2_calculations.py": true,
+    "tests/test_local_boundaries.py": true,
+    "tests/test_sse_delivery.py": true,
+    "frontend/src/api/requestScope.ts": true,
+    "frontend/src/api/useRequestScope.ts": true,
+    "frontend/src/api/sse.ts": true
+  },
+  "prior_audit_files_unchanged": {
+    "docs/audit/2026-10-06/README.md": true,
+    "docs/audit/2026-10-06/audit-user-flow.html.txt": true,
+    "docs/audit/2026-10-06/audit-user-flow.tsx.txt": true,
+    "docs/audit/2026-10-06/cancel_repro.py.txt": true,
+    "docs/audit/2026-10-06/document-checks.json": true,
+    "docs/audit/2026-10-06/module-inventory.json": true,
+    "docs/audit/2026-10-06/reproduce.py.txt": true,
+    "docs/audit/2026-10-06/u1-document-checks.json": true,
+    "docs/audit/2026-10-06/u1-verification.md": true,
+    "docs/audit/2026-10-06/u2-1-document-checks.json": true,
+    "docs/audit/2026-10-06/u2-1-verification.md": true,
+    "docs/audit/2026-10-06/u2-2-document-checks.json": true,
+    "docs/audit/2026-10-06/u2-2-verification.md": true,
+    "docs/audit/2026-10-06/ui-result.txt": true,
+    "docs/audit/2026-10-06/verification.json": true,
+    "docs/audit/2026-10-07/u2-3-document-checks.json": true,
+    "docs/audit/2026-10-07/u2-3-sse-before.json": true,
+    "docs/audit/2026-10-07/u2-3-sse-responses.json": true,
+    "docs/audit/2026-10-07/u2-3-verification.md": true
+  },
+  "links_checked": 70,
+  "broken_links": [],
+  "current_591_and_stopping_before_u4_u5_u6": {
+    "AGENTS.md": [
+      true,
+      true
+    ],
+    "README.md": [
+      true,
+      true
+    ],
+    "docs/AGENT-ROADMAP.md": [
+      true,
+      true
+    ],
+    "docs/FEATURES.md": [
+      true,
+      true
+    ],
+    "docs/devlog.md": [
+      true,
+      true
+    ],
+    "docs/audit/2026-10-07/u3-verification.md": [
+      true,
+      true
+    ]
+  },
+  "generated_ts_sha256": "7e49c9e2da61fd97be418c9f9d0598d147aee24b7e24af4fab3be1db91e48c22",
+  "gates": {
+    "pytest": 591,
+    "related": 179,
+    "new": 12,
+    "ruff_python_files": 160,
+    "smoke": 21,
+    "import_contracts_kept": 3,
+    "import_contracts_broken": 0,
+    "L2_pipeline": 12,
+    "L2_tools": 10,
+    "real_LLM_requests": 0,
+    "frontend_helpers": [
+      3,
+      2,
+      8
+    ],
+    "shell_checks": 7,
+    "browser": [
+      "U3 real API/components/close/rebuild/full SPA/desktop/mobile",
+      "U1",
+      "U2-1",
+      "U2-3",
+      "R0-6",
+      "S1-3",
+      "S1-5",
+      "S1 gate"
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "historical_notice": true,
+  "valid_until_visible": true,
+  "original_card_unchanged": true,
+  "later_expiry_no_early_notice": true,
+  "real_api_calls": 0,
+  "method": "real React component SSR; no browser"
+}

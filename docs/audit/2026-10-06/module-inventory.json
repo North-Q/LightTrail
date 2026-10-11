@@ -1,0 +1,892 @@
+[
+  {
+    "path": "evals/__init__.py",
+    "area": "evals",
+    "review": "导出与结构检查"
+  },
+  {
+    "path": "evals/semantic.py",
+    "area": "evals",
+    "review": "评估入口/语义/裁判审阅"
+  },
+  {
+    "path": "evals/runner.py",
+    "area": "evals",
+    "review": "评估入口/语义/裁判审阅"
+  },
+  {
+    "path": "evals/judge.py",
+    "area": "evals",
+    "review": "评估入口/语义/裁判审阅"
+  },
+  {
+    "path": "evals/fake_data.py",
+    "area": "evals",
+    "review": "评估入口/语义/裁判审阅"
+  },
+  {
+    "path": "evals/build_v2_fixtures.py",
+    "area": "evals",
+    "review": "评估入口/语义/裁判审阅"
+  },
+  {
+    "path": "frontend/src/vite-env.d.ts",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "tests/test_weather.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_validation.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_trace_security.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_trace.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_tools.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_spot_plan_contract.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_spot_planner.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_spot_migration_preview.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_site_match.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_settings.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_session.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_semantic.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_runtime_agent.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_router.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_reverse_plan.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_registry.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_reason.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_r0_5_request_semantics.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_r0_4_photo_wiring.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_r0_3_memory_context.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_r0_2_decide_routes.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_quota_concurrency.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_quota.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_pydantic_bridge.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_production_composition.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_plan_archive.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_planner.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_pipeline_parallel.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_pipeline_e2e.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_photo_analysis.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_packaging.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_orchestrator.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_memory.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_map_js_proxy.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_knowledge.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_intent_router.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_http_datasource.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_hotplug.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_frontend_contract.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_favorite_spot_contract.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_exposure_rules.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_events.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_evals.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_contracts.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_context.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_config_provider.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_confidence.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_client_concurrency.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_cli.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_chase.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_astronomy.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_architecture.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_api_events.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_api_contract.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_api_concurrency.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_api.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/test_agent.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "tests/conftest.py",
+    "area": "tests",
+    "review": "全量执行；断言抽查"
+  },
+  {
+    "path": "frontend/src/pages/_cardFallback.tsx",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/pages/SpotPlanView.tsx",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/pages/SpotMap.tsx",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/pages/reviewEvent.ts",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/pages/planUrl.ts",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/pages/planRequest.ts",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/pages/M1Page.tsx",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/pages/HomePage.tsx",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/pages/FavoriteSpotEditor.tsx",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/pages/exposure.ts",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/pages/D4Page.tsx",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/pages/D3Page.tsx",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/pages/D2Page.tsx",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/pages/D1Page.tsx",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/pages/activeSpot.ts",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/main.tsx",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/components/TracePanel.tsx",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/components/Ring.tsx",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/components/MarkdownMessage.tsx",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/components/icons.tsx",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/components/DecisionCard.tsx",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/components/AppShell.tsx",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/App.tsx",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "src/lighttrail/__init__.py",
+    "area": "入口/装配",
+    "review": "导出与结构检查"
+  },
+  {
+    "path": "frontend/src/api/sse.ts",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/api/spotPlans.ts",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/api/generated.ts",
+    "area": "frontend",
+    "review": "生成重放与哈希比对"
+  },
+  {
+    "path": "frontend/src/api/favoriteSpots.ts",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/api/events.ts",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/api/client.ts",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "frontend/src/context/SourceContext.tsx",
+    "area": "frontend",
+    "review": "页面和数据流审阅；样式/图标结构检查"
+  },
+  {
+    "path": "src/lighttrail/tools/__init__.py",
+    "area": "tools",
+    "review": "导出与结构检查"
+  },
+  {
+    "path": "src/lighttrail/tools/_base.py",
+    "area": "tools",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/tools/weather.py",
+    "area": "tools",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/tools/site_match.py",
+    "area": "tools",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/tools/photo_analysis.py",
+    "area": "tools",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/tools/memory_tool.py",
+    "area": "tools",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/tools/exposure.py",
+    "area": "tools",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/tools/basic.py",
+    "area": "tools",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/tools/astronomy.py",
+    "area": "tools",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/smoke.py",
+    "area": "入口/装配",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/application/__init__.py",
+    "area": "application",
+    "review": "导出与结构检查"
+  },
+  {
+    "path": "src/lighttrail/application/spot_planner.py",
+    "area": "application",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/application/router.py",
+    "area": "application",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/application/plan_archive.py",
+    "area": "application",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/contracts/__init__.py",
+    "area": "contracts",
+    "review": "导出与结构检查"
+  },
+  {
+    "path": "src/lighttrail/contracts/tool.py",
+    "area": "contracts",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/contracts/spot_plan.py",
+    "area": "contracts",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/contracts/plan_archive.py",
+    "area": "contracts",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/contracts/plan.py",
+    "area": "contracts",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/contracts/observability.py",
+    "area": "contracts",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/contracts/models.py",
+    "area": "contracts",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/contracts/memory.py",
+    "area": "contracts",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/contracts/llm.py",
+    "area": "contracts",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/contracts/knowledge.py",
+    "area": "contracts",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/contracts/favorite_spot.py",
+    "area": "contracts",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/contracts/events.py",
+    "area": "contracts",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/contracts/datasource.py",
+    "area": "contracts",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/contracts/context.py",
+    "area": "contracts",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/config.py",
+    "area": "入口/装配",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/composition.py",
+    "area": "入口/装配",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/cli.py",
+    "area": "入口/装配",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/runtime/__init__.py",
+    "area": "runtime",
+    "review": "导出与结构检查"
+  },
+  {
+    "path": "src/lighttrail/runtime/registry.py",
+    "area": "runtime",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/runtime/planner.py",
+    "area": "runtime",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/runtime/context.py",
+    "area": "runtime",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/runtime/agent.py",
+    "area": "runtime",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/api/__init__.py",
+    "area": "api",
+    "review": "导出与结构检查"
+  },
+  {
+    "path": "src/lighttrail/api/session.py",
+    "area": "api",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/api/routes.py",
+    "area": "api",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/api/openapi_export.py",
+    "area": "api",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/api/events.py",
+    "area": "api",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/api/app.py",
+    "area": "api",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/llm/__init__.py",
+    "area": "llm",
+    "review": "导出与结构检查"
+  },
+  {
+    "path": "src/lighttrail/llm/router.py",
+    "area": "llm",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/orchestrator/__init__.py",
+    "area": "orchestrator",
+    "review": "导出与结构检查"
+  },
+  {
+    "path": "src/lighttrail/orchestrator/pipelines.py",
+    "area": "orchestrator",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/orchestrator/orchestrator.py",
+    "area": "orchestrator",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/orchestrator/context.py",
+    "area": "orchestrator",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/adapters/__init__.py",
+    "area": "adapters",
+    "review": "导出与结构检查"
+  },
+  {
+    "path": "src/lighttrail/memory/__init__.py",
+    "area": "memory",
+    "review": "导出与结构检查"
+  },
+  {
+    "path": "src/lighttrail/memory/spot_migration.py",
+    "area": "memory",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/memory/semantic.py",
+    "area": "memory",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/memory/profile.py",
+    "area": "memory",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/memory/migration.py",
+    "area": "memory",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/memory/manager.py",
+    "area": "memory",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/memory/events.py",
+    "area": "memory",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/adapters/trace/__init__.py",
+    "area": "adapters/trace",
+    "review": "导出与结构检查"
+  },
+  {
+    "path": "src/lighttrail/adapters/trace/otel.py",
+    "area": "adapters/trace",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/infra/__init__.py",
+    "area": "infra",
+    "review": "导出与结构检查"
+  },
+  {
+    "path": "src/lighttrail/infra/validation.py",
+    "area": "infra",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/infra/trace.py",
+    "area": "infra",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/infra/redact.py",
+    "area": "infra",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/infra/quota.py",
+    "area": "infra",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/infra/http.py",
+    "area": "infra",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/infra/confidence.py",
+    "area": "infra",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/domain/__init__.py",
+    "area": "domain",
+    "review": "导出与结构检查"
+  },
+  {
+    "path": "src/lighttrail/adapters/maps/__init__.py",
+    "area": "adapters/maps",
+    "review": "导出与结构检查"
+  },
+  {
+    "path": "src/lighttrail/adapters/maps/js_service.py",
+    "area": "adapters/maps",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/adapters/maps/fallback.py",
+    "area": "adapters/maps",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/adapters/maps/baidu.py",
+    "area": "adapters/maps",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/adapters/maps/amap.py",
+    "area": "adapters/maps",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/domain/chase.py",
+    "area": "domain",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/adapters/llm/client.py",
+    "area": "adapters/llm",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/adapters/llm/__init__.py",
+    "area": "adapters/llm",
+    "review": "导出与结构检查"
+  },
+  {
+    "path": "src/lighttrail/adapters/llm/pydantic_bridge.py",
+    "area": "adapters/llm",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/adapters/llm/provider.py",
+    "area": "adapters/llm",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/adapters/llm/config_provider.py",
+    "area": "adapters/llm",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/domain/knowledge/__init__.py",
+    "area": "domain/knowledge",
+    "review": "导出与结构检查"
+  },
+  {
+    "path": "src/lighttrail/domain/knowledge/fts.py",
+    "area": "domain/knowledge",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/domain/knowledge/catalog.py",
+    "area": "domain/knowledge",
+    "review": "模块映射；核心/风险路径细读"
+  },
+  {
+    "path": "src/lighttrail/adapters/datasources/__init__.py",
+    "area": "adapters/datasources",
+    "review": "导出与结构检查"
+  },
+  {
+    "path": "src/lighttrail/adapters/datasources/http.py",
+    "area": "adapters/datasources",
+    "review": "模块映射；核心/风险路径细读"
+  }
+]

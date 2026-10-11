@@ -2,6 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { postJson } from "../api/client";
+import { DataNotice } from "../components/DataNotice";
+import { SavedHistory } from "../components/SavedHistory";
+import { useSavedResults } from "../api/savedResults";
+import { STOP_WAITING_NOTICE } from "../api/requestScope";
+import { useRequestScope } from "../api/useRequestScope";
 import type { components } from "../api/generated";
 import { listFavoriteSpots, type FavoriteSpotRecord } from "../api/favoriteSpots";
 import {
@@ -36,6 +41,10 @@ function spotStatus(spot: FavoriteSpotRecord): string {
 }
 
 export function D2Page() {
+  const loading = useRequestScope();
+  const waiting = useRequestScope();
+  const transferringWait = useRequestScope();
+  const chaseWait = useRequestScope();
   const initialUrl = useRef(parsePlanUrl(window.location.hash)).current;
   const importRef = useRef<HTMLInputElement>(null);
   const [running, setRunning] = useState(false);
@@ -48,6 +57,15 @@ export function D2Page() {
   const [routeSpots, setRouteSpots] = useState<string[]>([]);
   const [plan, setPlan] = useState<SpotPlan | null>(null);
   const [archive, setArchive] = useState<PlanArchive | null>(null);
+  const [historical, setHistorical] = useState(false);
+  const saved = useSavedResults("spot_plan", (result, history) => {
+    setPlan(result.plan ?? null); setArchive(null); setHistorical(history);
+    if (result.plan) {
+      setPlanDate(result.plan.selected_date ?? "");
+      setPlanSubject(result.plan.request.subject_type);
+      setPlanSpotId(result.plan.request.spot?.site_id ?? "");
+    }
+  });
   const [transferring, setTransferring] = useState(false);
   const [selectedSpots, setSelectedSpots] = useState<string[]>([]);
   const [transportMode, setTransportMode] = useState("driving");
@@ -58,9 +76,11 @@ export function D2Page() {
   const [chaseResult, setChaseResult] = useState<ChasePlanResult | null>(null);
   const [chaseNotice, setChaseNotice] = useState("");
   useEffect(() => {
+    const controller = loading.begin();
     void (async () => {
       try {
-        const saved = await listFavoriteSpots();
+        const saved = await listFavoriteSpots(controller.signal);
+        if (!loading.isCurrent(controller)) return;
         const validPlanningSpots = saved.items.filter((spot) =>
           spot.coordinate_state === "ready" && spot.coordinate_system === "WGS84" && Boolean(spot.tz_offset),
         );
@@ -78,6 +98,7 @@ export function D2Page() {
         setSelectedSpots(routeNames.slice(0, 2));
         setSiteWindows(Object.fromEntries(routeNames.slice(0, 2).map((name, index) => [name, defaultChaseWindow(index)])));
       } catch {
+        if (!loading.isCurrent(controller)) return;
         setSpots([]);
         setPlanningSpots([]);
         setNotice("机位列表读取失败，请检查后端连接。");
@@ -85,39 +106,48 @@ export function D2Page() {
     })();
   }, []);
 
-  async function runPlan(): Promise<void> {
+  async function runPlan(requery = false): Promise<void> {
+    if (running || transferring) return;
     const spot = planningSpots.find((item) => item.id === planSpotId);
-    if (!planDate || !planSubject.trim() || !spot || !spot.tz_offset) {
+    if (!requery && (!planDate || !planSubject.trim() || !spot || !spot.tz_offset)) {
       setNotice("请先选择日期、已确认 WGS84 坐标和时区的机位及拍摄题材。");
       return;
     }
-    const input: PlanningRequest = {
+    const input: PlanningRequest = requery && saved.active?.plan ? saved.active.plan.request : {
       subject_type: planSubject,
       target_date: planDate,
-      tz_offset: spot.tz_offset,
-      spot: { name: spot.name, site_id: spot.id },
+      tz_offset: spot!.tz_offset!,
+      spot: { name: spot!.name, site_id: spot!.id },
     };
     setRunning(true);
+    saved.start();
     setPlan(null);
+    setHistorical(false);
     setArchive(null);
     replacePlanUrl({ subject: planSubject, date: planDate, spotId: planSpotId });
     setNotice("正在计算本次机位的天文窗口…");
+    const controller = waiting.begin();
     try {
-      const result = await createSpotPlan(input);
+      const result = await createSpotPlan(input, controller.signal, saved.pointer, result => {
+        if (waiting.isCurrent(controller)) saved.confirm({ type: "done", text: "", session_id: result.session_id, result_id: result.result_id, saved: true });
+      });
+      if (!waiting.isCurrent(controller)) return;
       setPlan(result);
       setNotice(result.status === "ready" ? "结构化计划已生成。" : "部分关键事实尚未核实，已列出缺口。");
     } catch (caught) {
-      setNotice(`计划生成失败：${caught instanceof Error ? caught.message : String(caught)}`);
+      if (waiting.isCurrent(controller)) setNotice(`计划生成失败：${caught instanceof Error ? caught.message : String(caught)}`);
     } finally {
-      setRunning(false);
+      waiting.finish(controller, () => setRunning(false));
     }
   }
 
   async function downloadPlan(): Promise<void> {
-    if (!plan) return;
+    if (!plan || transferring) return;
     setTransferring(true);
+    const controller = transferringWait.begin();
     try {
-      const payload = await exportPlanArchive(plan);
+      const payload = await exportPlanArchive(plan, controller.signal);
+      if (!transferringWait.isCurrent(controller)) return;
       const content = `${JSON.stringify(payload, null, 2)}\n`;
       const url = URL.createObjectURL(new Blob([content], { type: "application/json" }));
       const link = document.createElement("a");
@@ -129,30 +159,37 @@ export function D2Page() {
       window.setTimeout(() => URL.revokeObjectURL(url), 0);
       setNotice("计划 JSON 已导出，坐标字段已移除；分享前请检查自填名称和来源。");
     } catch (caught) {
-      setNotice(`计划导出失败：${caught instanceof Error ? caught.message : String(caught)}`);
+      if (transferringWait.isCurrent(controller)) setNotice(`计划导出失败：${caught instanceof Error ? caught.message : String(caught)}`);
     } finally {
-      setTransferring(false);
+      transferringWait.finish(controller, () => setTransferring(false));
     }
   }
 
   async function importPlan(file: File | undefined): Promise<void> {
-    if (!file) return;
+    if (!file || transferring) return;
     if (file.size > 1024 * 1024) {
       setNotice("计划文件超过 1 MB，无法导入。");
       return;
     }
     setTransferring(true);
+    waiting.stop();
+    setRunning(false);
+    const controller = transferringWait.begin();
     try {
       const payload: unknown = JSON.parse(await file.text());
-      const validated = await replayPlanArchive(payload);
+      if (!transferringWait.isCurrent(controller)) return;
+      const validated = await replayPlanArchive(payload, controller.signal);
+      if (!transferringWait.isCurrent(controller)) return;
       setPlan(null);
       setArchive(validated);
       setNotice("已载入冻结计划，未重新获取实时数据。");
     } catch {
-      setNotice("计划文件无效或版本不受支持，请检查 JSON 内容。");
+      if (transferringWait.isCurrent(controller)) setNotice("计划文件无效或版本不受支持，请检查 JSON 内容。");
     } finally {
-      if (importRef.current) importRef.current.value = "";
-      setTransferring(false);
+      transferringWait.finish(controller, () => {
+        if (importRef.current) importRef.current.value = "";
+        setTransferring(false);
+      });
     }
   }
 
@@ -170,6 +207,7 @@ export function D2Page() {
   }
 
   async function runChasePlan(): Promise<void> {
+    if (chaseRunning) return;
     if (selectedSpots.length < 2) {
       setChaseNotice("请至少选择两个已保存坐标的机位。");
       return;
@@ -180,6 +218,7 @@ export function D2Page() {
     }
     setChaseRunning(true);
     setChaseNotice("正在计算机位间通勤与时间余量…");
+    const controller = chaseWait.begin();
     try {
       const sites = selectedSpots.map((name) => {
         const window = siteWindows[name] ?? defaultChaseWindow(0);
@@ -193,42 +232,50 @@ export function D2Page() {
         transition_buffer_minutes: transitionBuffer,
         min_shoot_minutes: 15,
         transit_city: transitCity.trim(),
-      });
+      }, controller.signal);
+      if (!chaseWait.isCurrent(controller)) return;
       setChaseResult(result);
       setChaseNotice(result.feasible ? "赶场顺序已生成。" : "当前窗口下无法完成赶场，请减少机位或调整时间。");
     } catch (caught) {
+      if (!chaseWait.isCurrent(controller)) return;
       setChaseResult(null);
       setChaseNotice(`赶场规划失败：${caught instanceof Error ? caught.message : String(caught)}`);
     } finally {
-      setChaseRunning(false);
+      chaseWait.finish(controller, () => setChaseRunning(false));
     }
   }
 
   return (
     <div className="container page-main">
+      <DataNotice kind="planning" />
       <header className="page-head">
         <div>
           <h1 className="page-title">规划</h1>
           <p className="page-sub">机位 × 天象匹配，把「什么时候、去哪、拍什么」排成一条线。</p>
         </div>
-        <button type="button" className="btn btn-primary" onClick={() => void runPlan()} disabled={running || !planDate || !planSpotId}>
+          <button type="button" className="btn btn-primary" onClick={() => void runPlan()} disabled={running || transferring || saved.loading || !planDate || !planSpotId}>
           {running ? "规划中…" : "运行规划"}
         </button>
       </header>
+      {running || chaseRunning || transferring ? <button type="button" className="btn btn-ghost" onClick={() => {
+        waiting.stop(); chaseWait.stop(); transferringWait.stop();
+        setRunning(false); setChaseRunning(false); setTransferring(false);
+        setNotice(STOP_WAITING_NOTICE); setChaseNotice(STOP_WAITING_NOTICE);
+      }}>停止等待</button> : null}
 
       <section className="d2-selection" aria-labelledby="d2-selection-title">
         <h2 id="d2-selection-title">本次拍摄</h2>
         <div className="d2-selection-fields">
           <label className="gear-field">
             <span>拍摄日期</span>
-            <input type="date" value={planDate} onChange={(event) => {
+            <input type="date" value={planDate} disabled={running || transferring} onChange={(event) => {
               setPlanDate(event.target.value); setPlan(null); setArchive(null);
               replacePlanUrl({ subject: planSubject, date: event.target.value, spotId: planSpotId });
             }} />
           </label>
           <label className="gear-field">
             <span>拍摄题材</span>
-            <select value={planSubject} onChange={(event) => {
+            <select value={planSubject} disabled={running || transferring} onChange={(event) => {
               setPlanSubject(event.target.value); setPlan(null); setArchive(null);
               replacePlanUrl({ subject: event.target.value, date: planDate, spotId: planSpotId });
             }}>
@@ -239,7 +286,7 @@ export function D2Page() {
           </label>
           <label className="gear-field">
             <span>目标机位</span>
-            <select value={planSpotId} onChange={(event) => {
+            <select value={planSpotId} disabled={running || transferring} onChange={(event) => {
               setPlanSpotId(event.target.value);
               setActiveSpotId(event.target.value);
               setPlan(null);
@@ -263,7 +310,9 @@ export function D2Page() {
         <input ref={importRef} type="file" accept=".json,application/json" aria-label="选择计划 JSON 文件" hidden
           onChange={(event) => void importPlan(event.target.files?.[0])} />
       </div>
-      {plan ? <SpotPlanView plan={plan} /> : replayPlan ? <SpotPlanView plan={replayPlan} frozen /> : null}
+      <SavedHistory {...saved} disabled={running || transferring || saved.loading} onRestore={target => void saved.restore(target)} onRequery={() => void runPlan(true)} />
+      {saved.pointer.result_id ? <a className="btn btn-ghost" href={`#/d3?session=${encodeURIComponent(saved.pointer.session_id)}&result=${encodeURIComponent(saved.pointer.result_id)}`}>继续询问此计划</a> : null}
+      {plan ? <SpotPlanView plan={plan} frozen={historical} /> : replayPlan ? <SpotPlanView plan={replayPlan} frozen /> : null}
 
       <section className="d2-spots" aria-labelledby="d2-spots-title">
         <div className="d2-section-head"><h2 id="d2-spots-title">收藏机位</h2><a href="#/m1">管理机位</a></div>

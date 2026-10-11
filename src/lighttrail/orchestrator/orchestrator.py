@@ -1,8 +1,8 @@
-"""编排层（E5-1 / E5-3）：意图路由 + 四管线调度 + 失败降级 ReAct。
+"""编排层：意图路由、四管线调度与决策证据护栏。
 
 设计要点（架构 v2.0 §2.1 / §2.2，E5 落地）：
 - 意图理解用默认模型一次调用（强约束 JSON + parse_with_retry 自愈），
-  失败或管线异常统一降级到 Agent.run() 自由对话（原因标注「管线降级」）；
+  U1 文字决策异常返回保守卡片，禁止绕过证据资格转自由对话建议出发；
 - 管线环境（PipelineEnv）注入 dispatch / reason / memory / recorder，
   测试可整体替换为 Fake 数据源 + FakeChatClient，不依赖真实 API Key；
 - 平台中立性（ADR-002）：意图理解走 RouteIntent.DEFAULT（默认模型）与
@@ -177,7 +177,7 @@ def _render_card(card: DecisionCard) -> str:
 
 
 class Orchestrator:
-    """管线调度器：一句话 → 意图 → 管线 → 卡片（失败降级自由对话）。"""
+    """管线调度器：一句话 → 意图 → 管线 → 卡片，决策失败保守降级。"""
 
     def __init__(
         self,
@@ -246,13 +246,32 @@ class Orchestrator:
         self._routing_confidence_threshold = routing_confidence_threshold
         self._planner = planner or Planner(
             self._registry,
-            lambda prompt, system: self._runtime.complete(prompt, system=system),
+            lambda prompt, system: self._runtime.complete(
+                self._with_history(prompt), system=system
+            ),
             self._reason_text,
             recorder=self._recorder,
             quota=quota,
             max_steps=plan_max_steps,
         )
         self.last_card: DecisionCard | None = None
+        self.last_context: PipelineContext | None = None
+        self._history: list[dict[str, Any]] = []
+
+    def load_history(self, history: list[dict[str, Any]]) -> None:
+        """加载保存的历史背景，不将其用作本轮天气证据。"""
+        self._history = list(history)
+
+    def _with_history(self, prompt: str) -> str:
+        """把历史传入实际模型请求，并明确旧数据不属于当前依据。"""
+        if not self._history:
+            return prompt
+        return (
+            "以下为已保存历史，仅用于理解续问；旧天气和旧建议不属于本轮证据。\n"
+            + json.dumps(self._history, ensure_ascii=False)
+            + "\n当前请求：\n"
+            + prompt
+        )
 
     def _quota_card(self, operation: str) -> DecisionCard | None:
         """统一执行配额拒绝与高水位降级，并记录唯一 trace 判定。"""
@@ -265,7 +284,7 @@ class Orchestrator:
             )
             return finalize_card(
                 DecisionCard(
-                    conclusion="当前配额已达上限，本次未发起模型调用。",
+                    conclusion="本应用已观测用量达到本地配额上限，本次未发起模型调用；这不是平台余额。",
                     evidence=[],
                     confidence="low",
                     verdict="wait",
@@ -280,7 +299,7 @@ class Orchestrator:
                 )
                 return finalize_card(
                     DecisionCard(
-                        conclusion="当前配额水位较高，已降级为不发起深推理的保守建议。",
+                        conclusion="本应用已观测用量的本地配额水位较高，已保守降级；这不是平台余额。",
                         evidence=[],
                         confidence="low",
                         verdict="wait",
@@ -291,15 +310,16 @@ class Orchestrator:
 
     # ------ 对外接口 ------
     def plan(self, user_request: str) -> str:
-        """E5-3 主入口：一句话出方案（文本渲染）；失败自动降级自由对话。
+        """统一主入口：一句话出方案；决策失败输出保守卡片。
 
         Args:
             user_request: 用户的一句话请求。
 
         Returns:
-            方案卡片文本；管线失败时返回自由对话回复（原因标注管线降级）。
+            方案卡片文本；失败时返回带原因的保守卡片。
         """
         self.last_card = None
+        self.last_context = None
         unsupported_reply = self._intent_router.unsupported_reply(user_request)
         if unsupported_reply is not None:
             self._recorder.record_step(
@@ -325,13 +345,38 @@ class Orchestrator:
                     if self._tool_context is not None
                     else self._planner.execute(plan)
                 )
+                # 复合计划尚未对账请求机位、日期与关键天气，不能替代临场出发判断。
+                card.verdict = "wait"
+                card.confidence = "low"
+                card.data_status = "needs_data"
+                card.evidence = []
+                card.confidence_detail = None
+                card.degraded = card.degraded or "plan_evidence_unverified"
+                card.missing_data = ["复合计划尚未核验目标机位、日期与关键天气；请单独查询临场决策"]
+                card.conclusion = "复合计划已执行，出发依据尚未核验。请明确收藏机位和目标日期，单独查询是否值得出门。"
+                card.time_window = card.window_start = card.window_end = ""
+                card.params = []
+                card.alternatives = []
             else:
                 card = self.run_pipeline(user_request)
             self.last_card = card
             return _render_card(card)
         except Exception as exc:  # noqa: BLE001 - 管线任何异常统一降级
-            logger.warning("管线执行失败，降级 ReAct：%s", exc)
-            return self._fallback(user_request, reason=type(exc).__name__)
+            logger.warning("决策执行失败，返回保守卡片：%s", exc)
+            self.last_card = finalize_card(
+                DecisionCard(
+                    conclusion="本次决策未完成，暂不能判断是否值得出门，请明确地点日期后重新查询。",
+                    evidence=[],
+                    confidence="low",
+                    verdict="wait",
+                    degraded="decision_failed",
+                    data_status="needs_data",
+                    missing_data=["决策执行失败，尚无合格关键证据"],
+                    evaluated_at=self._env.request.requested_at.isoformat(),
+                    tz_offset=self._env.request.tz_offset,
+                )
+            )
+            return _render_card(self.last_card)
 
     def run_pipeline(self, user_request: str, *, mode: str = "") -> DecisionCard:
         """执行一条决策管线。
@@ -351,6 +396,7 @@ class Orchestrator:
             intent.mode = mode
         pipeline_name = intent.mode or default_mode(intent.subject_type)
         ctx = PipelineContext(user_request=user_request, intent=intent)
+        self.last_context = ctx
         pipeline = PIPELINES.get(pipeline_name) or PIPELINES[default_mode(intent.subject_type)]
         self._recorder.record_step(
             f"管线_{pipeline.name}", input_summary=user_request[:80], output_summary="启动"
@@ -547,7 +593,7 @@ class Orchestrator:
         )
 
         def _chat(prompt_text: str) -> str:
-            return self._runtime.complete(prompt_text, system=_INTENT_SYSTEM)
+            return self._runtime.complete(self._with_history(prompt_text), system=_INTENT_SYSTEM)
 
         decision = parse_with_retry(RoutingDecision, _chat, prompt)
         self._recorder.record_step(
@@ -568,7 +614,7 @@ class Orchestrator:
     # ------ 内部实现 ------
     def _reason_text(self, prompt: str, system: str) -> str:
         """深推理综合：走 runtime.reason（PydanticAI 深推理通道）。"""
-        return self._runtime.reason(prompt, system=system)
+        return self._runtime.reason(self._with_history(prompt), system=system)
 
     def _run_freeform(self, user_request: str) -> str:
         """降级自由对话（ReAct）：走 runtime.run。"""

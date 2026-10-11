@@ -1,0 +1,36 @@
+{
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "TODO.md",
+    "docs/AGENT-ROADMAP.md",
+    "docs/FEATURES.md",
+    "docs/architecture.md",
+    "docs/devlog.md",
+    "docs/adr/ADR-004-concurrency-as-config.md",
+    "frontend/README.md",
+    "docs/audit/2026-10-06/u2-1-verification.md"
+  ],
+  "local_links_checked": 41,
+  "missing_links": [],
+  "current_test_count_consistent": true,
+  "U2_1_complete_other_batches_not_started": true,
+  "baseline_files": 114,
+  "unchanged_existing_files": 102,
+  "authorized_updated_files": [
+    "AGENTS.md",
+    "README.md",
+    "TODO.md",
+    "docs/AGENT-ROADMAP.md",
+    "docs/FEATURES.md",
+    "docs/adr/ADR-004-concurrency-as-config.md",
+    "docs/architecture.md",
+    "docs/devlog.md",
+    "frontend/README.md",
+    "frontend/package.json",
+    "frontend/src/pages/D3Page.tsx",
+    "tests/test_frontend_contract.py"
+  ],
+  "unexpected_changes": [],
+  "U1_core_and_verification_byte_identical": true
+}

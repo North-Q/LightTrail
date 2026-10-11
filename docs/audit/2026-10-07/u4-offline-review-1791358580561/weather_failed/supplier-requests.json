@@ -1,0 +1,102 @@
+[
+  {
+    "provider": "Open-Meteo（内存替身）",
+    "method": "GET",
+    "url": "https://api.open-meteo.com/v1/forecast?latitude=31.0&longitude=121.0&hourly=cloud_cover,cloud_cover_high,cloud_cover_low,visibility,precipitation_probability,wind_speed_10m&timezone=GMT&forecast_days=7",
+    "headers": {
+      "Authorization": "未使用",
+      "Content-Type": null,
+      "User-Agent": "python-httpx/0.28.1"
+    },
+    "body": null,
+    "response_status": 503
+  },
+  {
+    "provider": "Open-Meteo（内存替身）",
+    "method": "GET",
+    "url": "https://api.open-meteo.com/v1/forecast?latitude=31.0&longitude=121.0&hourly=cloud_cover,cloud_cover_high,cloud_cover_low,visibility,precipitation_probability,wind_speed_10m&timezone=GMT&forecast_days=3",
+    "headers": {
+      "Authorization": "未使用",
+      "Content-Type": null,
+      "User-Agent": "python-httpx/0.28.1"
+    },
+    "body": null,
+    "response_status": 503
+  },
+  {
+    "provider": "Open-Meteo（内存替身）",
+    "method": "GET",
+    "url": "https://api.open-meteo.com/v1/forecast?latitude=31.0&longitude=121.0&hourly=cloud_cover,cloud_cover_high,cloud_cover_low,visibility,precipitation_probability,wind_speed_10m&timezone=GMT&forecast_days=3",
+    "headers": {
+      "Authorization": "未使用",
+      "Content-Type": null,
+      "User-Agent": "python-httpx/0.28.1"
+    },
+    "body": null,
+    "response_status": 503
+  },
+  {
+    "provider": "Open-Meteo（内存替身）",
+    "method": "GET",
+    "url": "https://api.open-meteo.com/v1/forecast?latitude=31.0&longitude=121.0&hourly=cloud_cover,cloud_cover_high,cloud_cover_low,visibility,precipitation_probability,wind_speed_10m&timezone=GMT&forecast_days=3",
+    "headers": {
+      "Authorization": "未使用",
+      "Content-Type": null,
+      "User-Agent": "python-httpx/0.28.1"
+    },
+    "body": null,
+    "response_status": 503
+  },
+  {
+    "provider": "Open-Meteo（内存替身）",
+    "method": "GET",
+    "url": "https://api.open-meteo.com/v1/forecast?latitude=31.0&longitude=121.0&hourly=cloud_cover,cloud_cover_high,cloud_cover_low,visibility,precipitation_probability,wind_speed_10m&timezone=GMT&forecast_days=7",
+    "headers": {
+      "Authorization": "未使用",
+      "Content-Type": null,
+      "User-Agent": "python-httpx/0.28.1"
+    },
+    "body": null,
+    "response_status": 503
+  },
+  {
+    "provider": "Open-Meteo（内存替身）",
+    "method": "GET",
+    "url": "https://api.open-meteo.com/v1/forecast?latitude=31.0&longitude=121.0&hourly=cloud_cover,cloud_cover_high,cloud_cover_low,visibility,precipitation_probability,wind_speed_10m&timezone=GMT&forecast_days=7",
+    "headers": {
+      "Authorization": "未使用",
+      "Content-Type": null,
+      "User-Agent": "python-httpx/0.28.1"
+    },
+    "body": null,
+    "response_status": 503
+  },
+  {
+    "provider": "ECNU（内存替身）",
+    "method": "POST",
+    "url": "http://127.0.0.1:1/chat/completions",
+    "headers": {
+      "Authorization": "[隐藏]",
+      "Content-Type": "application/json",
+      "User-Agent": "AsyncOpenAI/Python 3.1.0"
+    },
+    "body": {
+      "messages": [
+        {
+          "role": "system",
+          "content": "<!-- LightTrail prompt v: layer:role@2, layer:conduct@1, layer:tools@15 -->\n\n## 角色与使命\n你是 LightTrail（光迹）摄影助手，一位专业摄影智能体。\n\n职责：帮助摄影师完成拍摄前的规划与拍摄中的参数决策。\n可用能力由「可用工具」层自动列出（随注册表实时生成）——需要数据或计算时，\n以上一层列出的工具为准，不要凭记忆猜测工具是否存在或其参数。\n<!-- layer:role@2 -->\n\n## 行为准则\n行为要求：\n- 回答简洁、专业，使用中文；\n- 需要真实数据或计算时，优先调用工具获取，不要凭空编造；\n- 用户未指定时，默认采用 135 全画幅相机与常见档位给出建议；\n- 涉及具体拍摄决策时，可以给出推荐值，但要说明依据与取舍。\n<!-- layer:conduct@1 -->\n\n## 可用工具\n- analyze_photo：多模态照片分析：读取图片 EXIF + 画面（场景/构图/曝光/色彩），给出结合用户器材的可执行处方（下次怎么拍的具体参数）。当用户上传/指定一张照片想复盘『这张怎么改进』或『下次同样场景怎么拍』时调用。\n- equivalent_exposure：计算等效曝光：给定当前光圈、快门、ISO，在目标调整档数下，返回分别调整光圈 / 快门 / ISO 三种方式的等效参数组合。适用于星空、长曝光、风光等场景在保证曝光总量不变（或按目标增减）的前提下换算参数。\n- galaxy_visibility：查询指定日期夜晚银心（银河核心方向）的可见窗口：升出地平面的时间段、整夜最高高度角与时刻、以及对应方位。银心高度越高、月亮干扰越小，越适合拍摄银河拱桥/银心。天文昏影终到次日天文晨光始之间为完全黑暗时段。\n- get_current_time：获取当前日期时间。当用户询问『现在几点』『今天几号』『还剩多久』等时间相关问题，或需要基于当前时间做判断（如日出日落时刻是否已过）时必须调用本工具。\n- match_sites：机位 × 天象匹配：给定候选机位列表（名称/经纬度/题材/朝向）与日期，计算每个机位的日落日出、蓝调黄金窗口、银河可见窗口与月相，并按『题材朝向与天象方位的一致程度』给出 0-5 分匹配度与排序。题材支持：日出/日落/蓝调/黄金/银河/星空/夜景；朝向可填方位词（东南/西南/正西等）或方位角（度）。用途：多机位挑选『…\n- moon_events：查询指定日期、地点的月升月落时刻与方位，并判断月亮整夜/整日在地平线上的情况。用于评估月光对特定时段（如银河窗口、蓝调时段）是否重叠，配合 moon_phase 使用。\n- moon_phase：查询指定本地日期的月相：Astral 相位索引、估算月龄与估算照亮比例，并给出月光对星空摄影的干扰程度建议。新月前后月光干扰最小，是银河/星野的最佳窗口；满月前后适合月景与月光补光题材。\n- nd_long_exposure：ND 滤镜长曝光换算：给定基准快门与 ND 减光档数（或滤镜型号），计算加滤镜后的长曝光快门；若同时给出目标快门，则反推所需 ND 档数并推荐最近滤镜型号。适用场景：水流雾化、海面拉丝、云层流动、车轨、人流虚化等慢门长曝光题材。\n- reverse_engineer_photo：照片反推拍摄方案：从一张参考图反推场景/光线方向/时段/机位特征/后期风格，并给出复刻计划（在哪、什么时候、怎么拍）。当用户丢一张照片/参考图说『我也想要这种』『这张怎么拍的』时调用。\n- search_memory：检索历史拍摄事件记忆：按关键词（地点/摘要/标签）、地点、题材过滤，返回最近命中的事件列表（含精确坐标与当时的天气/天象快照）。当用户询问『以前拍过吗』『某地某题材的历史情况』『复拍对比』『这次和上次比如何』等需要结合历史拍摄经历的问题时调用，用于个性化决策与复拍判断。\n- star_shutter_rule：计算星空摄影的最大不拖线快门时间，支持 500 法则与 NPF 法则。500 法则：最大快门约等于 500 / 等效焦距，只作粗略参考；NPF 法则额外考虑像素间距与光圈，更适合高像素机身与画面边缘星点要求。适用场景：银河、星野、星轨单张、流星雨等需要固定机位长曝的星空题材。\n- sun_position：查询指定时刻太阳的高度角与方位角，用于判断光线角度：顺光/侧光/逆光、是否处于蓝调/黄金窗口、是否已落入地平线以下。配合机位朝向做构图判断。\n- sun_times：查询指定地点与日期的太阳关键时刻：日出日落、民用/航海/天文晨昏蒙影、蓝调时刻（太阳高度 -6~-4 度）与黄金时刻（-4~+6 度）窗口。用于判断『几点去拍日出/日落/蓝调/黄金』与机位规划。经纬度可用地名近似（如上海市区约 31.23, 121.47），有精确机位坐标时请用精确值。\n- sunset_glow_score：评估指定日期傍晚的火烧云（晚霞）启发式条件，返回 0-100 分与等级。综合日落前后三小时的高云占比、云量区间、能见度、降水概率与风速，并附每项依据与置信度（越临近日落越可信）。注意：这是面向摄影决策的经验启发式模型，非气象学精确概率；与晴天/阴天判断不同，完全晴朗或完全阴天都不利于火烧云，『适中云量 + 高云为主 …\n- weather_forecast：查询指定位置未来 1-7 天的逐日天气摘要：平均云量、傍晚云量、最低能见度、最高降水概率、最大风速，并附每日傍晚（16-20 点）的小时级云量明细，用于拍摄计划编排（风光 / 日落 / 星空前的空气通透度与云况预判）。数据来自 Open-Meteo 免费接口，无需 API Key。\n<!-- layer:tools@15 -->\n\n## 用户档案与语义记忆\n相机：松下 S5M2；镜头：24-105mm F4、70-300mm、契卡 14mm 定焦；偏好题材：风光、火烧云；常去机位：U4合成西岸\n<!-- layer:profile@0 -->\n\n## 会话轨迹摘要\n① 意图路由_规则：规则关键词命中：live/火烧云\n② 管线_live：启动\n③ 采集_sun_times：\n④ 调用 sun_times：日期: 2026-10-07，时区: +08:00，事件状态: {\"日出\": {\"状态\": \"可用\"}, \"日落\": {\"状态\": \"可用\"}, \"正午\": {\"状态\": \"可用\"}…，日出: 05:53，日落: 17:34，正午: 11:43，民用晨光始: 05:28，民用昏影终: 17:58，航海晨光始: 05:00，航海昏影终: 18:26，天文晨光始: 04:32，天文昏影终: 18:54，日出方位（度）: 95.8，日出_iso: 2026-10-07T05:53+08:00，日落方位（度）: 264.0，日落_iso: 2026-10-07T17:34+08:00，昼长（时分）:…\n⑤ 采集_sunset_glow_score：\n⑥ 采集_weather_forecast：\n⑦ 调用 weather_forecast：error: 天气数据获取失败：取数失败（已重试 3 次）：HTTP 503：{\"error\":{\"message\":\"合成故障\"}}\n⑧ 调用 sunset_glow_score：error: 天气数据获取失败：取数失败（已重试 3 次）：HTTP 503：{\"error\":{\"message\":\"…（超预算截断）\n<!-- layer:trace@0 -->"
+        },
+        {
+          "role": "user",
+          "content": "用户请求：今晚火烧云是否值得去\n\n规范意图：题材=火烧云，地点=未指定，时间=今晚\n\n已验证目标：2026-10-07 在 U4合成西岸 拍摄 火烧云。结论、时间窗口和 locations 必须与此一致；收藏机位的档案题材仅是历史偏好，不得覆盖本次请求题材。\n\n用户记忆：\n相机：松下 S5M2；镜头：24-105mm F4、70-300mm、契卡 14mm 定焦；偏好题材：风光、火烧云；常去机位：U4合成西岸\n\n采集数据（JSON）：\n{\"sun_times\": {\"日期\": \"2026-10-07\", \"时区\": \"+08:00\", \"事件状态\": {\"日出\": {\"状态\": \"可用\"}, \"日落\": {\"状态\": \"可用\"}, \"正午\": {\"状态\": \"可用\"}, \"民用晨光始\": {\"状态\": \"可用\"}, \"民用昏影终\": {\"状态\": \"可用\"}, \"航海晨光始\": {\"状态\": \"可用\"}, \"航海昏影终\": {\"状态\": \"可用\"}, \"天文晨光始\": {\"状态\": \"可用\"}, \"天文昏影终\": {\"状态\": \"可用\"}, \"日出方位（度）\": {\"状态\": \"可用\"}, \"日落方位（度）\": {\"状态\": \"可用\"}, \"黄金时刻\": {\"状态\": \"可用\"}, \"蓝调时刻\": {\"状态\": \"可用\"}}, \"日出\": \"05:53\", \"日落\": \"17:34\", \"正午\": \"11:43\", \"民用晨光始\": \"05:28\", \"民用昏影终\": \"17:58\", \"航海晨光始\": \"05:00\", \"航海昏影终\": \"18:26\", \"天文晨光始\": \"04:32\", \"天文昏影终\": \"18:54\", \"日出方位（度）\": 95.8, \"日出_iso\": \"2026-10-07T05:53+08:00\", \"日落方位（度）\": 264.0, \"日落_iso\": \"2026-10-07T17:34+08:00\", \"昼长（时分）\": \"11小时40分\", \"黄金时刻（晨）\": [{\"开始\": \"05:40\", \"结束\": \"06:25\", \"开始_iso\": \"2026-10-07T05:40+08:00\", \"结束_iso\": \"2026-10-07T06:25+08:00\"}], \"黄金时刻（暮）\": [{\"开始\": \"17:05\", \"结束\": \"17:50\", \"开始_iso\": \"2026-10-07T17:05+08:00\", \"结束_iso\": \"2026-10-07T17:50+08:00\"}], \"蓝调时刻（晨）\": [{\"开始\": \"05:30\", \"结束\": \"05:40\", \"开始_iso\": \"2026-10-07T05:30+08:00\", \"结束_iso\": \"2026-10-07T05:40+08:00\"}], \"蓝调时刻（暮）\": [{\"开始\": \"17:50\", \"结束\": \"18:00\", \"开始_iso\": \"2026-10-07T17:50+08:00\", \"结束_iso\": \"2026-10-07T18:00+08:00\"}], \"提示\": \"每个事件独立计算；null 须结合事件状态区分不存在与计算失败。蓝调/黄金窗口按太阳高度角阈值采样 5 分钟估算，非精确边界；晨/暮沿用当日第一个/第二个连续窗口，高纬单窗口不保证对应日出/日落。时区为固定偏移，不自动处理夏令时。\"}, \"weather_forecast\": {\"error\": \"天气数据获取失败：取数失败（已重试 3 次）：HTTP 503：{\\\"error\\\":{\\\"message\\\":\\\"合成故障\\\"}}\"}, \"sunset_glow_score\": {\"error\": \"天气数据获取失败：取数失败（已重试 3 次）：HTTP 503：{\\\"error\\\":{\\\"message\\\":\\\"合成故障\\\"}}\"}, \"目标日期\": \"2026-10-07\", \"目标机位\": \"U4合成西岸\", \"目标坐标\": \"31.0,121.0\", \"请求题材\": \"火烧云\", \"候选机位\": [{\"名称\": \"U4合成西岸\", \"纬度\": 31.0, \"经度\": 121.0, \"题材\": \"火烧云\", \"档案题材\": \"火烧云\"}], \"match_sites\": {\"日期\": \"2026-10-07\", \"时区\": \"+08:00\", \"排序结果\": [{\"名称\": \"U4合成西岸\", \"题材\": \"日落\", \"匹配度\": 5, \"关键天象\": {\"日出\": \"05:53\", \"日落\": \"17:34\", \"日落方位（度）\": 264.0}, \"依据\": [\"未提供朝向，仅按当天该天象存在性评分，建议补充朝向字段\", \"日落 17:34\"]}], \"提示\": \"匹配度仅依据天文条件（题材朝向 × 天象窗口）；光污染/可达性/地形遮挡需结合记忆档案与地图数据进一步判断\"}}\n\n请基于以上数据输出一份决策卡片，严格只输出如下 JSON 对象（不要任何其他文字）：\n\n{\n  \"conclusion\": \"一句话结论：该不该去、几点去、去哪、带什么\",\n  \"evidence\": [{\"tool\": \"工具名\", \"field\": \"字段\", \"confidence\": \"high|medium|low\", \"note\": \"依据说明\"}],\n  \"confidence\": \"high|medium|low\",\n  \"verdict\": \"go|wait|risk（go=值得出门按窗口去；wait=先观察临近数据；risk=不建议专程）\",\n  \"time_window\": \"建议时间窗口\",\n  \"window_start\": \"ISO 8601 含时区的窗口开始；无法确定则空字符串\",\n  \"window_end\": \"ISO 8601 含时区的窗口结束；无法确定则空字符串\",\n  \"locations\": [{\"name\": \"机位\", \"reason\": \"理由\"}],\n  \"params\": [{\"name\": \"参数\", \"value\": \"值\", \"reason\": \"理由\"}],\n  \"alternatives\": [\"备选方案1\", \"备选方案2\"],\n  \"degraded\": \"\",\n  \"target_date\": \"本次目标日期 YYYY-MM-DD\",\n  \"subject_type\": \"本次用户请求题材\"\n}"
+        }
+      ],
+      "model": "ecnu-max",
+      "temperature": 0.3,
+      "thinking": {
+        "type": "enabled"
+      }
+    },
+    "response_status": 200
+  }
+]

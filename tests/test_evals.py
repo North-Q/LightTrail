@@ -229,7 +229,8 @@ def test_v2_rejects_wrong_topic_fact_and_personalization() -> None:
             ]
         },
     )
-    assert any("用户器材依据" in item for item in profile_problems)
+    assert not any("用户器材依据" in item for item in profile_problems)
+    # 真实档案补齐器材来源，模型删除自报依据不能删除已核验事实。
 
 
 def test_v2_cassette_cannot_fall_back_to_another_case() -> None:

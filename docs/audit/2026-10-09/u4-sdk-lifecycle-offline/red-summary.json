@@ -1,0 +1,12 @@
+{
+  "real_supplier_requests": 0,
+  "transport": "本机HTTP/1.1 keepalive，真实SDK默认连接池",
+  "production_sync_runtime": true,
+  "result_saved_and_read_back_equal": true,
+  "tests_failed_before_fix": 1,
+  "cleanup_error": {
+    "type": "RuntimeError",
+    "message": "Event loop is closed"
+  },
+  "original_live_stack_reconstructed": false
+}

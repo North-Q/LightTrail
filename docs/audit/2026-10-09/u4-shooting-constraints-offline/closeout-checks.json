@@ -1,0 +1,50 @@
+{
+  "branch": "main",
+  "HEAD": "4b04b81",
+  "baseline_files": 650,
+  "changed_existing_files_in_batch": [
+    "AGENTS.md",
+    "README.md",
+    "TODO.md",
+    "docs/AGENT-ROADMAP.md",
+    "docs/FEATURES.md",
+    "docs/HANDOFF.md",
+    "docs/architecture.md",
+    "docs/devlog.md",
+    "frontend/src/components/DecisionCard.tsx",
+    "src/lighttrail/orchestrator/pipelines.py",
+    "tests/test_orchestrator.py",
+    "tests/test_pipeline_e2e.py"
+  ],
+  "unexpected_changed_or_lost_existing_files": [],
+  "new_nonignored_files": [
+    "docs/audit/2026-10-09/u4-shooting-constraints-offline/card-render-summary.json",
+    "docs/audit/2026-10-09/u4-shooting-constraints-offline/closeout-checks.json",
+    "docs/audit/2026-10-09/u4-shooting-constraints-offline/gates.json",
+    "docs/audit/2026-10-09/u4-shooting-constraints-offline/red-summary.json",
+    "docs/audit/2026-10-09/u4-shooting-constraints-offline/restore-summary.json",
+    "docs/audit/2026-10-09/u4-shooting-constraints-verification.md",
+    "src/lighttrail/domain/shooting_constraints.py",
+    "src/lighttrail/orchestrator/constraints.py",
+    "tests/test_shooting_constraints.py"
+  ],
+  "unexpected_new_nonignored_files": [],
+  "protected_groups_file_counts": {
+    ".pytest-run-u4-event-fix": 2031,
+    ".pytest-run-u4-morning-preflight": 85,
+    ".pytest-run-u4-sdk-lifecycle": 618,
+    "data": 627
+  },
+  "protected_bytes_unchanged": true,
+  "original_real_evidence_and_inputs_preserved": true,
+  "privacy_files_parsed_or_copied_to_public": false,
+  "document_links_checked": 108,
+  "broken_links": [],
+  "current_documents_consistent": true,
+  "status_records": 180,
+  "staged_files": 0,
+  "head_unchanged": true,
+  "original_api_contract_unchanged": true,
+  "completed_scope_only": true,
+  "stopped_after_closeout": true
+}

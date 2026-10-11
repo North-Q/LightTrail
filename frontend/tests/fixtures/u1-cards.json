@@ -1,0 +1,79 @@
+{
+  "failed": {
+    "conclusion": "2026-10-06 在合成西岸拍摄火烧云的关键数据不足，暂不能判断是否值得出门。请补齐或更新数据后重新查询。",
+    "evidence": [],
+    "confidence": "low",
+    "verdict": "wait",
+    "time_window": "",
+    "window_start": "",
+    "window_end": "",
+    "locations": [
+      {
+        "name": "合成西岸",
+        "reason": "本次请求确定的收藏机位"
+      }
+    ],
+    "params": [],
+    "alternatives": [
+      "补齐或更新缺失数据后重新查询；临场自行观察天空。"
+    ],
+    "degraded": "needs_data",
+    "target_date": "2026-10-06",
+    "subject_type": "火烧云",
+    "data_status": "needs_data",
+    "missing_data": [
+      "weather_forecast：离线替身：数据源不可用",
+      "sun_times：离线替身：数据源不可用",
+      "sunset_glow_score：离线替身：数据源不可用"
+    ],
+    "evaluated_at": "2026-10-06T08:00:00+00:00",
+    "updated_at": "",
+    "valid_until": "",
+    "tz_offset": "+08:00"
+  },
+  "ready": {
+    "conclusion": "今晚在合成西岸观察火烧云，按窗口出发。",
+    "evidence": [
+      {
+        "tool": "weather_forecast",
+        "field": "每日预报",
+        "confidence": "medium",
+        "note": "[{\"日期\": \"2026-10-06\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-07\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-08\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-09\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-10\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-11\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-12\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}]"
+      },
+      {
+        "tool": "sun_times",
+        "field": "日落",
+        "confidence": "high",
+        "note": "\"18:06\""
+      },
+      {
+        "tool": "sunset_glow_score",
+        "field": "评分（0-100）",
+        "confidence": "medium",
+        "note": "62"
+      }
+    ],
+    "confidence": "medium",
+    "verdict": "go",
+    "time_window": "",
+    "window_start": "",
+    "window_end": "",
+    "locations": [
+      {
+        "name": "合成西岸",
+        "reason": "本次请求确定的收藏机位"
+      }
+    ],
+    "params": [],
+    "alternatives": [],
+    "degraded": "",
+    "target_date": "2026-10-06",
+    "subject_type": "火烧云",
+    "data_status": "ready",
+    "missing_data": [],
+    "evaluated_at": "2026-10-06T08:00:00+00:00",
+    "updated_at": "2026-10-06T07:00:00+00:00",
+    "valid_until": "2026-10-06T18:06:00+08:00",
+    "tz_offset": "+08:00"
+  }
+}

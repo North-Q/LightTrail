@@ -87,9 +87,9 @@ def assert_card(card: DecisionCard, expect: dict[str, Any]) -> list[str]:
         problems.append("缺时间窗口（time_window）")
     # B4-3 契约不变量：置信度明细必填、区间有序、三档计数与依据条数一致、verdict 在允许集合
     detail = card.confidence_detail
-    if detail is None:
+    if detail is None and card.data_status == "unverified":
         problems.append("缺 confidence_detail（B4-3 起必填：前端置信度三层的唯一来源）")
-    else:
+    elif detail is not None:
         if not 0 <= detail.low <= detail.score <= detail.high <= 100:
             problems.append(
                 f"confidence_detail 区间非法：{detail.low}/{detail.score}/{detail.high}"

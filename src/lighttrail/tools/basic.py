@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import re
+from datetime import datetime, timedelta, timezone
 
 from lighttrail.contracts.tool import Confidence, Tool, ToolSpec
 from lighttrail.tools._base import PureTool
@@ -18,7 +19,7 @@ _SPEC_GET_CURRENT_TIME = ToolSpec(
         "properties": {
             "tz": {
                 "type": "string",
-                "description": "时区偏移，如 +08:00（默认，北京时间）或 UTC；缺省返回本地时间",
+                "description": "固定时区偏移，如 +08:00（默认，北京时间）或 UTC；不自动处理夏令时",
             }
         },
     },
@@ -30,12 +31,17 @@ _SPEC_GET_CURRENT_TIME = ToolSpec(
 
 def get_current_time(tz: str = "+08:00") -> dict:
     """返回指定时区的当前日期时间（ISO 8601 格式）。"""
-    try:
-        sign = 1 if tz.startswith("+") else -1
-        hours, minutes = map(int, tz.lstrip("+-").split(":"))
-        tzinfo = timezone(sign * (hours * 3600 + minutes * 60))
-    except Exception:  # noqa: BLE001  时区解析失败回退 UTC
+    text = tz.strip().upper()
+    if text in {"UTC", "Z"}:
         tzinfo = timezone.utc
+    elif re.fullmatch(r"[+-]\d{2}:\d{2}", text):
+        sign = 1 if text.startswith("+") else -1
+        hours, minutes = map(int, text[1:].split(":"))
+        if hours >= 24 or minutes >= 60:
+            return {"error": "时区须为合法的 ±HH:MM 偏移或 UTC"}
+        tzinfo = timezone(sign * timedelta(hours=hours, minutes=minutes))
+    else:
+        return {"error": "时区须为合法的 ±HH:MM 偏移或 UTC"}
     now = datetime.now(tzinfo)
     return {
         "iso": now.isoformat(timespec="seconds"),

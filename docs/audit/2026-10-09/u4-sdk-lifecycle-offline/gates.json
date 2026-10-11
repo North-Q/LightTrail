@@ -1,0 +1,70 @@
+{
+  "all_passed": true,
+  "pytest": {
+    "passed": 640,
+    "seconds": 48.66
+  },
+  "new_keepalive_regressions": {
+    "passed": 9,
+    "seconds": 9.91
+  },
+  "related": {
+    "passed": 110,
+    "seconds": 23.46
+  },
+  "ruff_product_and_tests_files": 5,
+  "ruff_check": true,
+  "ruff_format_check": true,
+  "smoke": 21,
+  "import_contracts_kept": 3,
+  "import_contracts_broken": 0,
+  "L2_pipeline": {
+    "passed": 12,
+    "total": 12
+  },
+  "L2_tools": {
+    "passed": 10,
+    "total": 10
+  },
+  "real_supplier_requests": 0,
+  "network_guards": {
+    "full": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    },
+    "related-final": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    },
+    "smoke": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    },
+    "lint": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    },
+    "l2": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    },
+    "probe": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    },
+    "restore": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    }
+  },
+  "frontend_build_and_browser_rerun": false,
+  "original_real_round_rerun": false,
+  "api_contract_changed": false,
+  "dependencies_installed": false,
+  "environment": {
+    "python": "3.13.14",
+    "openai": "3.1.0",
+    "httpx": "0.28.1",
+    "pytest": "9.1.1"
+  }
+}

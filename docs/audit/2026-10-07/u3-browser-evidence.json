@@ -1,0 +1,25 @@
+{
+  "synthetic_only": true,
+  "browser_closed_between_phases": true,
+  "application_services_and_session_cache_rebuilt": true,
+  "backend_new_fastapi_instance_test": "tests/test_saved_results.py::test_restart_restore_followup_and_versions",
+  "initial_restoration": {
+    "model_calls": 0,
+    "tool_calls": 0
+  },
+  "spa_restoration": {
+    "before": {
+      "model_calls": 5,
+      "tool_calls": 12
+    },
+    "after": {
+      "model_calls": 5,
+      "tool_calls": 12
+    }
+  },
+  "screenshots": [
+    "1440x900",
+    "390x844"
+  ],
+  "mobile_no_horizontal_overflow": true
+}

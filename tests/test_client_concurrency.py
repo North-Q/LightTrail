@@ -3,7 +3,7 @@
 B3-1 契约变化：
 - 并发是**纯配置**（ADR-004）：`concurrency=1` 等价串行，默认 4；
 - **单一实现**：真正逻辑在 `acall`（async-first），同步 `chat` 是后台共享事件循环上的门面；
-- **单一并发机制**：一个跨 loop 的限流器（`threading.BoundedSemaphore` + `asyncio.to_thread`），
+- **单一并发机制**：一个跨 loop 的限流器（`threading.BoundedSemaphore` + 可取消异步等待），
   旧的三套机制（Lock + 自研 FIFO 闸门 + call_soon_threadsafe 桥）已删除；
 - 限流只包单次 API 往返，重试在限流之外。
 
@@ -109,11 +109,11 @@ async def test_retry_outside_limiter() -> None:
 
 
 async def test_exhaust_retries_raises() -> None:
-    """重试耗尽抛 LLMError，且次数恰为 _MAX_RETRIES。"""
+    """重试耗尽抛 LLMError，且次数恰为总尝试上限。"""
     client, probe = _probed_client(concurrency=2, fail_times=10_000)
     with pytest.raises(LLMError):
         await client.acall([{"role": "user", "content": "hi"}])
-    assert probe.calls == client_mod._MAX_RETRIES
+    assert probe.calls == client_mod._MAX_ATTEMPTS
 
 
 def test_sync_facade_delegates_to_async() -> None:

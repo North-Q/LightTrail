@@ -181,7 +181,7 @@ export function SpotMap({ spots, selectedId, onSelect }: Props) {
         {enabled ? <button type="button" className="btn btn-secondary" onClick={() => { setEnabled(false); setStatus("idle"); setMarkerCount(0); }}>关闭地图</button> : null}
       </div>
       {!enabled ? <div className="d2-map-consent">
-        <p>加载地图后，高德会收到地图访问请求及已确认机位的坐标；未知坐标系和无坐标机位不会发送。</p>
+        <p>加载地图后，高德会收到访问请求（含网络地址）、已确认机位的坐标及浏览器地图标记信息，用于显示地图；未知坐标系和无坐标机位不会发送。关闭地图不删除高德副本。</p>
         <button type="button" className="btn btn-secondary" disabled={status === "loading" || eligible.length === 0} onClick={() => void enable()}>
           {status === "loading" ? "加载中…" : "加载地图"}
         </button>

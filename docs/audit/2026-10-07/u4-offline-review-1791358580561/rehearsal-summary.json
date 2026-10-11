@@ -1,0 +1,140 @@
+{
+  "synthetic_only": true,
+  "business_socket_connections_permitted": false,
+  "real_business_requests": 0,
+  "cases": [
+    {
+      "mode": "normal",
+      "http_attempts": {
+        "weather": 2,
+        "model": 1
+      },
+      "map_attempts": 0,
+      "restoration_attempts": 0,
+      "same_directory_new_fastapi_instance": true,
+      "restore_exact_snapshot_next_day": true,
+      "card_status": "ready",
+      "verdict": "go",
+      "sdk_max_retries": 0,
+      "LLM_CONCURRENCY": 1,
+      "output_token_limit_sent": false,
+      "data_directory": "D:\\Project\\LightTrail\\.pytest-run-u4\\ca2a3bfc1c9840b1a11ef552388c9de8\\normal",
+      "local_files_sha256": {
+        "knowledge\\knowledge.db": "e7e9770adce6a676e27fef4c714cd8c8343f401d27137926e883b8bbe807c0cc",
+        "sessions\\77cf87bf1ddc426394015e6c9b066afa.json": "9d11083a68e4c82f1f5c5d1f01956176fa1aa22ee030e3086ce53aa5e7b7dda7",
+        "users\\_local\\memory\\events.db": "1b6227fdbfc2ea6beaacb3e74eae01403d3b517e4527bd0a5f530ed55434af14",
+        "users\\_local\\memory\\profile.json": "f1f3d224a3ead2c9ad61f6cd1ee74a0b40d974f11e97af8b5abdd0ddfc6b0411",
+        "users\\_local\\memory\\profile.pre-s1-2.json.bak": "09f0e5526413da4c15b802967fed4cf354ae7ecfa7f040da72ef3346b164c958"
+      }
+    },
+    {
+      "mode": "retry_and_schema",
+      "http_attempts": {
+        "weather": 6,
+        "model": 9
+      },
+      "map_attempts": 0,
+      "restoration_attempts": 0,
+      "same_directory_new_fastapi_instance": true,
+      "restore_exact_snapshot_next_day": true,
+      "card_status": "ready",
+      "verdict": "go",
+      "sdk_max_retries": 0,
+      "LLM_CONCURRENCY": 1,
+      "output_token_limit_sent": false,
+      "data_directory": "D:\\Project\\LightTrail\\.pytest-run-u4\\ca2a3bfc1c9840b1a11ef552388c9de8\\retry_and_schema",
+      "local_files_sha256": {
+        "knowledge\\knowledge.db": "e7e9770adce6a676e27fef4c714cd8c8343f401d27137926e883b8bbe807c0cc",
+        "sessions\\7a215178cc5648df9ad1f713f1efd8d3.json": "ebd3d5a3921ed95a614219481406c845626a6b83c7b3a014d6d31d01870704bd",
+        "users\\_local\\memory\\events.db": "1b6227fdbfc2ea6beaacb3e74eae01403d3b517e4527bd0a5f530ed55434af14",
+        "users\\_local\\memory\\profile.json": "57ccf60c59ef93729232d65b5e95030d9ecc322ad6650c7c9e3970a37ab3e9c2",
+        "users\\_local\\memory\\profile.pre-s1-2.json.bak": "09f0e5526413da4c15b802967fed4cf354ae7ecfa7f040da72ef3346b164c958"
+      }
+    },
+    {
+      "mode": "weather_failed",
+      "http_attempts": {
+        "weather": 6,
+        "model": 1
+      },
+      "map_attempts": 0,
+      "restoration_attempts": 0,
+      "same_directory_new_fastapi_instance": true,
+      "restore_exact_snapshot_next_day": true,
+      "card_status": "needs_data",
+      "verdict": "wait",
+      "sdk_max_retries": 0,
+      "LLM_CONCURRENCY": 1,
+      "output_token_limit_sent": false,
+      "data_directory": "D:\\Project\\LightTrail\\.pytest-run-u4\\ca2a3bfc1c9840b1a11ef552388c9de8\\weather_failed",
+      "local_files_sha256": {
+        "knowledge\\knowledge.db": "e7e9770adce6a676e27fef4c714cd8c8343f401d27137926e883b8bbe807c0cc",
+        "sessions\\1cdbbbf7ec89486ab96204e717e903fa.json": "750c5c632440689b199459820437596823ae5ece6208cf453330c9ea74cc7033",
+        "users\\_local\\memory\\events.db": "1b6227fdbfc2ea6beaacb3e74eae01403d3b517e4527bd0a5f530ed55434af14",
+        "users\\_local\\memory\\profile.json": "793a6d8d466845580f89d347ec575ae3ff343fcef61f2c0f67c8a8a8b8e8ed42",
+        "users\\_local\\memory\\profile.pre-s1-2.json.bak": "09f0e5526413da4c15b802967fed4cf354ae7ecfa7f040da72ef3346b164c958"
+      }
+    },
+    {
+      "mode": "schema_failed",
+      "http_attempts": {
+        "weather": 2,
+        "model": 3
+      },
+      "map_attempts": 0,
+      "restoration_attempts": 0,
+      "same_directory_new_fastapi_instance": true,
+      "restore_exact_snapshot_next_day": true,
+      "card_status": "ready",
+      "verdict": "wait",
+      "sdk_max_retries": 0,
+      "LLM_CONCURRENCY": 1,
+      "output_token_limit_sent": false,
+      "data_directory": "D:\\Project\\LightTrail\\.pytest-run-u4\\ca2a3bfc1c9840b1a11ef552388c9de8\\schema_failed",
+      "local_files_sha256": {
+        "knowledge\\knowledge.db": "e7e9770adce6a676e27fef4c714cd8c8343f401d27137926e883b8bbe807c0cc",
+        "sessions\\61e2c458e8c342ab8fafaa34f67a69dc.json": "1b69eb35d6e64f235b582804e1fbad93c9f00cdefdfdbf193e374776fb8f0f18",
+        "users\\_local\\memory\\events.db": "1b6227fdbfc2ea6beaacb3e74eae01403d3b517e4527bd0a5f530ed55434af14",
+        "users\\_local\\memory\\profile.json": "a3cadf06f4d5432de2a7c1186cf0c1ce8b2b61cc8a59b1c54796239f60f20129",
+        "users\\_local\\memory\\profile.pre-s1-2.json.bak": "09f0e5526413da4c15b802967fed4cf354ae7ecfa7f040da72ef3346b164c958"
+      }
+    },
+    {
+      "mode": "non_retry_error",
+      "http_attempts": {
+        "weather": 2,
+        "model": 1
+      },
+      "map_attempts": 0,
+      "restoration_attempts": 0,
+      "same_directory_new_fastapi_instance": true,
+      "restore_exact_snapshot_next_day": true,
+      "card_status": "ready",
+      "verdict": "wait",
+      "sdk_max_retries": 0,
+      "LLM_CONCURRENCY": 1,
+      "output_token_limit_sent": false,
+      "data_directory": "D:\\Project\\LightTrail\\.pytest-run-u4\\ca2a3bfc1c9840b1a11ef552388c9de8\\non_retry_error",
+      "local_files_sha256": {
+        "knowledge\\knowledge.db": "e7e9770adce6a676e27fef4c714cd8c8343f401d27137926e883b8bbe807c0cc",
+        "sessions\\830403b0272f4000b4c94377b3689302.json": "589154a80d5bd1acaa2f3664109116b987afb625da8ac5b421d0899ef50c4e2a",
+        "users\\_local\\memory\\events.db": "1b6227fdbfc2ea6beaacb3e74eae01403d3b517e4527bd0a5f530ed55434af14",
+        "users\\_local\\memory\\profile.json": "51f5cb19b5ab59a8b8e482c7c805c6039eaa0a81de60c4048d3c4458f98e5692",
+        "users\\_local\\memory\\profile.pre-s1-2.json.bak": "09f0e5526413da4c15b802967fed4cf354ae7ecfa7f040da72ef3346b164c958"
+      }
+    }
+  ],
+  "quota_mismatch": {
+    "synthetic_usage": {
+      "input_miss": 10000,
+      "output_including_thinking": 2000
+    },
+    "current_local_credits": 3.8,
+    "official_valley_credits": 5.4,
+    "official_peak_credits": 10.8,
+    "source": "https://developer.ecnu.edu.cn/vitepress/llm/limit.html",
+    "local_windows": "5h/2000、24h/5000、30d/50000",
+    "official_default_window": "7d/20000；实际令牌额度待本人核对",
+    "production_changed": false
+  }
+}

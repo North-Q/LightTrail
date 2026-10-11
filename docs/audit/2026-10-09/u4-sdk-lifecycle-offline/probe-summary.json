@@ -1,0 +1,16 @@
+{
+  "real_supplier_requests": 0,
+  "local_synthetic_model_requests": 5,
+  "keepalive_connections": 2,
+  "server_observed_closed_connections": 2,
+  "sync_runtime_and_chat_share_one_connection": true,
+  "async_host_closes_before_loop_exit": true,
+  "sdk_close_on_correct_owner": [
+    true,
+    true
+  ],
+  "all_sdk_clients_closed": true,
+  "repeated_close_succeeded": true,
+  "saved_result_bytes_unchanged_by_cleanup": true,
+  "cleanup_error": null
+}

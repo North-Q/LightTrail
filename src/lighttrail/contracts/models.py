@@ -11,9 +11,8 @@
 - 字段用英文名做数据契约（LLM 输出稳定），渲染层（cli）再转中文展示。
 
 B4 增量（前端去伪造数据的契约支撑）：
-- `verdict`：三态结论（go / wait / risk）由模型按提示词给出，前端不再用中文正则猜；
-- `ConfidenceDetail`：置信度主值 + 区间 + 依据构成由**代码规则**推导（infra/confidence.py），
-  前端只渲染，不再维护硬编码常量表（v4 §1.2「前端伪造数据」根治）。
+- `verdict`：模型建议受实际证据资格约束，关键失败固定 wait；前端不从文案猜测。
+- U1 附资格、缺失原因与时间元数据；ConfidenceDetail 仅为历史兼容，不在页面展示。
 """
 
 from __future__ import annotations
@@ -32,12 +31,16 @@ class Intent(BaseModel):
         location: 目标地点（用户给的模糊地点，如「崇明东滩」；未知为空串）。
         time_hint: 时间提示原文（如「这周末」「明天傍晚」「今晚」；未知为空串）。
         mode: 管线模式（inspiration 灵感 / planning 规划 / live 临场 / review 复盘）。
+        solar_event: 明确的 sunrise / sunset；晨暮冲突或未明确蓝调为 ambiguous。
+        solar_window: blue 或 blue_through_event；旧会话缺失时为空。
     """
 
     subject_type: str
     location: str = ""
     time_hint: str = ""
     mode: str = ""
+    solar_event: str = ""  # sunrise / sunset / ambiguous；旧记录缺字段时保持未知。
+    solar_window: str = ""  # blue / blue_through_event；不以题材默认替代晨暮事实。
 
 
 class RoutingDecision(BaseModel):
@@ -86,10 +89,10 @@ class LocationSuggestion(BaseModel):
 
 
 class ConfidenceDetail(BaseModel):
-    """置信度明细：主值 + 区间 + 依据构成（**规则推导，非概率估计**）。
+    """历史置信度明细兼容契约；分数与区间未经校准，不供页面展示。
 
     由 infra/confidence.confidence_detail() 依据 evidence 的来源级别加权推导；
-    契约层只承载字段，不含推导规则。前端铁律①（主值 + 区间条 + 依据）直接渲染本对象。
+    契约层仅保留字段以兼容旧归档；U1 已核验的决策卡不再生成本对象。
 
     Attributes:
         level: 卡片整体等级（high / medium / low），沿用模型给出的等级标注。
@@ -156,7 +159,7 @@ class DecisionCard(BaseModel):
         confidence: 整体置信度（high / medium / low；必填）。
         verdict: 三态结论（go 值得去 / wait 再观察 / risk 不建议专程；未知为空串）。
             由模型按提示词给出，前端直接读字段，不做中文正则猜测（B4-3）。
-        confidence_detail: 置信度明细（代码规则推导，B4-3 起随卡片下发；缺省为 None）。
+        confidence_detail: 历史兼容明细，未经概率校准；U1 核验卡为 None。
         time_window: 建议时间窗口文案（如「05:10-05:40，黄金 05:20-06:10」）。
         window_start: 建议窗口开始时间（ISO 8601，含时区；未知为空）。
         window_end: 建议窗口结束时间（ISO 8601，含时区；未知为空）。
@@ -166,6 +169,12 @@ class DecisionCard(BaseModel):
         degraded: 降级原因（配额 / 管线降级标注，空串表示未降级）。
         target_date: 本次拍摄目标日期（请求时区中的 YYYY-MM-DD）。
         subject_type: 本次请求的拍摄题材，不由收藏机位元数据覆盖。
+        data_status: 证据资格（ready / needs_data / unverified），由采集边界写入。
+        missing_data: 关键数据不足的实际原因。
+        evaluated_at: 本次评估的请求基准时间（含时区）。
+        updated_at: 合格预报中最早的获取时间，不代表供应商发布时间。
+        valid_until: 最早的预报到期、新鲜度上限或目标事件时刻。
+        tz_offset: 请求目标日期使用的时区。
     """
 
     conclusion: str
@@ -182,6 +191,14 @@ class DecisionCard(BaseModel):
     degraded: str = ""
     target_date: str = ""
     subject_type: str = ""
+
+    # 资格与时间由采集边界写入，禁止采用模型自报值。
+    data_status: str = "unverified"
+    missing_data: list[str] = Field(default_factory=list)
+    evaluated_at: str = ""
+    updated_at: str = ""
+    valid_until: str = ""
+    tz_offset: str = ""
 
 
 __all__ = [

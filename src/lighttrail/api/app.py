@@ -4,8 +4,8 @@
 - 薄服务层：唯一职责是组装依赖与挂路由，业务逻辑全部在 Agent/Orchestrator；
 - 依赖注入：create_app(deps=...) 支持测试注入 Fake（FakeChatClient /
   Fake 数据源 / 临时 SessionManager），默认构造走真实 Settings；
-- 默认单进程 uvicorn 即最优（默认串行配置下 LLM 是全局瓶颈）；CORS 面向本地
-  开发放开，开源发布前应按部署域收紧；
+- 默认单进程本机部署；写请求由服务端校验本机 Host、实际客户端和允许来源，
+  CORS 仅负责浏览器读取权限，不作为写授权；
 - `uvicorn lighttrail.api.app:app` 直接启动。
 """
 
@@ -21,7 +21,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 
+from lighttrail.api.feedback import router as feedback_router
 from lighttrail.api.routes import router
+from lighttrail.api.security import LOCAL_ORIGINS, LocalBoundaryMiddleware
 from lighttrail.api.session import SessionManager
 from lighttrail.composition import ApplicationServices, build_application, load_settings
 from lighttrail.contracts.spot_plan import SpotPlan
@@ -65,7 +67,7 @@ def create_app(deps: ApiDeps | None = None) -> FastAPI:
             yield
         finally:
             if owns_services:
-                app.state.deps.services.close()
+                await app.state.deps.services.aclose()
 
     app = FastAPI(
         title="LightTrail · 光迹",
@@ -74,14 +76,16 @@ def create_app(deps: ApiDeps | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.deps = deps
-    # 本地开发放开跨域（Vite dev server 端口）；开源发布前按部署域收紧
+    # 浏览器读取规则与写权限边界分别校验，不能以 CORS 替代授权。
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=list(LOCAL_ORIGINS),
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(LocalBoundaryMiddleware)
     app.include_router(router)
+    app.include_router(feedback_router)
     _install_contract_openapi(app)
     return app
 

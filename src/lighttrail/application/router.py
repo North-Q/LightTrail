@@ -125,6 +125,7 @@ class RuleIntentRouter:
                     location=location,
                     time_hint=self._time_hint(request),
                     mode=rule.mode,
+                    **self._solar_context(subject_request),
                 )
         return None
 
@@ -140,10 +141,60 @@ class RuleIntentRouter:
                 "location": location
                 or (intent.location if intent.location and intent.location in user_request else ""),
                 "time_hint": time_hint or intent.time_hint,
+                **self._solar_context(subject_request),
             }
         )
 
     # ------ 内部实现 ------
+    @staticmethod
+    def _solar_context(request: str) -> dict[str, str]:
+        """从明确晨暮措辞提取事件与阶段，蓝调未明确晨暮时不猜日落。
+
+        Args:
+            request: 已移除地点的用户原文。
+
+        Returns:
+            明确事件和蓝调阶段；相互冲突时为 ambiguous。
+        """
+        morning = any(word in request for word in ("日出", "朝霞", "清晨", "晨间", "早晨"))
+        evening = any(word in request for word in ("日落", "晚霞", "傍晚", "暮间", "今晚"))
+        event = (
+            "ambiguous"
+            if morning and evening
+            else "sunrise"
+            if morning
+            else "sunset"
+            if evening
+            else ""
+        )
+        if not event and "火烧云" in request:
+            event = "sunset"
+        phase = ""
+        if "蓝调" in request:
+            includes_event = any(
+                word in request
+                for word in (
+                    "日出后",
+                    "日出之后",
+                    "加日出",
+                    "加上日出",
+                    "和日出",
+                    "日出和蓝调",
+                    "日出蓝调",
+                    "日落后",
+                    "日落之后",
+                    "加日落",
+                    "加上日落",
+                    "和日落",
+                    "日落和蓝调",
+                    "日落蓝调",
+                )
+            )
+            phase = "blue_through_event" if includes_event else "blue"
+            if not event:
+                event = "ambiguous"
+        return {"solar_event": event, "solar_window": phase}
+
     @staticmethod
     def _subject_type(user_request: str) -> str:
         """从固定题材词中取最长命中项，未命中时如实标为其他。"""

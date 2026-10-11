@@ -1,0 +1,10 @@
+{
+  "before": {
+    "model_calls": 5,
+    "tool_calls": 12
+  },
+  "after": {
+    "model_calls": 5,
+    "tool_calls": 12
+  }
+}

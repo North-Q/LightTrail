@@ -103,7 +103,9 @@ async def test_archive_api_validates_import_without_live_dependencies(tmp_path: 
     app = create_app(ApiDeps(services=services, sessions=SessionManager(tmp_path)))
     plan = _plan()
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://localhost"
+        ) as client:
             exported = await client.post(
                 "/api/spot-plans/archive", json=plan.model_dump(mode="json")
             )
@@ -128,4 +130,4 @@ async def test_archive_api_validates_import_without_live_dependencies(tmp_path: 
                 await client.post("/api/spot-plans/replay", json=false_ready)
             ).status_code == 422
     finally:
-        services.close()
+        await services.aclose()

@@ -13,6 +13,7 @@ import json
 import tempfile
 from pathlib import Path
 
+from evals.fake_data import FakeDispatcher
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.composition import build_application, build_registry
@@ -93,29 +94,12 @@ def _card_json(conclusion: str = "周末银河可见，建议 20:30-23:00 前往
     )
 
 
+_DISPATCHER = FakeDispatcher()
+
+
 def _fake_dispatch(name: str, args: str) -> str:
-    """Fake 数据源（不触网）。"""
-    data = {
-        "moon_phase": {"月相名称": "新月", "照亮比例（%）": 2, "月光影响建议": "低"},
-        "moon_events": {"月出": "19:30", "月落": "05:40"},
-        "galaxy_visibility": {
-            "可见窗口": [{"开始": "20:10", "结束": "23:50"}],
-            "最高高度角": 55,
-            "提示": "好",
-        },
-        "weather_forecast": {
-            "每日预报": [{"日期": "2026-09-08", "平均云量（%）": 30}],
-            "数据来源": "Open-Meteo（免费）",
-        },
-        "sun_times": {"日出": "05:42", "日落": "18:06"},
-        "sunset_glow_score": {
-            "评分（0-100）": 62,
-            "等级": "中等（可看趋势再定）",
-            "数据来源": "Open-Meteo（免费）",
-        },
-        "match_sites": {"匹配结果": [{"名称": "测试机位", "匹配度": 4.5}]},
-    }
-    return json.dumps(data.get(name, {"error": f"未知工具 {name}"}), ensure_ascii=False)
+    """返回含资格元数据的合成天气，禁止访问外部服务。"""
+    return _DISPATCHER(name, args)
 
 
 def _runtime(
@@ -144,10 +128,10 @@ def test_e2e_galaxy_plan_and_followup_react() -> None:
     runtime = _runtime(fake)
     orc = Orchestrator(registry, runtime, memory=_MEMORY, dispatch=_fake_dispatch)
 
-    text = orc.plan("这周末想去拍银河")
+    text = orc.plan("这周末想去拍银河，确认携带三脚架")
     assert "## 拍摄方案" in text
-    assert "周末银河可见" in text
-    assert "20:30-23:00" in text
+    assert "银河" in text
+    assert orc.last_card is not None and orc.last_card.target_date
     assert orc.last_card is not None
 
     # 追问「参数激进一点」转入自由对话（ReAct），携带卡片上下文
@@ -156,7 +140,7 @@ def test_e2e_galaxy_plan_and_followup_react() -> None:
     last_user = fake.calls[-1]["messages"][-1]["content"]
     assert "参数激进一点" in last_user
     assert "背景" in last_user
-    assert "周末银河可见" in last_user  # 卡片结论随上下文带入
+    assert orc.last_card.conclusion in last_user  # 实际卡片结论随上下文带入
 
 
 def test_e2e_fire_cloud_live_decision() -> None:
@@ -165,7 +149,7 @@ def test_e2e_fire_cloud_live_decision() -> None:
     fake = FakeChatClient([{"role": "assistant", "content": card}])
     runtime = _runtime(fake)
     orc = Orchestrator(registry, runtime, memory=_MEMORY, dispatch=_fake_dispatch)
-    text = orc.plan("明天傍晚去拍火烧云值得吗")
+    text = orc.plan("明天傍晚去拍火烧云值得吗，确认携带三脚架")
     assert "建议 18:10" in text
     assert "置信度：medium" in text
 

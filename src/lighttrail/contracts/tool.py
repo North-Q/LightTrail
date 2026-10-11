@@ -100,6 +100,7 @@ class ToolContext:
         datasource: 数据源端口（天气/地图等外部数据统一出口）。
         memory: 记忆端口（per-user；无记忆场景为 None）。
         sink: 观测端口（trace 事件出口；None 表示关闭态，零开销）。
+        authorized_photo_paths: 入口授权的确切绝对文件路径；模型参数不能扩张该清单。
     """
 
     request: RequestContext
@@ -108,6 +109,7 @@ class ToolContext:
     memory: MemoryStore | None = None
     knowledge: KnowledgeProvider | None = None
     sink: TraceSink | None = None
+    authorized_photo_paths: tuple[str, ...] = ()
 
     def emit(self, kind: str, name: str, **payload: Any) -> None:
         """发一条观测事件（无 sink 时静默丢弃；sink 异常不打断工具执行）。

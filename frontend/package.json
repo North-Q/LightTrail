@@ -13,7 +13,12 @@
     "test:s1-5": "node --experimental-strip-types --test tests/s1-5.test.mjs",
     "check:r0-6-ui": "node scripts/r0-6-browser-check.mjs",
     "check:s1-3-ui": "node scripts/s1-3-browser-check.mjs",
-    "check:s1-5-ui": "node scripts/s1-5-browser-check.mjs"
+    "check:s1-5-ui": "node scripts/s1-5-browser-check.mjs",
+    "check:u1-ui": "node scripts/u1-browser-check.mjs",
+    "test:u2-1": "node --experimental-strip-types --test tests/sse.test.mjs tests/requestScope.test.mjs",
+    "check:u2-1-ui": "node scripts/u2-1-browser-check.mjs",
+    "check:u2-3-ui": "node scripts/u2-3-browser-check.mjs",
+    "check:u3-ui": "node scripts/u3-browser-check.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

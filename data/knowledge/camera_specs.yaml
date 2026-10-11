@@ -7,7 +7,8 @@ cameras:
     effective_megapixels: 24.2
     horizontal_pixels: 6000
     pixel_pitch_um: 5.93
-    source: "Panasonic DC-S5M2 specifications, https://www.panasonic.com/nz/consumer/cameras-camcorders/lumix-s-series/lumix-s-full-frame-cameras/dc-s5m2.html"
+    pixel_pitch_derivation: "估算：35.6 mm × 1000 / 6000 = 5.933… μm；采用全幅 3:2 L 图像宽度，并非厂家实测像素间距"
+    source: "Panasonic DC-S5M2 Operating Instructions, p.782, https://help.na.panasonic.com/wp-content/uploads/2023/02/DCS5M2_DVQP2839ZA_ENG.pdf"
   A7C2:
     sensor: "35mm full-frame Exmor R CMOS"
     sensor_width_mm: 35.9

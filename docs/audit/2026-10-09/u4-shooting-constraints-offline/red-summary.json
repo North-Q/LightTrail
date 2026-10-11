@@ -1,0 +1,18 @@
+{
+  "failed": 5,
+  "passed": 0,
+  "production_pipeline": true,
+  "real_astral": true,
+  "synthetic_weather_and_model": true,
+  "cases": [
+    "impossible_alternative",
+    "unknown_tripod",
+    "unknown_nd",
+    "unknown_14mm_aperture",
+    "expiry_before_departure"
+  ],
+  "network": {
+    "external_connections": 0,
+    "blocked_nonloopback_attempts": 0
+  }
+}

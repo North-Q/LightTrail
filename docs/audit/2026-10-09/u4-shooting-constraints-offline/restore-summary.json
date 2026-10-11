@@ -1,0 +1,19 @@
+{
+  "cases": [
+    {
+      "old": false,
+      "restore_calls": 0,
+      "session_files_unchanged": true,
+      "valid_until": "2026-10-10T03:36:28+08:00",
+      "read_only_equal": true
+    },
+    {
+      "old": true,
+      "restore_calls": 0,
+      "session_files_unchanged": true,
+      "valid_until": "2026-10-10T03:36:28+08:00",
+      "read_only_equal": true
+    }
+  ],
+  "real_results_replayed": false
+}

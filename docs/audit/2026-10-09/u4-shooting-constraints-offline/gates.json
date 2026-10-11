@@ -1,0 +1,70 @@
+{
+  "red": {
+    "tests": 5,
+    "failures": 5,
+    "errors": 0,
+    "network": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    }
+  },
+  "full": {
+    "tests": 671,
+    "failures": 0,
+    "errors": 0,
+    "network": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    }
+  },
+  "related": {
+    "tests": 204,
+    "failures": 0,
+    "errors": 0,
+    "network": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    }
+  },
+  "new_regressions": 31,
+  "ruff": {
+    "check": true,
+    "format_check": true,
+    "files": 4
+  },
+  "smoke": {
+    "passed": 21,
+    "total": 21,
+    "network": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    }
+  },
+  "layers": {
+    "kept": 3,
+    "broken": 0,
+    "network": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    }
+  },
+  "l2": {
+    "pipeline_total": 12,
+    "pipeline_pass": 12,
+    "tool_total": 10,
+    "tool_pass": 10
+  },
+  "l2_network": {
+    "external_connections": 0,
+    "blocked_nonloopback_attempts": 0
+  },
+  "frontend": {
+    "build": true,
+    "stop_tests_passed": 8,
+    "react_component_ssr": true,
+    "browser_rerun": false
+  },
+  "real_supplier_requests": 0,
+  "original_real_result_replayed": false,
+  "dependencies_installed": false
+}

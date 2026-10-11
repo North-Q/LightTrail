@@ -13,9 +13,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date as date_cls
 from datetime import datetime, time, timedelta, timezone
+from functools import partial
 from math import asin, atan2, cos, degrees, pi, radians, sin, tan
+from typing import Any, TypeVar
 
 from astral import Observer, moon, sun
 from astral.sun import Depression
@@ -29,6 +32,7 @@ _GALACTIC_CENTER_DEC_J2000 = -28.9362
 
 # 太阳高度角区间采样步长（分钟），用于求蓝调 / 黄金时刻窗口
 _SAMPLE_MINUTES = 5
+_EVENT_VALUE = TypeVar("_EVENT_VALUE")
 # 银心可见性扫描步长（分钟）
 _GALAXY_SCAN_MINUTES = 10
 
@@ -212,41 +216,96 @@ def sun_times(latitude: float, longitude: float, date: str, tz_offset: str = "+0
         return {"error": lat_error}
 
     observer = _make_observer(latitude, longitude)
-    sunrise = sun.sunrise(observer, day, tzinfo=tz)
-    sunset = sun.sunset(observer, day, tzinfo=tz)
-    noon = sun.noon(observer, day, tzinfo=tz)
-    civil_dawn = sun.dawn(observer, day, depression=Depression.CIVIL, tzinfo=tz)
-    civil_dusk = sun.dusk(observer, day, depression=Depression.CIVIL, tzinfo=tz)
-    nautical_dawn = sun.dawn(observer, day, depression=Depression.NAUTICAL, tzinfo=tz)
-    nautical_dusk = sun.dusk(observer, day, depression=Depression.NAUTICAL, tzinfo=tz)
-    astro_dawn = sun.dawn(observer, day, depression=Depression.ASTRONOMICAL, tzinfo=tz)
-    astro_dusk = sun.dusk(observer, day, depression=Depression.ASTRONOMICAL, tzinfo=tz)
+    statuses: dict[str, dict[str, str]] = {}
+    events: dict[str, datetime | None] = {}
+    for label, compute in (
+        ("日出", lambda: sun.sunrise(observer, day, tzinfo=tz)),
+        ("日落", lambda: sun.sunset(observer, day, tzinfo=tz)),
+        ("正午", lambda: sun.noon(observer, day, tzinfo=tz)),
+    ):
+        events[label] = _solar_calculation(label, compute, statuses)
+    for depression, dawn_label, dusk_label in (
+        (Depression.CIVIL, "民用晨光始", "民用昏影终"),
+        (Depression.NAUTICAL, "航海晨光始", "航海昏影终"),
+        (Depression.ASTRONOMICAL, "天文晨光始", "天文昏影终"),
+    ):
+        events[dawn_label] = _solar_calculation(
+            dawn_label, partial(sun.dawn, observer, day, depression=depression, tzinfo=tz), statuses
+        )
+        events[dusk_label] = _solar_calculation(
+            dusk_label, partial(sun.dusk, observer, day, depression=depression, tzinfo=tz), statuses
+        )
+    result: dict[str, Any] = {"日期": day.isoformat(), "时区": tz_offset, "事件状态": statuses}
+    for label, moment in events.items():
+        result[label] = _fmt_hm(moment) if moment is not None else None
+    for label in ("日出", "日落"):
+        moment = events[label]
+        key = f"{label}方位（度）"
+        result[key] = (
+            _solar_calculation(key, partial(_solar_azimuth, observer, moment), statuses)
+            if moment is not None
+            else None
+        )
+        result[f"{label}_iso"] = _fmt_iso(moment) if moment is not None else None
+    sunrise, sunset = events["日出"], events["日落"]
+    result["昼长（时分）"] = None
+    if sunrise is not None and sunset is not None:
+        seconds = (sunset - sunrise).total_seconds()
+        result["昼长（时分）"] = f"{int(seconds // 3600)}小时{int(seconds % 3600 // 60)}分"
+    for label, low, high in (("黄金时刻", -4.0, 6.0), ("蓝调时刻", -6.0, -4.0)):
+        windows = _solar_calculation(
+            label, partial(_elevation_windows, observer, day, tz, low, high), statuses
+        )
+        if windows == []:
+            statuses[label] = {"状态": "事件不存在", "原因": "当日太阳未进入指定高度区间"}
+        result[f"{label}（晨）"] = windows[:1] or None if windows is not None else None
+        result[f"{label}（暮）"] = windows[1:2] or None if windows is not None else None
+    result["提示"] = (
+        "每个事件独立计算；null 须结合事件状态区分不存在与计算失败。"
+        "蓝调/黄金窗口按太阳高度角阈值采样 5 分钟估算，非精确边界；"
+        "晨/暮沿用当日第一个/第二个连续窗口，高纬单窗口不保证对应日出/日落。"
+        "时区为固定偏移，不自动处理夏令时。"
+    )
+    return result
 
-    return {
-        "日期": day.isoformat(),
-        "时区": tz_offset,
-        "日出方位（度）": round(sun.azimuth(observer, sunrise), 1),
-        "日落方位（度）": round(sun.azimuth(observer, sunset), 1),
-        "日出": _fmt_hm(sunrise),
-        "日落": _fmt_hm(sunset),
-        "正午": _fmt_hm(noon),
-        "昼长（时分）": f"{int((sunset - sunrise).total_seconds() // 3600)}小时"
-        f"{int((sunset - sunrise).total_seconds() % 3600 // 60)}分",
-        "民用晨光始": _fmt_hm(civil_dawn),
-        "民用昏影终": _fmt_hm(civil_dusk),
-        "航海晨光始": _fmt_hm(nautical_dawn),
-        "航海昏影终": _fmt_hm(nautical_dusk),
-        "天文晨光始": _fmt_hm(astro_dawn),
-        "天文昏影终": _fmt_hm(astro_dusk),
-        "黄金时刻（晨）": _elevation_windows(observer, day, tz, -4.0, 6.0)[:1] or None,
-        "黄金时刻（暮）": _elevation_windows(observer, day, tz, -4.0, 6.0)[1:2] or None,
-        "蓝调时刻（晨）": _elevation_windows(observer, day, tz, -6.0, -4.0)[:1] or None,
-        "蓝调时刻（暮）": _elevation_windows(observer, day, tz, -6.0, -4.0)[1:2] or None,
-        "提示": (
-            "蓝调/黄金窗口按太阳高度角阈值（采样 5 分钟）近似，边界可能有数分钟偏差；"
-            "天文昏影终后天空完全黑暗（星空拍摄起点），民用晨光始前后是城市夜景最佳时段"
-        ),
-    }
+
+def _solar_azimuth(observer: Observer, moment: datetime) -> float:
+    """计算指定事件的太阳方位，保留一位小数用于显示。"""
+    return round(sun.azimuth(observer, moment), 1)
+
+
+def _solar_calculation(
+    label: str, compute: Callable[[], _EVENT_VALUE], statuses: dict[str, dict[str, str]]
+) -> _EVENT_VALUE | None:
+    """隔离单个计算，只有 Astral 明确的物理缺失消息才判为不存在。
+
+    Args:
+        label: 事件或派生计算名称。
+        compute: 单个计算回调。
+        statuses: 输出状态及失败原因。
+
+    Returns:
+        可用计算值；不存在或失败时为 None，不影响其他计算。
+    """
+    try:
+        value = compute()
+    except Exception as exc:  # noqa: BLE001  逐事件边界保留其他可用计算
+        message = str(exc)
+        absent = isinstance(exc, ValueError) and (
+            message
+            in {
+                "Sun is always above the horizon on this day, at this location.",
+                "Sun is always below the horizon on this day, at this location.",
+            }
+            or (
+                message.startswith("Sun never reaches ")
+                and message.endswith(" degrees below the horizon, at this location.")
+            )
+        )
+        statuses[label] = {"状态": "事件不存在" if absent else "计算失败", "原因": message}
+        return None
+    statuses[label] = {"状态": "可用"}
+    return value
 
 
 _SPEC_SUN_POSITION = ToolSpec(
@@ -337,7 +396,7 @@ def sun_position(
 _SPEC_MOON_PHASE = ToolSpec(
     name="moon_phase",
     description=(
-        "查询指定日期的月相信息：月相名称、月龄与照亮比例，并给出月光对星空摄影的"
+        "查询指定本地日期的月相：Astral 相位索引、估算月龄与估算照亮比例，并给出月光对星空摄影的"
         "干扰程度建议。新月前后月光干扰最小，是银河/星野的最佳窗口；满月前后适合"
         "月景与月光补光题材。"
     ),
@@ -372,48 +431,64 @@ def moon_phase(date: str, tz_offset: str = "+08:00") -> dict:
     Returns:
         含月相名称、月龄、照亮比例与月光影响的字典。
     """
-    _ = _parse_tz_offset(tz_offset)
+    tz = _parse_tz_offset(tz_offset)
     day = _parse_date(date)
     if day is None:
         return {"error": "日期格式须为 YYYY-MM-DD"}
 
-    phase_days = moon.phase(day)  # 距上次新月的天数（约 0~29.53）
-    illumination = (1.0 - cos(2.0 * pi * phase_days / 29.5306)) / 2.0
+    # Astral 按 UTC 日期返回 0..28 相位索引，而非真实月龄。
+    # 本地午间仅用于选择日级 UTC 样本，不代表精确瞬时月相。
+    reference = datetime.combine(day, time(12), tzinfo=tz)
+    utc_day = reference.astimezone(timezone.utc).date()
+    phase_index = moon.phase(utc_day)
+    illumination = (1.0 - cos(2.0 * pi * phase_index / 28.0)) / 2.0
     illumination_percent = round(illumination * 100)
 
-    if phase_days < 1.85 or phase_days >= 27.68:
+    if phase_index < 1.75 or phase_index >= 26.25:
         name = "新月"
-    elif phase_days < 5.54:
+    elif phase_index < 5.25:
         name = "娥眉月（朔后）"
-    elif phase_days < 9.23:
+    elif phase_index < 8.75:
         name = "上弦月"
-    elif phase_days < 12.92:
+    elif phase_index < 12.25:
         name = "盈凸月"
-    elif phase_days < 16.62:
+    elif phase_index < 15.75:
         name = "满月"
-    elif phase_days < 20.31:
+    elif phase_index < 19.25:
         name = "亏凸月"
-    elif phase_days < 23.99:
+    elif phase_index < 22.75:
         name = "下弦月"
     else:
         name = "残月（下弦后）"
 
     if illumination_percent < 10:
-        advice = "月光干扰极小，银河/星野最佳窗口之一"
+        advice = "估算月面较暗；月光是否干扰仍需结合月升月落和目标时段判断"
     elif illumination_percent < 40:
-        advice = "月光渐显，建议优先安排银心朝南方向的窗口，避开月亮一侧"
+        advice = "估算月面逐渐变亮；结合月亮高度安排银河窗口，避开月亮方向"
     elif illumination_percent < 70:
-        advice = "月光明显，星空对比度下降；适合月景、地景月光补光"
+        advice = "估算月面较亮，月亮升起时可能降低星空对比度；可考虑月景或补光"
     else:
-        advice = "满月光强，银河核心几乎不可见；适合月出/月落挂景题材"
+        advice = "估算月面接近满月亮度，月亮在地平线上时可能明显干扰银河；可考虑月景"
 
     return {
         "日期": day.isoformat(),
+        "时区": tz_offset,
+        "参考时刻": reference.isoformat(timespec="minutes"),
+        "计算日期（UTC）": utc_day.isoformat(),
         "月相名称": name,
-        "月龄（天）": round(phase_days, 1),
+        "相位索引（0-28）": round(phase_index, 2),
+        "月龄（天）": None,
+        "估算月龄（天）": round(phase_index / 28.0 * 29.5306, 1),
         "照亮比例（%）": illumination_percent,
+        "照亮比例方法": "估算：(1-cos(2π×相位索引/28))/2；并非精确地月日几何计算",
+        "来源": "Astral moon.phase，https://astral.readthedocs.io/en/latest/package.html#astral.moon.phase",
         "月光影响建议": advice,
-        "提示": "月相周期约 29.53 天；『月亮升起前/落下后的时段』需配合 moon_events 工具判断",
+        "提示": (
+            "本地午间映射到 UTC 日期的日级月相样本，不表示该时刻的精确月相。"
+            "真实月龄未计算；估算月龄以相位索引线性映射平均周期 29.5306 天，非距上次新月的实测天数；"
+            "照亮比例与月相名称均为近似估算，不保证日内精度。月光干扰还受月亮高度、天气影响，"
+            "需配合 moon_events 判断月升月落。"
+        ),
     }
 
 

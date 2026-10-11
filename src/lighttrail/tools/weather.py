@@ -2,20 +2,20 @@
 
 设计要点：
 - 数据源可替换：Base URL 可通过环境变量 OPEN_METEO_BASE_URL 覆盖（测试/自建镜像）；
-- Open-Meteo 返回当地时间（timezone=auto），本模块按请求时区偏移解释显示；
-- 火烧云概率为启发式评分模型（高云占比 / 云量区间 / 能见度 / 降水 / 风速），
+- Open-Meteo 请求 GMT 时间，本模块按绝对时刻转换到请求时区；
+- 火烧云启发式评分综合高云占比、云量区间、能见度、降水与风速，
   输出依据字段保证可解释性（决策地基 M2）。
 
 对外工具：
 - weather_forecast：未来 1-7 天每日云量 / 能见度 / 降水概率 / 风速摘要；
-- sunset_glow_score：指定日期傍晚火烧云概率评分（结合天文日落时刻）。
+- sunset_glow_score：指定日期傍晚火烧云启发式评分（结合天文日落时刻）。
 """
 
 from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from lighttrail.contracts.tool import Confidence, Tool, ToolSpec
@@ -58,14 +58,64 @@ def _fetch_json(url: str) -> dict[str, Any]:
         raise WeatherError(f"天气数据获取失败：{exc}") from exc
 
 
-def _hourly_to_iso(value: str, tz_offset: str) -> str:
-    """把 Open-Meteo 的本地时间戳（无时区）按请求时区偏移重新标注。"""
-    try:
-        parsed = datetime.fromisoformat(value)
-    except ValueError:
-        return value
-    tz = _parse_tz_offset(tz_offset)
-    return parsed.replace(tzinfo=tz).isoformat(timespec="minutes")
+_WEATHER_FIELDS = (
+    "cloud_cover",
+    "cloud_cover_high",
+    "cloud_cover_low",
+    "visibility",
+    "precipitation_probability",
+    "wind_speed_10m",
+)
+
+
+def _now() -> datetime:
+    """返回含时区的采集时刻，测试可替换。"""
+    return datetime.now(timezone.utc)
+
+
+def _hourly_rows(data: dict[str, Any], tz_offset: str) -> list[dict[str, Any]]:
+    """依据供应商偏移解析绝对时间，再转换到请求时区。
+
+    Args:
+        data: 供应商小时预报对象；GMT 请求缺省偏移为零。
+        tz_offset: 请求的显示及目标日期时区。
+
+    Returns:
+        含绝对时刻及可空数值的小时列表。
+    """
+    hourly = data.get("hourly", {})
+    source_tz = timezone(timedelta(seconds=data.get("utc_offset_seconds", 0)))
+    target_tz = _parse_tz_offset(tz_offset)
+    rows: list[dict[str, Any]] = []
+    for index, raw_time in enumerate(hourly.get("time", [])):
+        parsed = datetime.fromisoformat(raw_time)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=source_tz)
+        row: dict[str, Any] = {"时间": parsed.astimezone(target_tz).isoformat()}
+        for field in _WEATHER_FIELDS:
+            values = hourly.get(field, [])
+            row[field] = values[index] if index < len(values) else None
+        rows.append(row)
+    return rows
+
+
+def _metadata(
+    rows: list[dict[str, Any]],
+    latitude: float,
+    longitude: float,
+    tz_offset: str,
+    fetched_at: datetime,
+) -> dict[str, Any]:
+    """记录采集时间与预报有效覆盖；采集时间不冒充供应商发布时间。"""
+    times = sorted(datetime.fromisoformat(row["时间"]) for row in rows)
+    return {
+        "位置": f"{latitude},{longitude}",
+        "时区": tz_offset,
+        "获取时间": fetched_at.isoformat(),
+        "有效开始时间": times[0].isoformat() if times else None,
+        "有效结束时间": (times[-1] + timedelta(hours=1)).isoformat() if times else None,
+        "数据来源": "Open-Meteo",
+    }
 
 
 # ------------------------------------------------------------------
@@ -133,81 +183,68 @@ def weather_forecast(
         f"{_base_url()}?latitude={latitude}&longitude={longitude}"
         f"&hourly=cloud_cover,cloud_cover_high,cloud_cover_low,"
         f"visibility,precipitation_probability,wind_speed_10m"
-        f"&timezone=auto&forecast_days={days}"
+        f"&timezone=GMT&forecast_days={days}"
     )
     try:
         data = _fetch_json(url)
     except WeatherError as exc:
         return {"error": str(exc)}
 
-    hourly = data.get("hourly", {})
-    times = hourly.get("time", [])
-    fields = [
-        "cloud_cover",
-        "cloud_cover_high",
-        "cloud_cover_low",
-        "visibility",
-        "precipitation_probability",
-        "wind_speed_10m",
-    ]
-    if not times:
+    fetched_at = _now()
+    rows = _hourly_rows(data, tz_offset)
+    if not rows:
         return {"error": "预报数据为空（可能超出接口可用范围）"}
-
     grouped: dict[str, list[dict[str, Any]]] = {}
-    for index, raw_time in enumerate(times):
-        day_key = raw_time[:10]
-        entry = {"时间": _hourly_to_iso(raw_time, tz_offset)}
-        for field in fields:
-            values = hourly.get(field, [])
-            entry[field] = values[index] if index < len(values) else None
-        grouped.setdefault(day_key, []).append(entry)
-
+    for row in rows:
+        grouped.setdefault(row["时间"][:10], []).append(row)
     daily: list[dict[str, Any]] = []
-    for day_key in sorted(grouped):
-        rows = grouped[day_key]
-        clouds = [row["cloud_cover"] or 0 for row in rows]
-        evening = [row for row in rows if 16 <= int(row["时间"][11:13]) < 20]
-        visibilities = [row["visibility"] for row in rows if row["visibility"] is not None]
-        precip = [row["precipitation_probability"] or 0 for row in rows]
-        winds = [row["wind_speed_10m"] or 0 for row in rows]
-        summary = {
-            "日期": day_key,
-            "平均云量（%）": round(sum(clouds) / len(clouds)) if clouds else None,
-            "云量范围（%）": f"{min(clouds)}-{max(clouds)}" if clouds else None,
-            "最低能见度（km）": round(min(visibilities) / 1000, 1) if visibilities else None,
-            "最高降水概率（%）": max(precip) if precip else None,
-            "最大风速（km/h）": round(max(winds)) if winds else None,
-            "傍晚云量序列": [
-                {
-                    "时间": row["时间"][11:16],
-                    "云量（%）": row["cloud_cover"],
-                    "高云（%）": row["cloud_cover_high"],
-                    "能见度（km）": round(row["visibility"] / 1000, 1)
-                    if row["visibility"] is not None
-                    else None,
-                }
-                for row in evening
-            ],
-        }
-        daily.append(summary)
-
+    for day_key, day_rows in sorted(grouped.items()):
+        clouds = [row["cloud_cover"] for row in day_rows if row["cloud_cover"] is not None]
+        visibility = [row["visibility"] for row in day_rows if row["visibility"] is not None]
+        precip = [
+            row["precipitation_probability"]
+            for row in day_rows
+            if row["precipitation_probability"] is not None
+        ]
+        winds = [row["wind_speed_10m"] for row in day_rows if row["wind_speed_10m"] is not None]
+        daily.append(
+            {
+                "日期": day_key,
+                "平均云量（%）": round(sum(clouds) / len(clouds)) if clouds else None,
+                "云量范围（%）": f"{min(clouds)}-{max(clouds)}" if clouds else None,
+                "最低能见度（km）": round(min(visibility) / 1000, 1) if visibility else None,
+                "最高降水概率（%）": max(precip) if precip else None,
+                "最大风速（km/h）": round(max(winds)) if winds else None,
+                "傍晚云量序列": [
+                    {
+                        "时间": row["时间"][11:16],
+                        "云量（%）": row["cloud_cover"],
+                        "高云（%）": row["cloud_cover_high"],
+                        "能见度（km）": round(row["visibility"] / 1000, 1)
+                        if row["visibility"] is not None
+                        else None,
+                    }
+                    for row in day_rows
+                    if 16 <= int(row["时间"][11:13]) < 20
+                ],
+            }
+        )
     return {
-        "位置": f"{latitude},{longitude}",
-        "时区": tz_offset,
+        **_metadata(rows, latitude, longitude, tz_offset, fetched_at),
         "预报天数": len(daily),
         "每日预报": daily,
-        "数据来源": "Open-Meteo（免费）",
-        "说明": "傍晚云量序列为 16:00-19:00 当地小时数据；预测越接近当下越可靠，供规划参考",
+        "逐小时预报": rows,
+        "说明": "时间按请求时区显示；缺失值保留为空；获取时间不是供应商发布时间。",
     }
 
 
 # ------------------------------------------------------------------
-# 火烧云概率评分（D3.1-01 启发式模型）
+# 火烧云启发式评分（D3.1-01 启发式模型）
 # ------------------------------------------------------------------
 _SPEC_SUNSET_GLOW_SCORE = ToolSpec(
     name="sunset_glow_score",
     description=(
-        "评估指定日期傍晚的火烧云（晚霞）爆发概率，返回 0-100 分与等级。"
+        "评估指定日期傍晚的火烧云（晚霞）启发式条件，返回 0-100 分与等级。"
         "综合日落前后三小时的高云占比、云量区间、能见度、降水概率与风速，"
         "并附每项依据与置信度（越临近日落越可信）。"
         "注意：这是面向摄影决策的经验启发式模型，非气象学精确概率；"
@@ -246,7 +283,7 @@ _SPEC_SUNSET_GLOW_SCORE = ToolSpec(
 def sunset_glow_score(
     latitude: float, longitude: float, date: str, tz_offset: str = "+08:00"
 ) -> dict:
-    """计算指定日期傍晚的火烧云概率评分。
+    """计算指定日期傍晚的火烧云启发式评分。
 
     Args:
         latitude: 纬度（度）。
@@ -263,152 +300,125 @@ def sunset_glow_score(
     if not (-90.0 <= latitude <= 90.0 and -180.0 <= longitude <= 180.0):
         return {"error": "经纬度超出范围"}
 
-    today = datetime.now(_parse_tz_offset(tz_offset)).date()
-    if day < today:
-        return {"error": "仅支持今天起 7 天内的火烧云评估（历史日期无预报数据）"}
+    now = _now()
+    tz = _parse_tz_offset(tz_offset)
+    today = now.astimezone(tz).date()
     days_ahead = (day - today).days
-    if days_ahead > 6:
+    if not 0 <= days_ahead <= 6:
         return {"error": "仅支持今天起 7 天内的火烧云评估"}
-
-    # 日落时刻（复用天文模块）
     sun_result = sun_times(latitude, longitude, day.isoformat(), tz_offset)
-    if "error" in sun_result:
-        return {"error": sun_result["error"]}
-    sunset_time = sun_result["日落"]
-    sunset_minutes = _hhmm_to_minutes(sunset_time)
-
-    # 拉取预报（含目标日，多取 1 天以防时区边界）
+    sunset_time = sun_result.get("日落")
+    if "error" in sun_result or not sunset_time:
+        return {"error": sun_result.get("error", "缺少日落时间")}
+    sunset_at = datetime.fromisoformat(f"{day.isoformat()}T{sunset_time}").replace(tzinfo=tz)
+    start, end = sunset_at - timedelta(hours=3), sunset_at + timedelta(hours=2)
     url = (
         f"{_base_url()}?latitude={latitude}&longitude={longitude}"
-        f"&hourly=cloud_cover,cloud_cover_high,cloud_cover_low,"
-        f"visibility,precipitation_probability,wind_speed_10m"
-        f"&timezone=auto&forecast_days={days_ahead + 2 if days_ahead < 6 else 7}"
+        "&hourly=cloud_cover,cloud_cover_high,cloud_cover_low,"
+        "visibility,precipitation_probability,wind_speed_10m"
+        "&timezone=GMT&forecast_days=7"
     )
     try:
         data = _fetch_json(url)
     except WeatherError as exc:
         return {"error": str(exc)}
-
-    hourly = data.get("hourly", {})
-    times = hourly.get("time", [])
-    window_start = (
-        (day - timedelta(days=1)).isoformat() if sunset_minutes < 720 else day.isoformat()
-    )
-    window = []
-    for index, raw_time in enumerate(times):
-        if not raw_time.startswith(window_start):
-            continue
-        minute_of_day = int(raw_time[11:13]) * 60 + int(raw_time[14:16])
-        if sunset_minutes - 180 <= minute_of_day <= sunset_minutes + 120:
-            window.append(
-                {
-                    "cloud": hourly.get("cloud_cover", [])[index]
-                    if index < len(hourly.get("cloud_cover", []))
-                    else None,
-                    "high": hourly.get("cloud_cover_high", [])[index]
-                    if index < len(hourly.get("cloud_cover_high", []))
-                    else None,
-                    "visibility": hourly.get("visibility", [])[index]
-                    if index < len(hourly.get("visibility", []))
-                    else None,
-                    "precip": hourly.get("precipitation_probability", [])[index]
-                    if index < len(hourly.get("precipitation_probability", []))
-                    else None,
-                    "wind": hourly.get("wind_speed_10m", [])[index]
-                    if index < len(hourly.get("wind_speed_10m", []))
-                    else None,
-                }
-            )
+    rows = _hourly_rows(data, tz_offset)
+    fetched_at = _now()
+    window = [row for row in rows if start <= datetime.fromisoformat(row["时间"]) <= end]
     if not window:
-        return {"error": f"未获取到 {day.isoformat()} 日落前后三小时的逐小时数据"}
-
-    # ---- 启发式评分（各分量 0~1，加权求和后映射到 0-100）----
-    avg_cloud = _mean([row["cloud"] for row in window])
-    avg_high = _mean([row["high"] for row in window])
-    avg_visibility_km = (
-        _mean([row["visibility"] for row in window]) / 1000.0
-        if any(row["visibility"] is not None for row in window)
-        else 50.0
+        return {"error": f"未获取到 {day.isoformat()} 日落窗口的逐小时数据"}
+    cloud = _mean([row["cloud_cover"] for row in window])
+    high = _mean([row["cloud_cover_high"] for row in window])
+    visibility = _mean([row["visibility"] for row in window])
+    precip = _max([row["precipitation_probability"] for row in window])
+    wind = _max([row["wind_speed_10m"] for row in window])
+    ratio = (
+        (min(1.0, high / cloud) if cloud > 0 else 0.0)
+        if cloud is not None and high is not None
+        else None
     )
-    max_precip = _max([row["precip"] for row in window])
-    max_wind = _max([row["wind"] for row in window])
-
-    # 云量形态：总量 30-70% 最佳，过高过低都扣分
-    cloud_score = max(0.0, 1.0 - abs(avg_cloud - 50.0) / 50.0)
-    # 高云占比：高云（卷云）被夕阳染红最明显，40% 以上理想
-    high_ratio = 0.0 if not avg_cloud else min(1.0, avg_high / avg_cloud)
-    high_score = min(1.0, high_ratio / 0.4) if avg_cloud > 0 else 0.0
-    # 能见度：>=20km 满分，<=5km 归零
-    visibility_score = max(0.0, min(1.0, (avg_visibility_km - 5.0) / 15.0))
-    # 降水：<=20% 满分，>=70% 归零
-    precip_score = max(0.0, min(1.0, (70.0 - max_precip) / 50.0))
-    # 风速：<=25km/h 满分，>=80km/h 归零（大风会吹散云层形态）
-    wind_score = max(0.0, min(1.0, (80.0 - max_wind) / 55.0))
-
-    score = round(
-        100.0
-        * (
-            0.45 * cloud_score
-            + 0.25 * high_score
-            + 0.15 * visibility_score
-            + 0.10 * precip_score
-            + 0.05 * wind_score
+    components = [
+        (0.45, max(0.0, 1.0 - abs(cloud - 50) / 50) if cloud is not None else None),
+        (0.25, min(1.0, ratio / 0.4) if ratio is not None else None),
+        (
+            0.15,
+            max(0.0, min(1.0, (visibility / 1000 - 5) / 15)) if visibility is not None else None,
+        ),
+        (0.10, max(0.0, min(1.0, (70 - precip) / 50)) if precip is not None else None),
+        (0.05, max(0.0, min(1.0, (80 - wind) / 55)) if wind is not None else None),
+    ]
+    # 缺失分量不加分，也不将已有分量重归一化为满分。
+    score = round(100 * sum(weight * value for weight, value in components if value is not None))
+    fields = {
+        "云量": "cloud_cover",
+        "高云": "cloud_cover_high",
+        "能见度": "visibility",
+        "降水概率": "precipitation_probability",
+        "风速": "wind_speed_10m",
+    }
+    missing = [
+        label for label, field in fields.items() if any(row[field] is None for row in window)
+    ]
+    first_hour = start.replace(minute=0, second=0, microsecond=0)
+    if first_hour < start:
+        first_hour += timedelta(hours=1)
+    expected = int((end - first_hour).total_seconds() // 3600) + 1
+    if len({row["时间"] for row in window}) < expected:
+        missing.append("日落窗口小时覆盖不完整")
+    hours_to_sunset = (sunset_at - now).total_seconds() / 3600
+    confidence = (
+        "低"
+        if missing or hours_to_sunset < 0 or hours_to_sunset > 72
+        else ("中" if hours_to_sunset > 24 else "高")
+    )
+    level = (
+        "数据不足"
+        if missing
+        else (
+            "高（值得赌一把）"
+            if score >= 75
+            else "中等（可看趋势再定）"
+            if score >= 50
+            else "偏低（建议观望）"
+            if score >= 25
+            else "低（不建议专程前往）"
         )
     )
-    if score >= 75:
-        level = "高（值得赌一把）"
-    elif score >= 50:
-        level = "中等（可看趋势再定）"
-    elif score >= 25:
-        level = "偏低（建议观望）"
-    else:
-        level = "低（不建议专程前往）"
-
-    now_local = datetime.now(_parse_tz_offset(tz_offset))
-    now_minutes = now_local.hour * 60 + now_local.minute
-    hours_to_sunset = (sunset_minutes - now_minutes) / 60.0
-    if hours_to_sunset < 0:
-        hours_to_sunset += 24.0
-    if hours_to_sunset <= 24:
-        confidence = "高"
-    elif hours_to_sunset <= 72:
-        confidence = "中"
-    else:
-        confidence = "低"
-
+    values = {
+        "云量（%）": cloud,
+        "高云（%）": high,
+        "能见度（km）": visibility / 1000 if visibility is not None else None,
+        "降水概率（%）": precip,
+        "风速（km/h）": wind,
+    }
     return {
+        **_metadata(rows, latitude, longitude, tz_offset, fetched_at),
         "日期": day.isoformat(),
         "日落时间": sunset_time,
-        "评分（0-100）": score,
+        "目标时刻": sunset_at.isoformat(),
+        "评分（0-100）": score if any(value is not None for _, value in components) else None,
         "等级": level,
-        "依据": [
-            f"日落前后平均云量 {round(avg_cloud)}%（30-70% 为理想区间）",
-            f"高云占比约 {round(high_ratio * 100)}%（高云利于染红）",
-            f"平均能见度 {round(avg_visibility_km, 1)} km",
-            f"最大降水概率 {round(max_precip)}%",
-            f"最大风速 {round(max_wind)} km/h",
-        ],
         "置信度": confidence,
-        "说明": "经验启发式模型（非气象学精确概率），建议结合实时天空观察；反烧（日落后 20-40 分钟）可小幅加分参考同模型偏移",
+        "缺失字段": missing,
+        "窗口样本数": len(window),
+        "依据": [
+            f"{label}：{round(value, 1) if value is not None else '缺失'}"
+            for label, value in values.items()
+        ],
+        "说明": "摄影启发式评分，未经概率校准；缺失分量不加分，数据不足须补齐后重查。",
     }
 
 
-def _hhmm_to_minutes(value: str) -> int:
-    """把 HH:MM 转为当日分钟数。"""
-    hours, minutes = (int(part) for part in value.split(":"))
-    return hours * 60 + minutes
-
-
-def _mean(values: list[float | None]) -> float:
-    """数值列表均值（忽略 None）。"""
+def _mean(values: list[float | None]) -> float | None:
+    """忽略空值计算均值，无有效值时保留 None。"""
     valid = [value for value in values if value is not None]
-    return sum(valid) / len(valid) if valid else 0.0
+    return sum(valid) / len(valid) if valid else None
 
 
-def _max(values: list[float | None]) -> float:
-    """数值列表最大值（忽略 None，空表返回 0）。"""
+def _max(values: list[float | None]) -> float | None:
+    """忽略空值求最大值，无有效值时保留 None。"""
     valid = [value for value in values if value is not None]
-    return max(valid) if valid else 0.0
+    return max(valid) if valid else None
 
 
 # ------ 声明式收集点（ToolSpec 真源；新增工具 = 加一行）------

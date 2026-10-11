@@ -113,6 +113,12 @@ export function M1Page() {
         </div>
       </header>
 
+      <section className="card" aria-label="本地数据与删除说明">
+        <p>档案、收藏及确认的事件保存在本地；生成建议时，相关内容可能发送给配置的模型 API。机位坐标还可能用于天气或地图查询。</p>
+        <p>删除收藏仅更新当前档案，不清除历史会话、导出文件或浏览器历史。暂无一键删除全部数据、单条事件删除或自动到期机制。</p>
+        <p>完整本地清理：先停止服务，按部署的 LIGHTTRAIL_DATA_DIR 检查并删除所需用户档案、事件数据库、语义记忆与会话文件；再清除本站浏览器存储和自行保存的导出/备份。操作不可撤回，请先核对路径。具体目录与边界见项目 docs/DATA-BOUNDARIES.md。</p>
+        <p>清理本地数据不会删除模型、天气或地图供应商的副本；供应商保留和删除能力尚未核实。停止等待也不代表底层发送已撤回。</p>
+      </section>
       <section className="grid-2">
         <div className="card">
           <span className="card-kicker">器材档案</span>

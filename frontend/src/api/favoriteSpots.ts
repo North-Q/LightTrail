@@ -9,9 +9,10 @@ export type DeletedFavoriteSpot = components["schemas"]["DeletedSpotPayload"];
 
 const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
 
-async function requestJson<T>(method: string, path: string, body?: FavoriteSpotInput): Promise<T> {
+async function requestJson<T>(method: string, path: string, body?: FavoriteSpotInput, signal?: AbortSignal): Promise<T> {
   const response = await fetch(BASE + path, {
     method,
+    signal,
     ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}),
   });
   if (!response.ok) {
@@ -20,8 +21,8 @@ async function requestJson<T>(method: string, path: string, body?: FavoriteSpotI
   return (await response.json()) as T;
 }
 
-export function listFavoriteSpots(): Promise<FavoriteSpotList> {
-  return requestJson<FavoriteSpotList>("GET", "/api/favorite-spots");
+export function listFavoriteSpots(signal?: AbortSignal): Promise<FavoriteSpotList> {
+  return requestJson<FavoriteSpotList>("GET", "/api/favorite-spots", undefined, signal);
 }
 
 export function createFavoriteSpot(input: FavoriteSpotInput): Promise<FavoriteSpotRecord> {

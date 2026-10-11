@@ -1,0 +1,24 @@
+{
+  "mode": "non_retry_error",
+  "http_attempts": {
+    "weather": 2,
+    "model": 1
+  },
+  "map_attempts": 0,
+  "restoration_attempts": 0,
+  "same_directory_new_fastapi_instance": true,
+  "restore_exact_snapshot_next_day": true,
+  "card_status": "ready",
+  "verdict": "wait",
+  "sdk_max_retries": 0,
+  "LLM_CONCURRENCY": 1,
+  "output_token_limit_sent": false,
+  "data_directory": "D:\\Project\\LightTrail\\.pytest-run-u4\\85207d923969437d865d27f00b45d93e\\non_retry_error",
+  "local_files_sha256": {
+    "knowledge\\knowledge.db": "e7e9770adce6a676e27fef4c714cd8c8343f401d27137926e883b8bbe807c0cc",
+    "sessions\\2fd7cfbd531c45a9b9a9ebb6b5325c82.json": "bc2368109c8eb21a1ee0325d4bd29d314db2151197883b1710e4b453d5ccd32d",
+    "users\\_local\\memory\\events.db": "1b6227fdbfc2ea6beaacb3e74eae01403d3b517e4527bd0a5f530ed55434af14",
+    "users\\_local\\memory\\profile.json": "ab6c4b3a190ff2f566e8ababd71d6efe4bc0650842b3230cada9e6f852b35b64",
+    "users\\_local\\memory\\profile.pre-s1-2.json.bak": "09f0e5526413da4c15b802967fed4cf354ae7ecfa7f040da72ef3346b164c958"
+  }
+}

@@ -1,0 +1,44 @@
+/** 浏览器访问实际隔离后端；不拦截 fetch，不使用真实数据。 */
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from '../src/App';
+const result = document.getElementById('audit-result')!;
+const output: Record<string, unknown> = {};
+const root = createRoot(document.getElementById('root')!);
+async function waitFor(check: () => boolean): Promise<void> {
+  for(let i=0;i<250;i++){if(check())return;await new Promise(r=>setTimeout(r,20));}
+  throw new Error('状态等待超时：'+window.location.hash);
+}
+function setValue(el: HTMLInputElement | HTMLSelectElement, value: string): void {
+  const proto=el instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLSelectElement.prototype;
+  Object.getOwnPropertyDescriptor(proto,'value')!.set!.call(el,value);
+  el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));
+}
+function button(text: string): HTMLButtonElement {
+  return [...document.querySelectorAll<HTMLButtonElement>('button')].find(b=>b.textContent?.trim()===text)!;
+}
+async function run(): Promise<void>{
+  localStorage.clear();sessionStorage.clear();window.location.hash='#/m1';root.render(createElement(App));
+  await waitFor(()=>!!button('新增机位'));button('新增机位').click();
+  await waitFor(()=>!!document.querySelector('.m1-spot-form'));
+  const form=document.querySelector<HTMLFormElement>('.m1-spot-form')!;
+  const required=form.querySelectorAll<HTMLInputElement>('input[required]');
+  const numbers=form.querySelectorAll<HTMLInputElement>('input[type=number]');
+  setValue(required[0],'审查台');setValue(numbers[0],'31.2');setValue(numbers[1],'121.5');
+  setValue(form.querySelector<HTMLSelectElement>('select')!,'WGS84');setValue(required[1],'合成审查');
+  form.querySelector<HTMLButtonElement>('button[type=submit]')!.click();
+  await waitFor(()=>!!document.querySelector('.m1-spot-row'));button('设为本次').click();
+  output.m1_created=!!sessionStorage.getItem('lt.active_spot_id');
+  window.location.hash='#/d3';await waitFor(()=>!!document.querySelector('input[aria-label=决策提问]'));
+  setValue(document.querySelector<HTMLInputElement>('input[aria-label=决策提问]')!,'今晚在审查台拍火烧云值得去吗');
+  await new Promise(r=>setTimeout(r,50));document.querySelector<HTMLButtonElement>('.prompt-row button[type=submit]')!.click();await waitFor(()=>!!document.querySelector('.confidence-display'));
+  output.d3_failed_data_screen=document.querySelector('.verdict-card')!.textContent;
+  output.d3_recent_session_count=JSON.parse(localStorage.getItem('lt.sessions')??'[]').length;
+  output.d3_last_card_saved=!!localStorage.getItem('lt.last_card');
+  window.location.hash='#/home';await waitFor(()=>!!document.querySelector('.today-card'));
+  output.home_stale_label=document.querySelector('.today-card')!.textContent;
+  window.location.hash='#/d1';await waitFor(()=>!!document.querySelector('.prompt-row'));
+  output.d1_restore_messages=document.querySelectorAll('.message').length;
+  result.textContent='PASS: '+JSON.stringify(output);
+}
+void run().catch(e=>result.textContent='FAIL: '+String(e)+' '+JSON.stringify(output));

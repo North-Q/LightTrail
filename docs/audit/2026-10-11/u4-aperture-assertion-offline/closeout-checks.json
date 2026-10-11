@@ -1,0 +1,42 @@
+{
+  "checked_at": "2026-10-11 18:53 +08:00",
+  "branch": "main",
+  "head": "4b04b81",
+  "staged_files": 0,
+  "git_status_records": 180,
+  "baseline_hashed_files": 3131,
+  "protected_old_files": 2476,
+  "old_files_unchanged": true,
+  "changed_existing_files": [
+    "AGENTS.md",
+    "README.md",
+    "TODO.md",
+    "docs/AGENT-ROADMAP.md",
+    "docs/FEATURES.md",
+    "docs/HANDOFF.md",
+    "docs/architecture.md",
+    "docs/audit/2026-10-09/u4-real-verification.md",
+    "docs/devlog.md",
+    "src/lighttrail/domain/shooting_constraints.py",
+    "tests/test_shooting_constraints.py"
+  ],
+  "unexpected_changes": [],
+  "document_links_checked": 119,
+  "broken_links": [],
+  "current_field_status_consistent": {
+    "docs/architecture.md": true,
+    "AGENTS.md": true,
+    "docs/FEATURES.md": true,
+    "docs/AGENT-ROADMAP.md": true,
+    "docs/audit/2026-10-09/u4-real-verification.md": true,
+    "TODO.md": true,
+    "docs/HANDOFF.md": true,
+    "README.md": true,
+    "docs/devlog.md": true,
+    "docs/audit/2026-10-11/u4-aperture-assertion-verification.md": true
+  },
+  "u4_complete": false,
+  "real_supplier_requests": 0,
+  "committed": false,
+  "published": false
+}

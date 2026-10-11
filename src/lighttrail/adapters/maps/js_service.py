@@ -8,6 +8,8 @@ from math import isfinite
 
 import httpx
 
+from lighttrail.infra.redact import redact, register_secrets
+
 _ALLOWED_TARGETS = {
     "v4/map/styles": "https://webapi.amap.com/v4/map/styles",
 }
@@ -42,6 +44,7 @@ async def forward_js_service(
     Raises:
         MapProxyError: 配置缺失、路径不允许、上游失败或响应过大。
     """
+    register_secrets(security_code)
     target = _ALLOWED_TARGETS.get(path)
     if target is None:
         raise MapProxyError("该地图服务路径未开放")
@@ -60,7 +63,7 @@ async def forward_js_service(
         raise MapProxyError("地图上游响应超过大小限制")
     return (
         response.status_code,
-        response.content,
+        redact(response.text).encode("utf-8"),
         response.headers.get("content-type", "application/json"),
     )
 
@@ -84,6 +87,7 @@ async def convert_wgs84_points(
     Raises:
         MapProxyError: 上游拒绝、响应无效或结果数量不一致。
     """
+    register_secrets(web_key)
     if not 1 <= len(points) <= 40 or any(
         not isfinite(lng) or not isfinite(lat) or not -180 <= lng <= 180 or not -90 <= lat <= 90
         for lng, lat in points
@@ -110,8 +114,8 @@ async def convert_wgs84_points(
             raise ValueError("upstream rejected")
         raw = body["locations"].split(";")
         converted = [tuple(float(value) for value in item.split(",")) for item in raw]
-    except (KeyError, TypeError, ValueError, AttributeError) as exc:
-        raise MapProxyError("高德坐标转换失败或无权限") from exc
+    except (KeyError, TypeError, ValueError, AttributeError):
+        raise MapProxyError("高德坐标转换失败或无权限") from None
     if len(converted) != len(points) or any(
         len(item) != 2
         or not all(isfinite(value) for value in item)

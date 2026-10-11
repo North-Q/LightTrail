@@ -1,0 +1,28 @@
+{
+  "profile": {
+    "camera_body": "松下 S5M2",
+    "lenses": [
+      "24-105mm F4",
+      "70-300mm",
+      "契卡 14mm 定焦"
+    ],
+    "preferences": [
+      "风光",
+      "火烧云"
+    ]
+  },
+  "favorite": {
+    "name": "U4合成西岸",
+    "latitude": 31.0,
+    "longitude": 121.0,
+    "coordinate_system": "WGS84",
+    "tz_offset": "+08:00",
+    "subject_types": [
+      "火烧云"
+    ],
+    "source": "人工合成，非个人机位"
+  },
+  "decide": {
+    "request": "今晚火烧云是否值得去"
+  }
+}

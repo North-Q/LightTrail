@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import threading
 from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
 from typing import Any
@@ -33,6 +34,7 @@ from lighttrail.contracts.events import (
     TraceEvent,
 )
 from lighttrail.contracts.observability import TraceSink
+from lighttrail.infra.redact import redact
 
 logger = logging.getLogger("lighttrail.api.events")
 
@@ -121,7 +123,7 @@ def sse_text(event: dict[str, Any]) -> str:
     Returns:
         完成的一帧 SSE 文本（以空行结尾）。
     """
-    return f"event: {event['type']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
+    return redact(f"event: {event['type']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n")
 
 
 class TraceBridge:
@@ -134,6 +136,9 @@ class TraceBridge:
     def __init__(self, recorder: TraceSink) -> None:
         self._recorder = recorder
         self._unsub: Callable[[], None] | None = None
+        self._lock = threading.Lock()
+        self._pending: list[dict[str, Any]] = []
+        self._queue: asyncio.Queue[dict[str, Any] | None] | None = None
 
     def attach(
         self,
@@ -150,24 +155,43 @@ class TraceBridge:
             session_id: 会话标识（注入事件负载）。
         """
         self.detach()
+        self._queue = queue
 
         def _forward(event: TraceEvent) -> None:
-            for mapped in map_trace_event(event, session_id=session_id) or []:
-                loop.call_soon_threadsafe(queue.put_nowait, mapped)
+            with self._lock:
+                if self._queue is None:
+                    return
+                self._pending.extend(map_trace_event(event, session_id=session_id) or [])
+            loop.call_soon_threadsafe(self.flush)
 
         self._unsub = self._recorder.subscribe(_forward)
+
+    def flush(self) -> None:
+        """在宿主事件循环中交付待发事件；终态入队之前必须调用。"""
+        with self._lock:
+            pending, self._pending = self._pending, []
+            queue = self._queue
+        if queue is not None:
+            for event in pending:
+                queue.put_nowait(event)
 
     def detach(self) -> None:
         """取消订阅（幂等，流结束后必须调用）。"""
         if self._unsub is not None:
             self._unsub()
             self._unsub = None
+        with self._lock:
+            self._pending.clear()
+            self._queue = None
 
 
 async def pump(
     queue: asyncio.Queue[dict[str, Any] | None], worker: asyncio.Task
 ) -> AsyncIterator[str]:
-    """从队列取事件编码为 SSE 帧，直到 done；结束时取消未完成的 worker。
+    """从队列取事件编码为 SSE 帧，直到 done；结束时取消未完成的 worker 协程。
+
+    取消 asyncio.to_thread 的等待不终止已运行的同步线程或供应商请求。
+    本桥只结束 SSE 接收；不得据此向用户确认底层请求已取消。
 
     Args:
         queue: 事件队列。

@@ -1,0 +1,73 @@
+{
+  "counts": {
+    "weather": 1,
+    "model": 1
+  },
+  "http_statuses": [
+    200,
+    200
+  ],
+  "model_usage_raw": [
+    {
+      "prompt_tokens": 4335,
+      "total_tokens": 6776,
+      "completion_tokens": 2441,
+      "prompt_tokens_details": null,
+      "reasoning_tokens": 1314
+    }
+  ],
+  "observed_usage": {
+    "hours_ratio": 0.0,
+    "daily_ratio": 0.0,
+    "monthly_ratio": 0.0,
+    "weekly_ratio": 0.000211485,
+    "window_ratios": {
+      "weekly": 0.000211485
+    },
+    "observed_credits": 4.2297,
+    "unknown_attempts": 1,
+    "scope": "本应用已观测用量（内存账本，非平台余额）",
+    "total_credits": null
+  },
+  "model_token_limit": 4096,
+  "LLM_CONCURRENCY": 1,
+  "SDK_retries": 0,
+  "saved": true,
+  "card_status": "ready",
+  "verdict": "go",
+  "confidence": "medium",
+  "target_date": "2026-10-10",
+  "tz_offset": "+08:00",
+  "window_start": "2026-10-10T05:30:00+08:00",
+  "window_end": "2026-10-10T06:25:00+08:00",
+  "updated_at": "2026-10-09T13:36:28.474286+00:00",
+  "valid_until": "2026-10-09T19:36:28.474286+00:00",
+  "window_sampling_rule": {
+    "中心": "2026-10-10T05:53:00+08:00",
+    "中心为替代时刻": false,
+    "事件": "日出",
+    "依据": "目标天文拍摄窗口，附前后一小时预报",
+    "前后小时": null,
+    "取样开始": "2026-10-10T04:00:00+08:00",
+    "取样结束": "2026-10-10T08:00:00+08:00",
+    "最多样本": 7
+  },
+  "weather_hour_samples": 5,
+  "raw_weather_hour_samples": 72,
+  "same_directory_new_process_restores_exactly": true,
+  "browser_close_and_application_rebuild": true,
+  "restore_model_weather_map_increment": 0,
+  "restore_api_writes": 0,
+  "expiry_extended": false,
+  "map_photo_followup_requery": 0,
+  "new_round_after_error": false,
+  "technical_generation_storage_restore": "通过",
+  "cleanup": "原结果落盘后RuntimeError；本机keepalive复现Event loop is closed；未修复",
+  "model_advice_limits": [
+    "三脚架尚未确认；长曝方案依赖其可用",
+    "04:32拍摄备选与04:00出发/60分钟通勤冲突",
+    "03:36达到六小时有效期，早于04:20出发；原结果不能冒充出发时实时天气",
+    "遮挡、开放、朝向和实际天气须本人判断"
+  ],
+  "field_effectiveness": "待本人拍摄和判读，U4未全部完成"
+}

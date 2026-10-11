@@ -91,7 +91,9 @@ async def test_web_cli_eval_share_production_scope(tmp_path: Path, capsys: Any) 
     app = create_app(ApiDeps(services, SessionManager(tmp_path)))
     app.dependency_overrides[get_request_context] = lambda: context
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://localhost"
+        ) as client:
             response = await client.post("/api/decide", json={"request": _REQUEST})
         assert response.status_code == 200
         card = next(event["card"] for event in _events(response.text) if event["type"] == "card")
@@ -100,16 +102,26 @@ async def test_web_cli_eval_share_production_scope(tmp_path: Path, capsys: Any) 
             cli_main, ["--pipeline", _REQUEST], services=services, request_context=context
         )
         assert cli_status == 0
-        assert _CARD["conclusion"] in capsys.readouterr().out
+        assert card["conclusion"] in capsys.readouterr().out
 
-        case = {"id": "same-input", "group": "same", "request": _REQUEST, "expect": {}}
+        case = {
+            "id": "same-input",
+            "group": "same",
+            "request": _REQUEST,
+            "expect": {"allow_degraded": True},
+            "request_context": {
+                "user_id": context.user_id,
+                "requested_at": context.requested_at.isoformat(),
+                "tz_offset": context.tz_offset,
+            },
+        }
         cassette = {"same": {"request_context": {"user_id": context.user_id}}}
         eval_card, tools, problems = await asyncio.to_thread(
             _run_pipeline_case, case, cassette, services=services
         )
         assert problems == []
         assert tools
-        assert card == eval_card.model_dump(mode="json")
+        assert card == eval_card.model_dump(mode="json", exclude_none=True)
 
         scope = services.create_scope(context)
         assert scope.tool_context.request is context
@@ -138,7 +150,9 @@ async def test_web_request_identity_isolated_and_knowledge_available(tmp_path: P
     services.memory.update_profile(south, {"camera_body": "南方相机"})
     app = create_app(ApiDeps(services, SessionManager(tmp_path)))
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://localhost"
+        ) as client:
             app.dependency_overrides[get_request_context] = lambda: north
             first = await client.post("/api/chat", json={"message": "卷云冰晶"})
             assert first.status_code == 200

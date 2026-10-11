@@ -1,0 +1,42 @@
+{
+  "checked_at": "2026-10-11T21:53+08:00",
+  "batch": "U5_design_only",
+  "production_implemented": false,
+  "baseline_hashed_files": 3763,
+  "protected_source_tests_frontend_data_and_evidence_files": 3350,
+  "protected_files_unchanged": true,
+  "changed_existing_files": [
+    "AGENTS.md",
+    "docs/AGENT-ROADMAP.md",
+    "docs/HANDOFF.md",
+    "docs/devlog.md"
+  ],
+  "added_public_files": [
+    "docs/audit/2026-10-11/u5-design-review-checks.json",
+    "docs/design/U5-MINIMAL-FEEDBACK.md"
+  ],
+  "unexpected_changes": [],
+  "local_document_links_checked": 66,
+  "broken_links": [],
+  "parseable_json_examples": 6,
+  "example_semantics_checked": [
+    "not_went_and_not_observed_have_null_result_and_unknown_reason",
+    "feedback_revision_survives_withdrawal",
+    "not_seen_does_not_claim_complete_planned_window",
+    "candidate_and_confirmation_are_separate",
+    "withdrawal_clears_payload_and_experience",
+    "U5_1_to_5_design_and_roadmap_match"
+  ],
+  "branch": "main",
+  "head": "4b04b81",
+  "initial_status_records": 180,
+  "final_status_records": 181,
+  "staged_files": 0,
+  "product_tests_run": false,
+  "real_supplier_requests": 0,
+  "old_round_replayed": false,
+  "u4_complete": false,
+  "u6_started": false,
+  "committed": false,
+  "published": false
+}

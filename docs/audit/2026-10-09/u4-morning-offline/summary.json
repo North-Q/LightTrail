@@ -1,0 +1,30 @@
+{
+  "synthetic_only": true,
+  "real_business_requests": 0,
+  "requested_event": "2026-10-10 日出前蓝调至日出后",
+  "routed_subject": "蓝调",
+  "routed_mode": "inspiration",
+  "synthesis_event": "日落",
+  "synthesis_hours": [
+    "2026-10-10T15:00:00+08:00",
+    "2026-10-10T16:00:00+08:00",
+    "2026-10-10T17:00:00+08:00",
+    "2026-10-10T18:00:00+08:00",
+    "2026-10-10T19:00:00+08:00",
+    "2026-10-10T20:00:00+08:00"
+  ],
+  "card_data_status": "ready",
+  "card_verdict": "go",
+  "fake_http_attempts": {
+    "weather": 2,
+    "model": 1
+  },
+  "map_attempts": 0,
+  "restoration_http_attempts": 0,
+  "same_directory_new_application_restores_exact_snapshot": true,
+  "output_limit": 4096,
+  "LLM_CONCURRENCY": 1,
+  "protected_files": 568,
+  "protected_files_unchanged": true,
+  "real_acceptance": "blocked_before_send: morning request selects sunset evidence"
+}

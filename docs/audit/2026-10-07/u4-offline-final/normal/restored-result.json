@@ -1,0 +1,1196 @@
+{
+  "session_id": "3d01b02a9d4b409f85355546696c26b5",
+  "result_id": "265e76330ba547c4ae3dc9440041b279",
+  "version": 1,
+  "kind": "decision",
+  "created_at": "2026-10-07T07:24:27.820+00:00",
+  "parent_result_id": "",
+  "request": {
+    "request": "今晚火烧云是否值得去"
+  },
+  "text": "## 拍摄方案（决策卡片）\n- 结论：合成西岸窗口可观察；先核对通勤和现场遮挡，再决定是否专程出门。\n- 时间窗口：2026-10-07 17:00–18:00（+08:00），合成建议\n- 置信度：medium\n- 推荐机位：U4合成西岸（唯一合成收藏）\n- 参数建议：器材=S5M2 + 24-105mm F4（合成演练）\n- 依据：weather_forecast/每日预报 [置信度 medium]；sun_times/日落 [置信度 high]；sunset_glow_score/评分（0-100） [置信度 medium]；user_profile/器材 [置信度 medium]\n- 备选：若无法及时到场，改为附近观察；没有路线查询",
+  "card": {
+    "conclusion": "合成西岸窗口可观察；先核对通勤和现场遮挡，再决定是否专程出门。",
+    "evidence": [
+      {
+        "tool": "weather_forecast",
+        "field": "每日预报",
+        "confidence": "medium",
+        "note": "[{\"日期\": \"2026-10-07\", \"平均云量（%）\": 50, \"云量范围（%）\": \"50-50\", \"最低能见度（km）\": 20.0, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 12, \"傍晚云量序列\": [{\"时间\": \"16:00\", \"云量（%）\": 50, \"高云（%）\": 30, \"能见度（km）\": 20.0}, {\"时间\": \"17:00\", \"云量（%）\": 50, \"高云（%）\": 30, \"能见度（km）\": 20.0}, {\"时间\": \"18:00\", \"云量（%）\": 50, \"高云（%）\": 30, \"能见度（km）\": 20.0}, {\"时间\": \"19:00\", \"云量（%）\": 50, \"高云（%）\": 30, \"能见度（km）\": 20.0}]}, {\"日期\": \"2026-10-08\", \"平均云量（%）\": 50, \"云量范围（%）\": \"50-50\", \"最低能见度（km）\": 20.0, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 12, \"傍晚云量序列\": [{\"时间\": \"16:00\", \"云量（%）\": 50, \"高云（%）\": 30, \"能见度（km）\": 20.0}, {\"时间\": \"17:00\", \"云量（%）\": 50, \"高云（%）\": 30, \"能见度（km）\": 20.0}, {\"时间\": \"18:00\", \"云量（%）\": 50, \"高云（%）\": 30, \"能见度（km）\": 20.0}, {\"时间\": \"19:00\", \"云量（%）\": 50, \"高云（%）"
+      },
+      {
+        "tool": "sun_times",
+        "field": "日落",
+        "confidence": "high",
+        "note": "\"17:34\""
+      },
+      {
+        "tool": "sunset_glow_score",
+        "field": "评分（0-100）",
+        "confidence": "medium",
+        "note": "100"
+      },
+      {
+        "tool": "user_profile",
+        "field": "器材",
+        "confidence": "medium",
+        "note": "松下 S5M2"
+      }
+    ],
+    "confidence": "medium",
+    "verdict": "go",
+    "confidence_detail": null,
+    "time_window": "2026-10-07 17:00–18:00（+08:00），合成建议",
+    "window_start": "2026-10-07T17:00:00+08:00",
+    "window_end": "2026-10-07T18:00:00+08:00",
+    "locations": [
+      {
+        "name": "U4合成西岸",
+        "reason": "唯一合成收藏"
+      }
+    ],
+    "params": [
+      {
+        "name": "器材",
+        "value": "S5M2 + 24-105mm F4",
+        "reason": "合成演练"
+      }
+    ],
+    "alternatives": [
+      "若无法及时到场，改为附近观察；没有路线查询"
+    ],
+    "degraded": "",
+    "target_date": "2026-10-07",
+    "subject_type": "火烧云",
+    "data_status": "ready",
+    "missing_data": [],
+    "evaluated_at": "2026-10-07T08:00:00+00:00",
+    "updated_at": "2026-10-07T08:00:00+00:00",
+    "valid_until": "2026-10-07T17:34:00+08:00",
+    "tz_offset": "+08:00"
+  },
+  "plan": null,
+  "history": [
+    {
+      "role": "user",
+      "content": "今晚火烧云是否值得去"
+    },
+    {
+      "role": "assistant",
+      "content": "## 拍摄方案（决策卡片）\n- 结论：合成西岸窗口可观察；先核对通勤和现场遮挡，再决定是否专程出门。\n- 时间窗口：2026-10-07 17:00–18:00（+08:00），合成建议\n- 置信度：medium\n- 推荐机位：U4合成西岸（唯一合成收藏）\n- 参数建议：器材=S5M2 + 24-105mm F4（合成演练）\n- 依据：weather_forecast/每日预报 [置信度 medium]；sun_times/日落 [置信度 high]；sunset_glow_score/评分（0-100） [置信度 medium]；user_profile/器材 [置信度 medium]\n- 备选：若无法及时到场，改为附近观察；没有路线查询"
+    }
+  ],
+  "pipeline": {
+    "user_request": "今晚火烧云是否值得去",
+    "intent": {
+      "subject_type": "火烧云",
+      "location": "",
+      "time_hint": "今晚",
+      "mode": "live"
+    },
+    "data": {
+      "sun_times": {
+        "日期": "2026-10-07",
+        "时区": "+08:00",
+        "事件状态": {
+          "日出": {
+            "状态": "可用"
+          },
+          "日落": {
+            "状态": "可用"
+          },
+          "正午": {
+            "状态": "可用"
+          },
+          "民用晨光始": {
+            "状态": "可用"
+          },
+          "民用昏影终": {
+            "状态": "可用"
+          },
+          "航海晨光始": {
+            "状态": "可用"
+          },
+          "航海昏影终": {
+            "状态": "可用"
+          },
+          "天文晨光始": {
+            "状态": "可用"
+          },
+          "天文昏影终": {
+            "状态": "可用"
+          },
+          "日出方位（度）": {
+            "状态": "可用"
+          },
+          "日落方位（度）": {
+            "状态": "可用"
+          },
+          "黄金时刻": {
+            "状态": "可用"
+          },
+          "蓝调时刻": {
+            "状态": "可用"
+          }
+        },
+        "日出": "05:53",
+        "日落": "17:34",
+        "正午": "11:43",
+        "民用晨光始": "05:28",
+        "民用昏影终": "17:58",
+        "航海晨光始": "05:00",
+        "航海昏影终": "18:26",
+        "天文晨光始": "04:32",
+        "天文昏影终": "18:54",
+        "日出方位（度）": 95.8,
+        "日出_iso": "2026-10-07T05:53+08:00",
+        "日落方位（度）": 264.0,
+        "日落_iso": "2026-10-07T17:34+08:00",
+        "昼长（时分）": "11小时40分",
+        "黄金时刻（晨）": [
+          {
+            "开始": "05:40",
+            "结束": "06:25",
+            "开始_iso": "2026-10-07T05:40+08:00",
+            "结束_iso": "2026-10-07T06:25+08:00"
+          }
+        ],
+        "黄金时刻（暮）": [
+          {
+            "开始": "17:05",
+            "结束": "17:50",
+            "开始_iso": "2026-10-07T17:05+08:00",
+            "结束_iso": "2026-10-07T17:50+08:00"
+          }
+        ],
+        "蓝调时刻（晨）": [
+          {
+            "开始": "05:30",
+            "结束": "05:40",
+            "开始_iso": "2026-10-07T05:30+08:00",
+            "结束_iso": "2026-10-07T05:40+08:00"
+          }
+        ],
+        "蓝调时刻（暮）": [
+          {
+            "开始": "17:50",
+            "结束": "18:00",
+            "开始_iso": "2026-10-07T17:50+08:00",
+            "结束_iso": "2026-10-07T18:00+08:00"
+          }
+        ],
+        "提示": "每个事件独立计算；null 须结合事件状态区分不存在与计算失败。蓝调/黄金窗口按太阳高度角阈值采样 5 分钟估算，非精确边界；晨/暮沿用当日第一个/第二个连续窗口，高纬单窗口不保证对应日出/日落。时区为固定偏移，不自动处理夏令时。"
+      },
+      "sunset_glow_score": {
+        "位置": "31.0,121.0",
+        "时区": "+08:00",
+        "获取时间": "2026-10-07T08:00:00+00:00",
+        "有效开始时间": "2026-10-07T08:00:00+08:00",
+        "有效结束时间": "2026-10-14T08:00:00+08:00",
+        "数据来源": "Open-Meteo",
+        "日期": "2026-10-07",
+        "日落时间": "17:34",
+        "目标时刻": "2026-10-07T17:34:00+08:00",
+        "评分（0-100）": 100,
+        "等级": "高（值得赌一把）",
+        "置信度": "高",
+        "缺失字段": [],
+        "窗口样本数": 5,
+        "依据": [
+          "云量（%）：50.0",
+          "高云（%）：30.0",
+          "能见度（km）：20.0",
+          "降水概率（%）：10",
+          "风速（km/h）：12"
+        ],
+        "说明": "摄影启发式评分，未经概率校准；缺失分量不加分，数据不足须补齐后重查。"
+      },
+      "weather_forecast": {
+        "位置": "31.0,121.0",
+        "时区": "+08:00",
+        "获取时间": "2026-10-07T08:00:00+00:00",
+        "有效开始时间": "2026-10-07T08:00:00+08:00",
+        "有效结束时间": "2026-10-10T08:00:00+08:00",
+        "数据来源": "Open-Meteo",
+        "预报天数": 4,
+        "每日预报": [
+          {
+            "日期": "2026-10-07",
+            "平均云量（%）": 50,
+            "云量范围（%）": "50-50",
+            "最低能见度（km）": 20.0,
+            "最高降水概率（%）": 10,
+            "最大风速（km/h）": 12,
+            "傍晚云量序列": [
+              {
+                "时间": "16:00",
+                "云量（%）": 50,
+                "高云（%）": 30,
+                "能见度（km）": 20.0
+              },
+              {
+                "时间": "17:00",
+                "云量（%）": 50,
+                "高云（%）": 30,
+                "能见度（km）": 20.0
+              },
+              {
+                "时间": "18:00",
+                "云量（%）": 50,
+                "高云（%）": 30,
+                "能见度（km）": 20.0
+              },
+              {
+                "时间": "19:00",
+                "云量（%）": 50,
+                "高云（%）": 30,
+                "能见度（km）": 20.0
+              }
+            ]
+          },
+          {
+            "日期": "2026-10-08",
+            "平均云量（%）": 50,
+            "云量范围（%）": "50-50",
+            "最低能见度（km）": 20.0,
+            "最高降水概率（%）": 10,
+            "最大风速（km/h）": 12,
+            "傍晚云量序列": [
+              {
+                "时间": "16:00",
+                "云量（%）": 50,
+                "高云（%）": 30,
+                "能见度（km）": 20.0
+              },
+              {
+                "时间": "17:00",
+                "云量（%）": 50,
+                "高云（%）": 30,
+                "能见度（km）": 20.0
+              },
+              {
+                "时间": "18:00",
+                "云量（%）": 50,
+                "高云（%）": 30,
+                "能见度（km）": 20.0
+              },
+              {
+                "时间": "19:00",
+                "云量（%）": 50,
+                "高云（%）": 30,
+                "能见度（km）": 20.0
+              }
+            ]
+          },
+          {
+            "日期": "2026-10-09",
+            "平均云量（%）": 50,
+            "云量范围（%）": "50-50",
+            "最低能见度（km）": 20.0,
+            "最高降水概率（%）": 10,
+            "最大风速（km/h）": 12,
+            "傍晚云量序列": [
+              {
+                "时间": "16:00",
+                "云量（%）": 50,
+                "高云（%）": 30,
+                "能见度（km）": 20.0
+              },
+              {
+                "时间": "17:00",
+                "云量（%）": 50,
+                "高云（%）": 30,
+                "能见度（km）": 20.0
+              },
+              {
+                "时间": "18:00",
+                "云量（%）": 50,
+                "高云（%）": 30,
+                "能见度（km）": 20.0
+              },
+              {
+                "时间": "19:00",
+                "云量（%）": 50,
+                "高云（%）": 30,
+                "能见度（km）": 20.0
+              }
+            ]
+          },
+          {
+            "日期": "2026-10-10",
+            "平均云量（%）": 50,
+            "云量范围（%）": "50-50",
+            "最低能见度（km）": 20.0,
+            "最高降水概率（%）": 10,
+            "最大风速（km/h）": 12,
+            "傍晚云量序列": []
+          }
+        ],
+        "逐小时预报": [
+          {
+            "时间": "2026-10-07T08:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-07T09:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-07T10:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-07T11:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-07T12:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-07T13:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-07T14:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-07T15:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-07T16:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-07T17:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-07T18:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-07T19:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-07T20:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-07T21:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-07T22:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-07T23:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T00:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T01:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T02:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T03:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T04:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T05:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T06:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T07:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T08:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T09:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T10:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T11:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T12:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T13:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T14:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T15:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T16:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T17:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T18:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T19:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T20:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T21:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T22:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-08T23:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T00:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T01:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T02:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T03:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T04:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T05:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T06:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T07:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T08:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T09:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T10:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T11:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T12:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T13:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T14:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T15:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T16:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T17:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T18:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T19:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T20:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T21:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T22:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-09T23:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-10T00:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-10T01:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-10T02:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-10T03:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-10T04:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-10T05:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-10T06:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          },
+          {
+            "时间": "2026-10-10T07:00:00+08:00",
+            "cloud_cover": 50,
+            "cloud_cover_high": 30,
+            "cloud_cover_low": 10,
+            "visibility": 20000,
+            "precipitation_probability": 10,
+            "wind_speed_10m": 12
+          }
+        ],
+        "说明": "时间按请求时区显示；缺失值保留为空；获取时间不是供应商发布时间。"
+      },
+      "目标日期": "2026-10-07",
+      "目标机位": "U4合成西岸",
+      "目标坐标": "31.0,121.0",
+      "请求题材": "火烧云",
+      "候选机位": [
+        {
+          "名称": "U4合成西岸",
+          "纬度": 31.0,
+          "经度": 121.0,
+          "题材": "火烧云",
+          "档案题材": "火烧云"
+        }
+      ],
+      "match_sites": {
+        "日期": "2026-10-07",
+        "时区": "+08:00",
+        "排序结果": [
+          {
+            "名称": "U4合成西岸",
+            "题材": "日落",
+            "匹配度": 5,
+            "关键天象": {
+              "日出": "05:53",
+              "日落": "17:34",
+              "日落方位（度）": 264.0
+            },
+            "依据": [
+              "未提供朝向，仅按当天该天象存在性评分，建议补充朝向字段",
+              "日落 17:34"
+            ]
+          }
+        ],
+        "提示": "匹配度仅依据天文条件（题材朝向 × 天象窗口）；光污染/可达性/地形遮挡需结合记忆档案与地图数据进一步判断"
+      },
+      "目标时区": "+08:00",
+      "用户器材": "松下 S5M2"
+    },
+    "scores": {
+      "火烧云评分": 100,
+      "火烧云等级": "高"
+    },
+    "card": {
+      "conclusion": "合成西岸窗口可观察；先核对通勤和现场遮挡，再决定是否专程出门。",
+      "evidence": [
+        {
+          "tool": "weather_forecast",
+          "field": "每日预报",
+          "confidence": "medium",
+          "note": "[{\"日期\": \"2026-10-07\", \"平均云量（%）\": 50, \"云量范围（%）\": \"50-50\", \"最低能见度（km）\": 20.0, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 12, \"傍晚云量序列\": [{\"时间\": \"16:00\", \"云量（%）\": 50, \"高云（%）\": 30, \"能见度（km）\": 20.0}, {\"时间\": \"17:00\", \"云量（%）\": 50, \"高云（%）\": 30, \"能见度（km）\": 20.0}, {\"时间\": \"18:00\", \"云量（%）\": 50, \"高云（%）\": 30, \"能见度（km）\": 20.0}, {\"时间\": \"19:00\", \"云量（%）\": 50, \"高云（%）\": 30, \"能见度（km）\": 20.0}]}, {\"日期\": \"2026-10-08\", \"平均云量（%）\": 50, \"云量范围（%）\": \"50-50\", \"最低能见度（km）\": 20.0, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 12, \"傍晚云量序列\": [{\"时间\": \"16:00\", \"云量（%）\": 50, \"高云（%）\": 30, \"能见度（km）\": 20.0}, {\"时间\": \"17:00\", \"云量（%）\": 50, \"高云（%）\": 30, \"能见度（km）\": 20.0}, {\"时间\": \"18:00\", \"云量（%）\": 50, \"高云（%）\": 30, \"能见度（km）\": 20.0}, {\"时间\": \"19:00\", \"云量（%）\": 50, \"高云（%）"
+        },
+        {
+          "tool": "sun_times",
+          "field": "日落",
+          "confidence": "high",
+          "note": "\"17:34\""
+        },
+        {
+          "tool": "sunset_glow_score",
+          "field": "评分（0-100）",
+          "confidence": "medium",
+          "note": "100"
+        },
+        {
+          "tool": "user_profile",
+          "field": "器材",
+          "confidence": "medium",
+          "note": "松下 S5M2"
+        }
+      ],
+      "confidence": "medium",
+      "verdict": "go",
+      "confidence_detail": null,
+      "time_window": "2026-10-07 17:00–18:00（+08:00），合成建议",
+      "window_start": "2026-10-07T17:00:00+08:00",
+      "window_end": "2026-10-07T18:00:00+08:00",
+      "locations": [
+        {
+          "name": "U4合成西岸",
+          "reason": "唯一合成收藏"
+        }
+      ],
+      "params": [
+        {
+          "name": "器材",
+          "value": "S5M2 + 24-105mm F4",
+          "reason": "合成演练"
+        }
+      ],
+      "alternatives": [
+        "若无法及时到场，改为附近观察；没有路线查询"
+      ],
+      "degraded": "",
+      "target_date": "2026-10-07",
+      "subject_type": "火烧云",
+      "data_status": "ready",
+      "missing_data": [],
+      "evaluated_at": "2026-10-07T08:00:00+00:00",
+      "updated_at": "2026-10-07T08:00:00+00:00",
+      "valid_until": "2026-10-07T17:34:00+08:00",
+      "tz_offset": "+08:00"
+    }
+  },
+  "trace": {
+    "llm_calls": [
+      {
+        "模型": "ecnu-max",
+        "prompt_summary": "消息数 2（pydantic-ai 桥）",
+        "耗时_秒": 0.05292779998853803,
+        "tokens": 12000,
+        "输入_tokens": 10000,
+        "输出_tokens": 2000
+      }
+    ],
+    "tool_calls": [
+      {
+        "name": "sun_times",
+        "arguments_summary": "{\"latitude\": 31.0, \"longitude\": 121.0, \"date\": \"2026-10-07\", \"tz_offset\": \"+08:00\"}",
+        "result_summary": "日期: 2026-10-07，时区: +08:00，事件状态: {\"日出\": {\"状态\": \"可用\"}, \"日落\": {\"状态\": \"可用\"}, \"正午\": {\"状态\": \"可用\"}…，日出: 05:53，日落: 17:34，正午: 11:43，民用晨光始: 05:28，民用昏影终: 17:58，航海晨光始: 05:00，航海昏影终: 18:26，天文晨光始: 04:32，天文昏影终: 18:54，日出方位（度）: 95.8，日出_iso: 2026-10-07T05:53+08:00，日落方位（度）: 264.0，日落_iso: 2026-10-07T17:34+08:00，昼长（时分）:…",
+        "data_source": "",
+        "confidence": "high",
+        "field": "太阳时刻",
+        "elapsed_ms": 5.609800020465627
+      },
+      {
+        "name": "sunset_glow_score",
+        "arguments_summary": "{\"latitude\": 31.0, \"longitude\": 121.0, \"date\": \"2026-10-07\", \"tz_offset\": \"+08:00\"}",
+        "result_summary": "位置: 31.0,121.0，时区: +08:00，获取时间: 2026-10-07T08:00:00+00:00，有效开始时间: 2026-10-07T08:00:00+08:00，有效结束时间: 2026-10-14T08:00:00+08:00，数据来源: Open-Meteo，日期: 2026-10-07，日落时间: 17:34，目标时刻: 2026-10-07T17:34:00+08:00，评分（0-100）: 100，等级: 高（值得赌一把），置信度: 高，缺失字段: []，窗口样本数: 5，依据: [\"云量（%）：50.0\", \"高云（%）：30.0\", \"能见度（km）：20…",
+        "data_source": "Open-Meteo",
+        "confidence": "medium",
+        "field": "评分",
+        "elapsed_ms": 9.825799992540851
+      },
+      {
+        "name": "weather_forecast",
+        "arguments_summary": "{\"latitude\": 31.0, \"longitude\": 121.0, \"days\": 3, \"tz_offset\": \"+08:00\"}",
+        "result_summary": "位置: 31.0,121.0，时区: +08:00，获取时间: 2026-10-07T08:00:00+00:00，有效开始时间: 2026-10-07T08:00:00+08:00，有效结束时间: 2026-10-10T08:00:00+08:00，数据来源: Open-Meteo，预报天数: 4，每日预报: [{\"日期\": \"2026-10-07\", \"平均云量（%）\": 50, \"云量范围（%）\": \"50-50\", \"最…，逐小时预报: [{\"时间\": \"2026-10-07T08:00:00+08:00\", \"cloud_cover\": 50, \"cl…，说明: 时间按请求时区显示…",
+        "data_source": "Open-Meteo",
+        "confidence": "low",
+        "field": "每日预报",
+        "elapsed_ms": 7.04660001792945
+      },
+      {
+        "name": "match_sites",
+        "arguments_summary": "{\"sites\": [{\"名称\": \"U4合成西岸\", \"纬度\": 31.0, \"经度\": 121.0, \"题材\": \"日落\"}], \"date\": \"2026-10-07\", \"tz_offset\": \"+08:00\"}",
+        "result_summary": "日期: 2026-10-07，时区: +08:00，排序结果: [{\"名称\": \"U4合成西岸\", \"题材\": \"日落\", \"匹配度\": 5, \"关键天象\": {\"日出\": \"05:…，提示: 匹配度仅依据天文条件（题材朝向 × 天象窗口）；光污染/可达性/地形遮挡需结合记忆档案与地图数据进一步判断",
+        "data_source": "",
+        "confidence": "medium",
+        "field": "匹配结果",
+        "elapsed_ms": 5.5127000086940825
+      }
+    ],
+    "steps": [
+      {
+        "name": "意图路由_规则",
+        "input_summary": "今晚火烧云是否值得去",
+        "output_summary": "规则关键词命中：live/火烧云"
+      },
+      {
+        "name": "管线_live",
+        "input_summary": "今晚火烧云是否值得去",
+        "output_summary": "启动"
+      },
+      {
+        "name": "采集_sun_times",
+        "input_summary": "{\"latitude\": 31.0, \"longitude\": 121.0, \"date\": \"2026-10-07\", \"tz_offset\": \"+08:0",
+        "output_summary": ""
+      },
+      {
+        "name": "采集_sunset_glow_score",
+        "input_summary": "{\"latitude\": 31.0, \"longitude\": 121.0, \"date\": \"2026-10-07\", \"tz_offset\": \"+08:0",
+        "output_summary": ""
+      },
+      {
+        "name": "采集_weather_forecast",
+        "input_summary": "{\"latitude\": 31.0, \"longitude\": 121.0, \"days\": 3, \"tz_offset\": \"+08:00\"}",
+        "output_summary": ""
+      },
+      {
+        "name": "机位匹配",
+        "input_summary": "{\"sites\": [{\"名称\": \"U4合成西岸\", \"纬度\": 31.0, \"经度\": 121.0, \"题材\": \"日落\"}], \"date\": \"2026",
+        "output_summary": ""
+      },
+      {
+        "name": "记忆_注入",
+        "input_summary": "",
+        "output_summary": "users/_local/memory/：profile"
+      }
+    ],
+    "sources": [
+      {
+        "tool": "sun_times",
+        "field": "太阳时刻",
+        "confidence": "high",
+        "data_source": ""
+      },
+      {
+        "tool": "sunset_glow_score",
+        "field": "评分",
+        "confidence": "medium",
+        "data_source": "Open-Meteo"
+      },
+      {
+        "tool": "weather_forecast",
+        "field": "每日预报",
+        "confidence": "low",
+        "data_source": "Open-Meteo"
+      },
+      {
+        "tool": "match_sites",
+        "field": "匹配结果",
+        "confidence": "medium",
+        "data_source": ""
+      }
+    ]
+  }
+}

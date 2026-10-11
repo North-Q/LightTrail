@@ -93,6 +93,10 @@ _SPEC_MATCH_SITES = ToolSpec(
                             "type": "string",
                             "description": "拍摄题材：日出/日落/蓝调/黄金/银河/星空/夜景",
                         },
+                        "事件": {
+                            "type": "string",
+                            "description": "明确晨暮：sunrise日出、sunset日落、ambiguous未知；如晨间蓝调填sunrise",
+                        },
                         "朝向": {
                             "type": "string",
                             "description": "机位视线朝向（方位词或度），如 西南 或 225；不填则只评分不扣朝向分",
@@ -161,7 +165,14 @@ def match_sites(sites: list[dict[str, Any]], date: str, tz_offset: str = "+08:00
             )
         else:
             entry = _evaluate_sun_site(
-                name, latitude, longitude, theme, site.get("朝向"), day.isoformat(), tz_offset
+                name,
+                latitude,
+                longitude,
+                theme,
+                site.get("朝向"),
+                day.isoformat(),
+                tz_offset,
+                solar_event=str(site.get("事件", "")),
             )
         ranked.append(entry)
 
@@ -198,17 +209,42 @@ def _window_total_hours(windows: list[dict]) -> float:
 
 
 def _evaluate_sun_site(
-    name: str, latitude: float, longitude: float, theme: str, facing: Any, date: str, tz_offset: str
+    name: str,
+    latitude: float,
+    longitude: float,
+    theme: str,
+    facing: Any,
+    date: str,
+    tz_offset: str,
+    solar_event: str = "",
 ) -> dict:
     """评估日出/日落/蓝调/黄金题材机位：按目标天象方位与拍摄朝向的偏差评分。"""
     st = sun_times(latitude, longitude, date, tz_offset)
     if "error" in st:
         return {"名称": name, "题材": theme, "匹配度": None, "依据": [st["error"]]}
 
-    is_morning = theme == "日出"
-    target_azimuth = float(st["日出方位（度）"] if is_morning else st["日落方位（度）"])
+    if solar_event == "ambiguous" or (theme == "蓝调" and not solar_event):
+        return {
+            "名称": name,
+            "题材": theme,
+            "匹配度": None,
+            "依据": ["晨暮事件未明确，不能默认日落"],
+        }
+    is_morning = solar_event == "sunrise" or (not solar_event and theme == "日出")
     event_label = "日出" if is_morning else "日落"
     event_time = st["日出"] if is_morning else st["日落"]
+    azimuth = st["日出方位（度）"] if is_morning else st["日落方位（度）"]
+    if event_time is None or azimuth is None:
+        status = st.get("事件状态", {}).get(event_label, {})
+        return {
+            "名称": name,
+            "题材": theme,
+            "匹配度": None,
+            "依据": [
+                f"{event_label}不可用：{status.get('状态', '缺少数据')}；{status.get('原因', '')}"
+            ],
+        }
+    target_azimuth = float(azimuth)
     preferred = _resolve_azimuth(facing)
 
     if preferred is None:
@@ -227,14 +263,16 @@ def _evaluate_sun_site(
         ]
 
     window_note = ""
+    period = "晨" if is_morning else "暮"
+    period_note = "晨间" if is_morning else "傍晚"
     if theme == "蓝调":
-        evening_blue = st.get("蓝调时刻（暮）")
-        if evening_blue:
-            window_note = f"，傍晚蓝调 {evening_blue[0]['开始']}-{evening_blue[0]['结束']}"
+        blue = st.get(f"蓝调时刻（{period}）")
+        if blue:
+            window_note = f"，{period_note}蓝调 {blue[0]['开始']}-{blue[0]['结束']}"
     elif theme == "黄金":
-        evening_golden = st.get("黄金时刻（暮）")
-        if evening_golden:
-            window_note = f"，傍晚黄金 {evening_golden[0]['开始']}-{evening_golden[0]['结束']}"
+        golden = st.get(f"黄金时刻（{period}）")
+        if golden:
+            window_note = f"，{period_note}黄金 {golden[0]['开始']}-{golden[0]['结束']}"
     reasons.append(f"{event_label} {event_time}{window_note}")
 
     return {
@@ -244,6 +282,8 @@ def _evaluate_sun_site(
         "关键天象": {
             "日出": st["日出"],
             "日落": st["日落"],
+            "目标事件": event_label,
+            "日出方位（度）": st["日出方位（度）"],
             "日落方位（度）": st["日落方位（度）"],
         },
         "依据": reasons,
@@ -276,12 +316,14 @@ def _evaluate_galaxy_site(
             f"银心可见约 {total_hours:.1f} 小时，最高高度角 {galaxy.get('整夜最高高度角（度）')}°"
         )
 
-    moon_percent = moon.get("照亮比例（%）", 50) or 50
+    moon_percent = moon.get("照亮比例（%）")
+    if not isinstance(moon_percent, (int, float)):
+        return {"名称": name, "题材": theme, "匹配度": None, "依据": ["缺少月相估算数据"]}
     if moon_percent >= 40:
         score = max(0, score - 1)
-        reasons.append(f"月光干扰明显（照亮 {moon_percent}%），银河对比度受影响")
+        reasons.append(f"月光：估算照亮 {moon_percent}%，可能影响银河对比度；还需判断月亮高度")
     else:
-        reasons.append(f"月光干扰小（照亮 {moon_percent}%）")
+        reasons.append(f"月光：估算照亮 {moon_percent}%，月相干扰较小；还需判断月亮高度")
 
     window_desc = "；".join(f"{w['开始']}-{w['结束']}" for w in windows) or "无"
     return {

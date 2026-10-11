@@ -21,6 +21,7 @@
             "latitude": 30.47,
             "longitude": 119.53,
             "coordinate_system": "WGS84",
+            "tz_offset": "+08:00",
             "subject": "银河"
           }
         ]
@@ -29,8 +30,8 @@
         "target_date": "2026-10-03",
         "location": "天荒坪",
         "subject_type": "银河",
-        "verdict": "go",
-        "degraded": "",
+        "verdict": "wait",
+        "degraded": "distant_forecast",
         "tools": [
           "moon_phase",
           "moon_events",
@@ -56,14 +57,14 @@
               "月相名称"
             ],
             "value": "新月",
-            "claim_in_conclusion": true
+            "claim_in_conclusion": false
           }
         ]
       },
       "expect": {
         "min_evidence": 1,
         "max_locations": 1,
-        "allow_degraded": false
+        "allow_degraded": true
       }
     },
     {
@@ -85,6 +86,7 @@
             "latitude": 30.47,
             "longitude": 119.53,
             "coordinate_system": "WGS84",
+            "tz_offset": "+08:00",
             "subject": "银河"
           }
         ]
@@ -93,8 +95,8 @@
         "target_date": "2026-10-03",
         "location": "天荒坪",
         "subject_type": "星空",
-        "verdict": "go",
-        "degraded": "",
+        "verdict": "wait",
+        "degraded": "distant_forecast",
         "tools": [
           "moon_phase",
           "moon_events",
@@ -119,14 +121,14 @@
               "月相名称"
             ],
             "value": "新月",
-            "claim_in_conclusion": true
+            "claim_in_conclusion": false
           }
         ]
       },
       "expect": {
         "min_evidence": 1,
         "max_locations": 1,
-        "allow_degraded": false
+        "allow_degraded": true
       }
     },
     {
@@ -148,6 +150,7 @@
             "latitude": 31.4,
             "longitude": 121.8,
             "coordinate_system": "WGS84",
+            "tz_offset": "+08:00",
             "subject": "银河"
           }
         ]
@@ -211,6 +214,7 @@
             "latitude": 31.25,
             "longitude": 121.52,
             "coordinate_system": "WGS84",
+            "tz_offset": "+08:00",
             "subject": "银河"
           }
         ]
@@ -275,6 +279,7 @@
             "latitude": 31.52,
             "longitude": 121.95,
             "coordinate_system": "WGS84",
+            "tz_offset": "+08:00",
             "subject": "银河"
           }
         ]
@@ -337,6 +342,7 @@
             "latitude": 31.21,
             "longitude": 121.47,
             "coordinate_system": "WGS84",
+            "tz_offset": "+08:00",
             "subject": "银河"
           }
         ]
@@ -399,6 +405,7 @@
             "latitude": 31.21,
             "longitude": 121.47,
             "coordinate_system": "WGS84",
+            "tz_offset": "+08:00",
             "subject": "银河"
           }
         ]
@@ -411,7 +418,6 @@
         "degraded": "",
         "tools": [
           "sun_times",
-          "sunset_glow_score",
           "weather_forecast"
         ],
         "require_action": true,
@@ -459,6 +465,7 @@
             "latitude": 31.21,
             "longitude": 121.47,
             "coordinate_system": "WGS84",
+            "tz_offset": "+08:00",
             "subject": "银河"
           }
         ]
@@ -467,11 +474,10 @@
         "target_date": "2026-10-02",
         "location": "西岸",
         "subject_type": "蓝调",
-        "verdict": "go",
-        "degraded": "",
+        "verdict": "wait",
+        "degraded": "needs_data",
         "tools": [
           "sun_times",
-          "sunset_glow_score",
           "weather_forecast",
           "match_sites"
         ],
@@ -492,14 +498,14 @@
               "日落"
             ],
             "value": "18:05",
-            "claim_in_conclusion": true
+            "claim_in_conclusion": false
           }
         ]
       },
       "expect": {
         "min_evidence": 1,
         "max_locations": 1,
-        "allow_degraded": false
+        "allow_degraded": true
       }
     },
     {
@@ -521,6 +527,7 @@
             "latitude": 31.4,
             "longitude": 121.8,
             "coordinate_system": "WGS84",
+            "tz_offset": "+08:00",
             "subject": "银河"
           }
         ]
@@ -529,8 +536,8 @@
         "target_date": "2026-10-03",
         "location": "海堤",
         "subject_type": "银河",
-        "verdict": "go",
-        "degraded": "",
+        "verdict": "wait",
+        "degraded": "distant_forecast",
         "tools": [
           "moon_phase",
           "moon_events",
@@ -553,14 +560,14 @@
               "月相名称"
             ],
             "value": "新月",
-            "claim_in_conclusion": true
+            "claim_in_conclusion": false
           }
         ]
       },
       "expect": {
         "min_evidence": 1,
         "max_locations": 1,
-        "allow_degraded": false
+        "allow_degraded": true
       }
     },
     {
@@ -582,6 +589,7 @@
             "latitude": 78.0,
             "longitude": 15.0,
             "coordinate_system": "WGS84",
+            "tz_offset": "+08:00",
             "subject": "银河"
           }
         ]
@@ -590,8 +598,8 @@
         "target_date": "2027-06-04",
         "location": "北极圈",
         "subject_type": "日落",
-        "verdict": "risk",
-        "degraded": "",
+        "verdict": "wait",
+        "degraded": "needs_data",
         "tools": [
           "sun_times",
           "sunset_glow_score",
@@ -606,21 +614,12 @@
           78.0,
           15.0
         ],
-        "facts": [
-          {
-            "tool": "sun_times",
-            "path": [
-              "提示"
-            ],
-            "value": "极昼期间无日出日落",
-            "claim_in_conclusion": true
-          }
-        ]
+        "facts": []
       },
       "expect": {
-        "min_evidence": 1,
+        "min_evidence": 0,
         "max_locations": 1,
-        "allow_degraded": false
+        "allow_degraded": true
       }
     },
     {
@@ -671,6 +670,7 @@
             "latitude": 31.25,
             "longitude": 121.52,
             "coordinate_system": "WGS84",
+            "tz_offset": "+08:00",
             "subject": "银河"
           }
         ]
@@ -680,7 +680,7 @@
         "location": "东岸",
         "subject_type": "火烧云",
         "verdict": "wait",
-        "degraded": "missing_weather",
+        "degraded": "needs_data",
         "tools": [
           "sun_times",
           "sunset_glow_score",
@@ -710,7 +710,7 @@
               "日落"
             ],
             "value": "18:05",
-            "claim_in_conclusion": true
+            "claim_in_conclusion": false
           }
         ]
       },

@@ -1,0 +1,13 @@
+{
+  "source": "u4-offline-final/normal/supplier-requests.json",
+  "collection_fragment_chars": 3000,
+  "collection_fragment_valid_json": false,
+  "fragment_end": "0.0}, {\"时间\": \"17:00\", \"云量（%）\": 50, \"高云（%）\": 30, \"能见度（km）\": 20.0}, {\"时间\": \"18:00\", \"云量（%）\": 50, \"高云（%）\": 30, \"能见度（km）\": 20.0}, {\"时间\": \"19:00\", \"云量（%）\": 50, \"高云（%）\": 30, \"能见度（km）\": 20.0}]}, {\"",
+  "user_prompt_chars": 3899,
+  "system_prompt_chars": 3155,
+  "production_changed": false,
+  "qualified_with_full_pipeline_data": true,
+  "quality_requires_real_model_judgment": true,
+  "output_token_limit_fields_sent": [],
+  "state": "reported_not_fixed"
+}

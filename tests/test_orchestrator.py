@@ -12,13 +12,16 @@ from __future__ import annotations
 
 import json
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
+from evals.fake_data import FakeDispatcher
 from lighttrail.adapters.llm.provider import ChatClientProvider
 from lighttrail.adapters.llm.pydantic_bridge import LightTrailModel
 from lighttrail.composition import build_registry
+from lighttrail.contracts.context import RequestContext
 from lighttrail.contracts.models import DecisionCard, Intent
 from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.trace import TraceRecorder
@@ -123,31 +126,18 @@ _CARD_JSON = json.dumps(
 )
 
 
+_TEST_TIME = datetime(2026, 10, 6, 8, tzinfo=timezone.utc)
+_DISPATCHER = FakeDispatcher(now=_TEST_TIME)
+
+
 def _fake_dispatch(name: str, args: str) -> str:
-    """Fake 数据源：按工具名回罐装 JSON（不触网）。"""
-    data = {
-        "moon_phase": {"月相名称": "新月", "照亮比例（%）": 2, "月光影响建议": "低"},
-        "galaxy_visibility": {
-            "可见窗口": [{"开始": "20:10", "结束": "23:50"}],
-            "最高高度角": 55,
-            "提示": "好",
-        },
-        "weather_forecast": {
-            "每日预报": [{"日期": "2026-09-08", "平均云量（%）": 30}],
-            "数据来源": "Open-Meteo（免费）",
-        },
-        "sun_times": {"日出": "05:42", "日落": "18:06"},
-        "sunset_glow_score": {
-            "评分（0-100）": 62,
-            "等级": "中等（可看趋势再定）",
-            "数据来源": "Open-Meteo（免费）",
-        },
-    }
-    return json.dumps(data.get(name, {"error": f"未知工具 {name}"}), ensure_ascii=False)
+    """返回含资格元数据的合成天气，禁止访问外部服务。"""
+    return _DISPATCHER(name, args)
 
 
 def _make_env(recorder: TraceRecorder | None = None) -> PipelineEnv:
     return PipelineEnv(
+        request=RequestContext(requested_at=_TEST_TIME),
         dispatch=_fake_dispatch,
         reason=lambda prompt, system: _CARD_JSON,
         recorder=recorder or TraceRecorder(),
@@ -177,13 +167,13 @@ def test_inspiration_pipeline_walks_steps_and_records_trace() -> None:
     env = _make_env(recorder)
     pipeline = PIPELINES["inspiration"]
     ctx = PipelineContext(
-        user_request="这周末想去拍银河",
+        user_request="这周末想去拍银河，确认携带三脚架",
         intent=Intent(subject_type="银河", time_hint="这周末"),
     )
     card = pipeline.run(ctx, env)
 
-    assert card.conclusion.startswith("周末银河可见")
-    assert card.evidence[0].tool == "galaxy_visibility"
+    assert card.target_date in card.conclusion and "远期预报" in card.conclusion
+    assert "galaxy_visibility" in {source.tool for source in card.evidence}
     assert ctx.data["moon_phase"]["月相名称"] == "新月"
     assert ctx.scores["月相"] == "新月"
     step_names = [s.name for s in recorder.to_report().steps]
@@ -260,10 +250,11 @@ def test_orchestrator_plan_full_flow() -> None:
     orc = Orchestrator(
         registry, runtime, memory=_MEMORY, recorder=recorder, dispatch=_fake_dispatch
     )
-    text = orc.plan("这周末想去拍银河")
+    orc._env.request = RequestContext(requested_at=_TEST_TIME)
+    text = orc.plan("这周末想去拍银河，确认携带三脚架")
 
     assert "## 拍摄方案" in text
-    assert "周末银河可见" in text
+    assert "远期预报" in text
     assert orc.last_card is not None
     # 规则命中不调用默认意图模型；只保留管线综合的深推理调用。
     assert len(fake.calls) == 1
@@ -317,7 +308,8 @@ def test_orchestrator_routes_compound_request_to_planner() -> None:
 
     reply = orc.plan("这是一个跨题材复合任务，请做多步骤安排")
 
-    assert "已按受控计划执行" in reply
+    assert "出发依据尚未核验" in reply
+    assert orc.last_card is not None and orc.last_card.verdict == "wait"
     assert fake.calls == []
     assert any(step.name == "意图路由_Planner" for step in recorder.to_report().steps)
 
@@ -368,8 +360,10 @@ def test_orchestrator_plan_falls_back_to_react_on_bad_card() -> None:
     )
     text = orc.plan("今晚火烧云值得冲吗")
 
-    assert text == "我建议先看云图再决定。"
-    assert any(step.name == "管线降级" for step in recorder.to_report().steps)
+    assert orc.last_card is not None
+    assert orc.last_card.verdict == "wait"
+    assert "我建议先看云图再决定。" not in text
+    assert len(fake.calls) == 3
     # 最后一次调用是 agent.run（ReAct，无 thinking）
     last_call = fake.calls[-1]
     assert last_call.get("thinking") is None
@@ -408,29 +402,36 @@ def test_card_carries_rule_based_confidence_detail() -> None:
     """卡片自动补规则推导的置信度明细（主值来自依据级别，不让模型自评）。"""
     env = _make_env()
     ctx = PipelineContext(
-        user_request="这周末想去拍银河",
+        user_request="这周末想去拍银河，确认携带三脚架",
         intent=Intent(subject_type="银河", time_hint="这周末"),
     )
     card = PIPELINES["inspiration"].run(ctx, env)
-    assert card.confidence_detail is not None
-    assert card.confidence_detail.level == "medium"
-    assert card.confidence_detail.high_count == 1  # evidence 里 galaxy_visibility 为 high
-    assert card.confidence_detail.score == 85
+    assert card.confidence_detail is None
+    assert card.data_status == "ready"
+    assert card.confidence == "low"  # 周末目标距当前固定样例超过 72 小时
+    assert {source.tool for source in card.evidence} == {
+        "weather_forecast",
+        "moon_phase",
+        "galaxy_visibility",
+        "user_constraints",
+    }
 
 
 def test_card_verdict_comes_from_structured_output() -> None:
-    """三态结论透传模型结构化字段（前端不再用中文正则猜结论）。"""
+    """近期开窗且证据齐全时保留模型行动，远期与失败另有护栏。"""
     payload = json.loads(_CARD_JSON)
+    payload["conclusion"] = "建议按窗口去测试机位拍银河。"
     payload["verdict"] = "go"
     env = PipelineEnv(
         dispatch=_fake_dispatch,
         reason=lambda prompt, system: json.dumps(payload, ensure_ascii=False),
+        request=RequestContext(requested_at=_TEST_TIME),
         recorder=TraceRecorder(),
         memory=_MEMORY,
     )
     ctx = PipelineContext(
-        user_request="这周末想去拍银河",
-        intent=Intent(subject_type="银河", time_hint="这周末"),
+        user_request="明天想去拍银河，确认携带三脚架",
+        intent=Intent(subject_type="银河", time_hint="明天"),
     )
     card = PIPELINES["inspiration"].run(ctx, env)
     assert card.verdict == "go"

@@ -1,0 +1,19 @@
+{
+  "all_passed": true,
+  "pytest": 631,
+  "pytest_seconds": 47.01,
+  "new_solar_tests": 15,
+  "smoke": 21,
+  "import_contracts": 3,
+  "L2_pipeline": 12,
+  "L2_tools": 10,
+  "real_llm_in_L2": 0,
+  "frontend_build": true,
+  "frontend_stop_tests": 8,
+  "contract_generation": true,
+  "browser_U1": true,
+  "browser_U2_1": true,
+  "browser_U2_3": true,
+  "browser_U3": true,
+  "restore_zero_external": true
+}

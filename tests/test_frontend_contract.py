@@ -87,10 +87,12 @@ def test_fabricated_data_helpers_do_not_come_back() -> None:
 
 
 def test_d3page_uses_real_card_fields() -> None:
-    """D3Page 读卡片真实字段（verdict / confidence_detail），旧常量表不回归。"""
+    """D3 读取真实行动与资格状态，未经校准的概率与区间不再展示。"""
     text = (FRONTEND_SRC / "pages" / "D3Page.tsx").read_text(encoding="utf-8")
     assert "card?.verdict" in text
-    assert "confidence_detail" in text
+    assert "decisionState" in text
+    assert "confidence_detail" not in text
+    assert "interval-scale" not in text
     offenders = [item for item in _FORBIDDEN_CONFIDENCE_RETURNS if item in text]
     assert offenders == []
 
@@ -99,8 +101,8 @@ def test_d2page_consumes_spot_plan_contract() -> None:
     """D2Page 使用结构化计划端点与展示组件，不再解析 SSE 摘要。"""
     text = (FRONTEND_SRC / "pages" / "D2Page.tsx").read_text(encoding="utf-8")
     view = (FRONTEND_SRC / "pages" / "SpotPlanView.tsx").read_text(encoding="utf-8")
-    assert "createSpotPlan(input)" in text
-    assert "<SpotPlanView plan={plan}" in text
+    assert "createSpotPlan(input, controller.signal, saved.pointer" in text
+    assert "<SpotPlanView plan={plan} frozen={historical}" in text
     assert "WINDOW_LABELS" in view
     assert "plan.evidence_refs" in view
     assert "sendDecide(" not in text

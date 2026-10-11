@@ -9,8 +9,8 @@
 - **单一实现**：真正的调用逻辑只在 `acall`（async-first）；同步 `chat` 只是「后台共享事件循环 +
   run_coroutine_threadsafe」的门面，不再逐行复制；
 - 限流只包住单次 API 往返，重试在限流之外（并发模式下多个调用各自重试互不阻塞）；
-- 容错：对限流（429）与服务器错误（5xx）做指数退避重试（最多 3 次，基础 1s + 抖动）；
-- 超时：连接 30s、读取 120s，容忍 thinking 模式下的长响应；
+- 容错：外层最多 3 次底层尝试（首次 + 2 次重试），SDK 重试关闭；退避在许可之外；
+- 超时：连接/读取配置传入 httpx.Timeout；默认 30s/120s，并非整条管线总时限；
 - 平台扩展参数（ADR-003）：thinking / reasoning_effort 由 SDK 原生参数或 extra_body 双路径承载
   （`_NATIVE_REASON_PARAMS` 运行时探测），业务代码不感知。
 
@@ -28,7 +28,8 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from openai import AsyncOpenAI, OpenAI
+import httpx
+from openai import APIError, AsyncOpenAI, OpenAI
 from openai.resources.chat.completions import Completions as _OpenAICompletions
 from tenacity import (
     AsyncRetrying,
@@ -40,15 +41,28 @@ from tenacity import (
 )
 
 from lighttrail.config import DEFAULT_MODEL
+from lighttrail.infra.async_runner import run_sync
+from lighttrail.infra.redact import redact, register_secrets
 
 if TYPE_CHECKING:  # 仅类型注解：运行时不 import quota，避免 client ↔ quota 循环依赖
     from lighttrail.infra.quota import QuotaLedger
 
 logger = logging.getLogger("lighttrail.llm")
 
-# 重试策略：最多 3 次，基础退避 1s（含随机抖动）
-_MAX_RETRIES = 3
+
+def _safe_error(exc: BaseException | None) -> str:
+    """保留 SDK 错误类型、状态及请求编号，移除原始凭据和异常链。"""
+    return redact(
+        f"LLM 调用失败：{type(exc).__name__} "
+        f"status={getattr(exc, 'status_code', None)} "
+        f"request_id={getattr(exc, 'request_id', None)} {exc}"
+    )
+
+
+# 每次 acall 的底层总尝试上限，包含首次发送；SDK 不再额外重试。
+_MAX_ATTEMPTS = 3
 _BASE_BACKOFF_SEC = 1.0
+_LIMITER_POLL_SEC = 0.01
 
 # 可重试的错误码（openai SDK 通常已映射为 APIConnectionError / RateLimitError 等）
 _RETRYABLE_STATUS = {429, 500, 502, 503, 504}
@@ -68,6 +82,11 @@ _NATIVE_REASON_PARAMS = (
 class LLMError(Exception):
     """LLM 调用失败的统一异常。"""
 
+    def __init__(self, message: str, *, observation: dict[str, Any] | None = None) -> None:
+        """保存安全用量摘要，使输出截断的已观测费用仍可追溯。"""
+        super().__init__(message)
+        self.observation = observation
+
 
 @dataclass(frozen=True)
 class UsageStats:
@@ -76,12 +95,16 @@ class UsageStats:
     Attributes:
         prompt_tokens: 输入 token 数。
         completion_tokens: 输出 token 数。
-        cached_input_tokens: 命中缓存的输入 token 数（供应商支持时，否则 0）。
+        cached_input_tokens: 缓存输入子集；缺失拆分时以零用于未缓存价估算。
+        cache_known: 是否收到有效缓存拆分，False 时费用未确认。
+        reasoning_tokens: 输出中的思考子集，缺少拆分为 None，不额外累加。
     """
 
     prompt_tokens: int = 0
     completion_tokens: int = 0
     cached_input_tokens: int = 0
+    cache_known: bool = True
+    reasoning_tokens: int | None = None
 
     @property
     def total_tokens(self) -> int:
@@ -98,8 +121,8 @@ class _ConcurrencyLimiter:
 
     设计要点：
     - 上限同时约束同步与异步调用方：内部用 `threading.BoundedSemaphore`，异步侧经
-      `asyncio.to_thread` 获取——避免 `asyncio.Semaphore` 绑 loop 的问题（同步门面走后台共享
-      事件循环、Web 走 uvicorn 事件循环，是两个 loop）；
+      非阻塞获取 + 短暂异步等待，避免跨 loop 绑定及取消后后台线程偷取许可；
+      同步门面走后台共享事件循环、Web 走 uvicorn 事件循环，仍共用同一信号量；
     - 只包住单次 API 往返，重试在限流之外（ADR-004：并发是纯配置）；
     - `in_flight()` 供 SSE queued 事件展示「排队第 N 位」。
 
@@ -140,8 +163,12 @@ class _ConcurrencyLimiter:
 
     @contextlib.asynccontextmanager
     async def acquire(self) -> Any:
-        """异步调用方进入临界区（在线程池里阻塞获取，不卡事件循环）。"""
-        await asyncio.to_thread(self._semaphore.acquire)
+        """可取消地等待许可；获取成功到 finally 建立之间没有 await。
+
+        排队取消不会遗留阻塞线程。轮询不承诺 FIFO；已获取许可的请求在退出时归还。
+        """
+        while not self._semaphore.acquire(blocking=False):
+            await asyncio.sleep(_LIMITER_POLL_SEC)
         with self._lock:
             self._active += 1
         try:
@@ -152,25 +179,7 @@ class _ConcurrencyLimiter:
             self._semaphore.release()
 
 
-# ------ 同步门面用的后台共享事件循环 ------
-_sync_loop: asyncio.AbstractEventLoop | None = None
-_sync_loop_lock = threading.Lock()
-
-
-def _shared_loop() -> asyncio.AbstractEventLoop:
-    """返回同步门面共用的后台事件循环（首次调用时创建守护线程）。"""
-    global _sync_loop
-    with _sync_loop_lock:
-        if _sync_loop is None or _sync_loop.is_closed():
-            loop = asyncio.new_event_loop()
-            thread = threading.Thread(
-                target=loop.run_forever, name="lighttrail-llm-sync", daemon=True
-            )
-            thread.start()
-            _sync_loop = loop
-        return _sync_loop
-
-
+# ------ 同步门面共用基础设施执行器 ------
 def _run_sync(coro: Any) -> Any:
     """在后台共享事件循环里执行协程并等待结果（同步门面唯一入口）。
 
@@ -190,8 +199,7 @@ def _run_sync(coro: Any) -> Any:
     else:
         coro.close()
         raise LLMError("同步门面不能在事件循环内调用，请改用 acall()")
-    future = asyncio.run_coroutine_threadsafe(coro, _shared_loop())
-    return future.result()
+    return run_sync(coro)
 
 
 class ChatClient:
@@ -203,6 +211,8 @@ class ChatClient:
         timeout: (连接超时, 读取超时)。
         concurrency: 在途 LLM 请求上限（默认 4，见 ADR-004；1 等价旧「串行」）。
         quota: 配额账本（成功响应后按 usage 记账；未注入时不记账）。
+        max_output_tokens: 每个请求的输出限制值；默认 4096，供应商执行待核验。
+        output_limit_field: 接口限制字段；ECNU 官方示例为 max_tokens。
     """
 
     def __init__(
@@ -213,14 +223,33 @@ class ChatClient:
         timeout: tuple[float, float] = (30.0, 120.0),
         concurrency: int = _DEFAULT_CONCURRENCY,
         quota: QuotaLedger | None = None,
+        max_output_tokens: int = 4096,
+        output_limit_field: str = "max_tokens",
     ) -> None:
-        self._client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
+        if max_output_tokens < 1 or output_limit_field not in {
+            "max_tokens",
+            "max_completion_tokens",
+        }:
+            raise LLMError("输出上限须为正整数，字段须为 max_tokens 或 max_completion_tokens")
+        self._max_output_tokens = max_output_tokens
+        self._output_limit_field = output_limit_field
+        register_secrets(api_key)
+        self._timeout = httpx.Timeout(
+            timeout[1], connect=timeout[0], write=timeout[0], pool=timeout[0]
+        )
+        self._client = OpenAI(
+            api_key=api_key, base_url=base_url, timeout=self._timeout, max_retries=0
+        )
         self._quota = quota
         self._limiter = _ConcurrencyLimiter(concurrency)
         self._api_key = api_key
         self._base_url = base_url
-        self._timeout = timeout
+        # 注入替身保留原有测试入口；真实连接池按所属 loop 缓存，限流器始终唯一。
         self._async_client: AsyncOpenAI | None = None
+        self._async_clients: dict[asyncio.AbstractEventLoop, AsyncOpenAI] = {}
+        self._clients_lock = threading.Lock()
+        self._close_lock = threading.Lock()
+        self._closed = False
 
     # ------ 对外接口 ------
     @property
@@ -305,15 +334,18 @@ class ChatClient:
         Raises:
             LLMError: 重试耗尽或参数错误。
         """
+        if self._closed:
+            raise LLMError("LLM 客户端已关闭")
         payload: dict[str, Any] = {"model": model, "messages": messages, "temperature": temperature}
+        payload[self._output_limit_field] = self._max_output_tokens
         if self._quota is not None and not self._quota.check():
-            raise LLMError("配额窗口已达上限，本次请求未发送")
+            raise LLMError("本应用已观测用量达到本地窗口上限，本次请求未发送；非平台余额判断")
         if tools:
             payload["tools"] = tools
         self._attach_reason_params(payload, thinking, reasoning_effort)
 
         retryer = AsyncRetrying(
-            stop=stop_after_attempt(_MAX_RETRIES),
+            stop=stop_after_attempt(_MAX_ATTEMPTS),
             wait=wait_exponential(multiplier=_BASE_BACKOFF_SEC, min=_BASE_BACKOFF_SEC, max=8)
             + wait_random(0, 0.5),
             retry=retry_if_exception(self._should_retry),
@@ -323,22 +355,110 @@ class ChatClient:
             async for attempt in retryer:
                 with attempt:
                     async with self._limiter.acquire():
-                        resp = await self._get_async_client().chat.completions.create(**payload)
-                    self._record_usage(payload, resp, usage_callback)
-                    return self._to_message_dict(resp)
+                        logger.debug(
+                            "LLM SDK 尝试 %d/%d", attempt.retry_state.attempt_number, _MAX_ATTEMPTS
+                        )
+                        sdk = self._get_async_client()
+                        try:
+                            resp = await sdk.chat.completions.create(**payload)
+                        except (Exception, asyncio.CancelledError):
+                            if self._quota is not None:
+                                self._quota.record_unknown("请求异常或取消，供应商扣费未知")
+                            raise
+                    observation = self._record_usage(payload, resp, usage_callback)
+                    if getattr(resp.choices[0], "finish_reason", None) == "length":
+                        raise LLMError(
+                            "模型输出被截断（finish_reason=length），不能接受不完整结果",
+                            observation=observation,
+                        )
+                    reply = self._to_message_dict(resp)
+                    reply["usage_observation"] = observation
+                    return reply
         except RetryError as exc:
             last = exc.last_attempt.exception()
-            raise LLMError(f"LLM 调用失败：{last}") from last
+            raise LLMError(_safe_error(last)) from None
+        except APIError as exc:
+            raise LLMError(_safe_error(exc)) from None
+        except Exception as exc:  # 非 SDK 异常仅在含凭据时净化，保持原重试语义
+            if redact(str(exc)) != str(exc):
+                if type(exc) in {ValueError, TypeError, RuntimeError}:
+                    raise type(exc)(redact(str(exc))) from None
+                raise LLMError(_safe_error(exc)) from None
+            raise
         raise LLMError("LLM 调用失败：未产生响应")
 
     # ------ 内部实现 ------
     def _get_async_client(self) -> AsyncOpenAI:
-        """惰性创建 AsyncOpenAI 客户端（首次调用时建立，避免占用无用连接）。"""
-        if self._async_client is None:
-            self._async_client = AsyncOpenAI(
-                api_key=self._api_key, base_url=self._base_url, timeout=self._timeout
-            )
-        return self._async_client
+        """按事件循环复用连接池，防止同步门面与 Web 互用绑定另一 loop 的连接。"""
+        if self._async_client is not None:
+            return self._async_client
+        loop = asyncio.get_running_loop()
+        with self._clients_lock:
+            if self._closed:
+                raise LLMError("LLM 客户端已关闭")
+            if loop not in self._async_clients:
+                self._async_clients[loop] = AsyncOpenAI(
+                    api_key=self._api_key,
+                    base_url=self._base_url,
+                    timeout=self._timeout,
+                    max_retries=0,
+                )
+            return self._async_clients[loop]
+
+    async def aclose(self) -> None:
+        """停止新请求，在每个连接池的所属循环内关闭；宿主须先结束所有请求。
+
+        异步宿主必须在自身循环停止前 await aclose；同步宿主使用 close。
+        注入的 _async_client 由注入方持有，不在此关闭。关闭失败保留句柄并显式报告，
+        不因停止接收请求的标志将后续清理误判为成功。
+
+        Raises:
+            LLMError: 所属循环已停止，或 SDK 资源清理失败。
+        """
+        while not self._close_lock.acquire(blocking=False):
+            await asyncio.sleep(_LIMITER_POLL_SEC)
+        try:
+            with self._clients_lock:
+                self._closed = True
+                clients = list(self._async_clients.items())
+            errors: list[str] = []
+            try:
+                self._client.close()
+            except Exception as exc:  # noqa: BLE001 继续清理其他资源，最后显式报告。
+                errors.append(_safe_error(exc))
+            current = asyncio.get_running_loop()
+            for loop, sdk in clients:
+                if loop is not current and not loop.is_running():
+                    errors.append(
+                        "连接池的所属事件循环已停止；异步宿主必须在循环停止前 await aclose()"
+                    )
+                    continue
+                try:
+                    if loop is current:
+                        await sdk.close()
+                    else:
+                        await asyncio.wrap_future(
+                            asyncio.run_coroutine_threadsafe(sdk.close(), loop)
+                        )
+                except Exception as exc:  # noqa: BLE001 保留失败句柄，不吞掉清理异常。
+                    errors.append(_safe_error(exc))
+                else:
+                    with self._clients_lock:
+                        self._async_clients.pop(loop, None)
+            if errors:
+                raise LLMError("LLM 资源清理失败：" + "；".join(errors)) from None
+        finally:
+            self._close_lock.release()
+
+    def close(self) -> None:
+        """同步宿主释放客户端；异步宿主应 await aclose()。"""
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            raise LLMError("异步宿主请 await aclose()，不能同步关闭客户端")
+        _run_sync(self.aclose())
 
     @staticmethod
     def _attach_reason_params(
@@ -371,27 +491,64 @@ class ChatClient:
         payload: dict[str, Any],
         resp: Any,
         usage_callback: UsageCallback | None = None,
-    ) -> None:
-        """成功响应后回传 usage 给调用方，并折算 credits 记账（配额账本，E4-2）。
+    ) -> dict[str, Any]:
+        """回传有效用量、估算费用；缺失或不确定的扣费明确标为未知。
 
         Args:
             payload: 本次请求体（取模型名记账）。
-            resp: SDK 响应对象（可能不含 usage，此时两项都不做）。
+            resp: SDK 响应对象；缺少有效 usage 时登记未知。
             usage_callback: 上层 token 记账回调；None 时不回调。
+
+        Returns:
+            安全用量摘要，供现有 trace 与历史快照保存。
         """
         stats = self._extract_usage(resp)
+        observation: dict[str, Any] = {
+            "范围": "本应用已观测用量，非平台余额",
+            "费用状态": "未知",
+            "估算_credits": None,
+        }
         if stats is None:
-            return
+            if self._quota is not None:
+                self._quota.record_unknown("usage 缺失或无效")
+            observation["原因"] = "usage 缺失或无效；不能确认零费用"
+            return observation
         if usage_callback is not None:
             usage_callback(stats)
-        if self._quota is None:
-            return
-        self._quota.record(
-            str(payload.get("model") or DEFAULT_MODEL),
-            stats.prompt_tokens,
-            stats.completion_tokens,
-            cached_input_tokens=stats.cached_input_tokens,
+        observation.update(
+            {
+                "输入_tokens": stats.prompt_tokens,
+                "缓存输入_tokens": stats.cached_input_tokens if stats.cache_known else None,
+                "未缓存输入_tokens": stats.prompt_tokens - stats.cached_input_tokens
+                if stats.cache_known
+                else None,
+                "输出含思考_tokens": stats.completion_tokens,
+                "其中思考_tokens": stats.reasoning_tokens,
+            }
         )
+        if self._quota is not None:
+            from lighttrail.infra.quota import QuotaError
+
+            try:
+                observation["估算_credits"] = self._quota.record(
+                    str(payload.get("model") or DEFAULT_MODEL),
+                    stats.prompt_tokens,
+                    stats.completion_tokens,
+                    cached_input_tokens=stats.cached_input_tokens,
+                )
+            except QuotaError:
+                self._quota.record_unknown("响应用量已观测，但缺少有效计价配置")
+                observation["原因"] = "响应用量已观测，但缺少有效计价配置"
+                return observation
+            observation["费用状态"] = (
+                "按返回用量估算" if stats.cache_known else "缓存拆分未知，按未缓存价估算"
+            )
+            if not stats.cache_known:
+                self._quota.record_unknown("usage 缺少缓存拆分，费用仅按未缓存价估算")
+            snapshot = self._quota.usage()
+            observation["账本未知次数"] = snapshot.unknown_attempts
+            observation["本应用估算合计_credits"] = snapshot.total_credits
+        return observation
 
     @staticmethod
     def _extract_usage(resp: Any) -> UsageStats | None:
@@ -400,10 +557,38 @@ class ChatClient:
         if usage is None:
             return None
         details = getattr(usage, "prompt_tokens_details", None)
+        prompt = getattr(usage, "prompt_tokens", None)
+        output = getattr(usage, "completion_tokens", None)
+        cached = getattr(details, "cached_tokens", None)
+        flat_cached = getattr(usage, "prompt_cache_hit_tokens", None)
+        if cached is None:
+            cached = flat_cached
+        elif flat_cached is not None and flat_cached != cached:
+            return None
+        reasoning = getattr(
+            getattr(usage, "completion_tokens_details", None), "reasoning_tokens", None
+        )
+        if any(not isinstance(v, int) or isinstance(v, bool) or v < 0 for v in (prompt, output)):
+            return None
+        if cached is not None and (
+            not isinstance(cached, int) or isinstance(cached, bool) or not 0 <= cached <= prompt
+        ):
+            return None
+        missed = getattr(usage, "prompt_cache_miss_tokens", None)
+        if missed is not None and (cached is None or missed != prompt - cached):
+            return None
+        if reasoning is not None and (
+            not isinstance(reasoning, int)
+            or isinstance(reasoning, bool)
+            or not 0 <= reasoning <= output
+        ):
+            return None
         return UsageStats(
-            prompt_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
-            completion_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
-            cached_input_tokens=int(getattr(details, "cached_tokens", 0) or 0),
+            prompt_tokens=prompt,
+            completion_tokens=output,
+            cached_input_tokens=cached or 0,
+            cache_known=cached is not None,
+            reasoning_tokens=reasoning,
         )
 
     @staticmethod
@@ -417,14 +602,15 @@ class ChatClient:
           也视为可重试（网络瞬时抖动）。
         """
         status = getattr(getattr(exc, "response", None), "status_code", None)
-        if isinstance(status, int) and status in _RETRYABLE_STATUS:
-            return True
+        if isinstance(status, int):
+            return status in _RETRYABLE_STATUS
         type_name = type(exc).__name__
-        module = type(exc).__module__
         if "RateLimit" in type_name or "APIConnection" in type_name or "Timeout" in type_name:
             return True
         # 兜底：连接层/传输层异常（含 SDK 包装后的 ConnectionError、httpx 异常）
-        return isinstance(exc, (ConnectionError, OSError)) or "httpx" in module
+        return isinstance(exc, (ConnectionError, OSError, httpx.TransportError)) and not isinstance(
+            exc, httpx.UnsupportedProtocol
+        )
 
     @staticmethod
     def _to_message_dict(resp: Any) -> dict[str, Any]:

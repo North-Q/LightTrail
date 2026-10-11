@@ -89,7 +89,7 @@ def equivalent_exposure(
         },
         "快门优先": {
             "f_stop": f_stop,
-            "shutter_speed": round(shutter_speed * factor, 2),
+            "shutter_speed": shutter_speed * factor,
             "iso": iso,
         },
         "ISO 优先": {
@@ -122,7 +122,7 @@ _SPEC_STAR_SHUTTER_RULE = ToolSpec(
     name="star_shutter_rule",
     description=(
         "计算星空摄影的最大不拖线快门时间，支持 500 法则与 NPF 法则。"
-        "500 法则：最大快门约等于 500 / 等效焦距，简单但偏保守；"
+        "500 法则：最大快门约等于 500 / 等效焦距，只作粗略参考；"
         "NPF 法则额外考虑像素间距与光圈，更适合高像素机身与画面边缘星点要求。"
         "适用场景：银河、星野、星轨单张、流星雨等需要固定机位长曝的星空题材。"
     ),
@@ -200,8 +200,14 @@ def star_shutter_rule(
         "500 法则快门": _format_shutter(rule_500),
         "NPF 法则最大快门（秒）": round(npf_result, 1) if npf_result is not None else None,
         "NPF 法则快门": _format_shutter(npf_result) if npf_result is not None else None,
+        "像素间距（微米）": pixel_pitch,
+        "NPF 计算说明": (
+            "采用简化式 (35×光圈+30×像素间距)/等效焦距，附加 1/cos(赤纬) 修正，"
+            "cos 下限 0.1；此组合为近似规则，不是完整 NPF，裁切画幅结果未校准。"
+        ),
+        "公式来源": "Frédéric Michaud / SAH，https://sahavre.fr/wp/regle-npf-rule/",
         "采用建议": (
-            "有像素间距数据，优先按 NPF 法则（更精确）；500 法则作为保守参考"
+            "有像素间距数据，可按简化 NPF 估算；500 法则只作粗略参考"
             if npf_result is not None
             else "无像素间距数据，按 500 法则"
         ),
@@ -220,32 +226,57 @@ class StarShutterTool:
     def __call__(self, ctx: ToolContext, **kwargs: Any) -> ToolResult:
         """执行快门计算，并在可用时填充知识库像素间距。"""
         source = ""
+        version = ""
+        derivation = ""
+        missing = "未提供像素间距，缺少可核验的机型规格"
+        if kwargs.get("pixel_pitch") is not None:
+            source = "调用参数（未核验机型规格）"
         if (
             kwargs.get("pixel_pitch") is None
             and ctx.memory is not None
             and ctx.knowledge is not None
         ):
-            key = _camera_key(ctx.memory.profile_for(ctx.request).camera_body)
+            camera = ctx.memory.profile_for(ctx.request).camera_body
+            key = _camera_key(camera)
             chunk = ctx.knowledge.lookup(key, table="camera_specs") if key else None
+            missing = f"未找到机型「{camera or '未填写'}」的像素间距规格；不猜测参数"
             if chunk is not None:
-                pitch = json.loads(chunk.text).get("pixel_pitch_um")
+                specs = json.loads(chunk.text)
+                pitch = specs.get("pixel_pitch_um")
                 if isinstance(pitch, (int, float)):
                     kwargs["pixel_pitch"] = float(pitch)
                     source = f"知识库：{key}（{chunk.source}）"
+                    version = chunk.version
+                    derivation = str(specs.get("pixel_pitch_derivation") or "")
+                else:
+                    missing = f"机型「{camera}」的规格不提供数字传感器像素间距"
         data = star_shutter_rule(**kwargs)
         if source:
             data["像素间距来源"] = source
+        if version:
+            data["规格版本"] = version
+        if derivation:
+            data["像素间距估算说明"] = derivation
+        if kwargs.get("pixel_pitch") is None:
+            data["缺失规格原因"] = missing
         return ToolResult(content=json.dumps(data, ensure_ascii=False), data=data)
 
 
 def _camera_key(camera_body: str) -> str:
     """从档案机身文本提取知识表机型键。"""
     normalized = camera_body.upper().replace(" ", "")
-    if "S5M2" in normalized:
+    if normalized in {
+        "S5M2",
+        "松下S5M2",
+        "LUMIXS5M2",
+        "PANASONICS5M2",
+        "PANASONICDC-S5M2",
+        "DC-S5M2",
+    }:
         return "S5M2"
-    if "A7C2" in normalized:
+    if normalized in {"A7C2", "SONYA7C2", "索尼A7C2"}:
         return "A7C2"
-    if "NIKONFE" in normalized or normalized == "FE":
+    if normalized in {"NIKONFE", "尼康FE", "FE"}:
         return "Nikon_FE"
     return ""
 

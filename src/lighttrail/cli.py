@@ -14,6 +14,7 @@ import argparse
 import logging
 import sys
 from typing import Any
+from urllib.parse import urlsplit
 
 from lighttrail.composition import (
     ApplicationServices,
@@ -21,6 +22,7 @@ from lighttrail.composition import (
     load_settings,
 )
 from lighttrail.contracts.context import RequestContext
+from lighttrail.infra.redact import redact
 from lighttrail.infra.trace import TraceEvent
 
 BANNER = "LightTrail · 光迹（拍摄决策引擎）—— 输入 /help 查看命令"
@@ -98,6 +100,13 @@ def main(
         prog="lighttrail", description="LightTrail · 光迹（拍摄决策引擎）"
     )
     parser.add_argument(
+        "--photo",
+        action="append",
+        default=[],
+        metavar="PATH",
+        help="仅授权指定照片文件供本次 CLI 使用，可重复指定；不授权整个目录",
+    )
+    parser.add_argument(
         "--pipeline",
         nargs="*",
         metavar="REQUEST",
@@ -115,19 +124,33 @@ def main(
 
     active_services = services if services is not None else build_application(settings)
     context = request_context if request_context is not None else RequestContext()
+    authorized_paths = tuple(args.photo)
+    print(
+        redact(
+            f"发送说明：输入、档案、相关事件与工具结果将发送至配置的模型 API "
+            f"({urlsplit(settings.base_url).hostname})，用于生成建议。"
+            "天气查询会发送坐标给 Open-Meteo；已配置的地图路线服务会接收起终点。"
+            "授权照片将发送缩放 JPEG 和选定 EXIF（含拍摄时间，不提取 GPS）。"
+            "本地清理不删除供应商副本；详见 docs/DATA-BOUNDARIES.md。"
+        )
+    )
     try:
         if args.pipeline:
-            scope = active_services.create_scope(context)
+            scope = active_services.create_scope(context, authorized_photo_paths=authorized_paths)
             scope.recorder.subscribe(_print_progress)
             print(scope.orchestrator.plan(" ".join(args.pipeline)))
             return 0
-        return _chat_loop(active_services, context)
+        return _chat_loop(active_services, context, authorized_paths)
     finally:
         if services is None:
             active_services.close()
 
 
-def _chat_loop(services: ApplicationServices, context: RequestContext) -> int:
+def _chat_loop(
+    services: ApplicationServices,
+    context: RequestContext,
+    authorized_paths: tuple[str, ...] = (),
+) -> int:
     """逐轮创建作用域，只有对话历史在 CLI 会话中显式传递。"""
     history: list[Any] = []
 
@@ -153,13 +176,13 @@ def _chat_loop(services: ApplicationServices, context: RequestContext) -> int:
             continue
 
         try:
-            scope = services.create_scope(context)
+            scope = services.create_scope(context, authorized_photo_paths=authorized_paths)
             scope.recorder.subscribe(_print_progress)
             scope.runtime.load_messages(history)
             reply = scope.runtime.run(user_input)
             history = scope.runtime.messages
         except Exception as exc:  # noqa: BLE001 - CLI 层兜底，避免直接崩溃
-            print(f"[错误] {exc}")
+            print(redact(f"[错误] {exc}"))
             continue
         print(f"光迹 > {reply}")
 

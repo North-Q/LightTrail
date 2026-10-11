@@ -149,7 +149,28 @@ class LightTrailModel(Model):
                 usage_callback=_on_usage,
             )
         except Exception as exc:
+            self._recorder.record_step(
+                "模型用量",
+                output_summary=json.dumps(
+                    getattr(exc, "observation", None)
+                    or {
+                        "范围": "本应用已观测用量，非平台余额",
+                        "费用状态": "未知",
+                        "估算_credits": None,
+                        "原因": "请求未取得完整响应；供应商扣费未知",
+                    },
+                    ensure_ascii=False,
+                ),
+            )
             raise ModelAPIError(self._lt_model_name, f"{type(exc).__name__}: {exc}") from exc
+        if reply.get("usage_observation") is not None:
+            self._recorder.record_step(
+                "模型用量",
+                output_summary=json.dumps(
+                    reply["usage_observation"],
+                    ensure_ascii=False,
+                ),
+            )
         self._recorder.record_llm(
             self._lt_model_name,
             prompt_summary=f"消息数 {len(payload)}（pydantic-ai 桥）",

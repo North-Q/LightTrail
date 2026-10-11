@@ -2,7 +2,7 @@
 
 验证规则化置信度推导（替代模型自评）：
 - 确定性工具（天文/计算）→ high；
-- 天气预报按时效：覆盖当日 → high、跨天 → medium、无条目 → medium；
+- 天气预报必须包含获取时间与有效范围；缺失或失败为 low；
 - 启发式组合（火烧云评分 / 机位匹配）→ medium；
 - 未知工具：带数据来源 → medium，否则 → low。
 """
@@ -30,28 +30,28 @@ _HIGH_TOOLS = [
 def test_deterministic_tools_are_high() -> None:
     """天文/曝光纯计算 → high。"""
     for name in _HIGH_TOOLS:
-        assert confidence_for_tool(name, {}) == "high"
-        assert confidence_for_tool(name, {"error": "x"}) == "high"  # 结果无关
+        assert confidence_for_tool(name, {}) == "low"
+        assert confidence_for_tool(name, {"error": "x"}) == "low"  # 失败状态优先于工具默认可靠度
 
 
-def test_weather_forecast_today_is_high() -> None:
-    """预报覆盖当日 → high（时效 ≤6h 的日期级近似）。"""
+def test_weather_forecast_date_alone_is_unverified() -> None:
+    """只含当日日期不能证明获取时间与时效。"""
     today = datetime.now(timezone.utc).date().isoformat()
     result = {"每日预报": [{"日期": today, "平均云量（%）": 40}]}
-    assert confidence_for_tool("weather_forecast", result) == "high"
+    assert confidence_for_tool("weather_forecast", result) == "low"  # 无获取时间不可核验
 
 
-def test_weather_forecast_cross_day_is_medium() -> None:
-    """预报跨天（晚于当日）→ medium。"""
+def test_weather_forecast_cross_day_without_metadata_is_low() -> None:
+    """跨日预报缺少元数据时不可核验。"""
     tomorrow = (datetime.now(timezone.utc).date() + timedelta(days=1)).isoformat()
     result = {"每日预报": [{"日期": tomorrow, "平均云量（%）": 40}]}
-    assert confidence_for_tool("weather_forecast", result) == "medium"
+    assert confidence_for_tool("weather_forecast", result) == "low"  # 无获取时间不可核验
 
 
-def test_weather_forecast_no_entries_is_medium() -> None:
-    """预报无有效条目 → 降级 medium（有外部数据语义）。"""
-    assert confidence_for_tool("weather_forecast", {}) == "medium"
-    assert confidence_for_tool("weather_forecast", {"error": "接口失败"}) == "medium"
+def test_weather_forecast_no_entries_is_low() -> None:
+    """预报无有效条目或失败时须降级。"""
+    assert confidence_for_tool("weather_forecast", {}) == "low"
+    assert confidence_for_tool("weather_forecast", {"error": "接口失败"}) == "low"
 
 
 def test_heuristic_tools_are_medium() -> None:

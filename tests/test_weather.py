@@ -47,6 +47,7 @@ def _canned_hourly(
         for hour in range(24):
             rows.append(f"{day.isoformat()}T{hour:02d}:00")
     return {
+        "utc_offset_seconds": 8 * 3600,
         "hourly": {
             "time": rows,
             "cloud_cover": [cloud] * len(rows),
@@ -56,7 +57,7 @@ def _canned_hourly(
             "visibility": [visibility] * len(rows),
             "precipitation_probability": [precip] * len(rows),
             "wind_speed_10m": [wind] * len(rows),
-        }
+        },
     }
 
 

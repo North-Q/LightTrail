@@ -178,7 +178,9 @@ async def test_production_decide_respects_place_date_and_current_subject(tmp_pat
     app = create_app(ApiDeps(services, SessionManager(tmp_path)))
     app.dependency_overrides[get_request_context] = lambda: context
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://localhost"
+        ) as client:
             response = await client.post(
                 "/api/decide", json={"request": "别去东岸，2026-10-03去西岸拍火烧云值得冲吗"}
             )
@@ -188,7 +190,7 @@ async def test_production_decide_respects_place_date_and_current_subject(tmp_pat
             card = next(event["card"] for event in events if event["type"] == "card")
             assert (card["target_date"], card["subject_type"]) == ("2026-10-03", "火烧云")
             assert [site["name"] for site in card["locations"]] == ["西岸"]
-            assert card["degraded"] == ""
+            assert card["degraded"] == "needs_data"  # 固定请求时钟超出默认合成预报覆盖
             assert [name for name, _ in dispatch.calls if name == "moon_phase"] == []
             sun_args = json.loads(
                 next(args for name, args in dispatch.calls if name == "sun_times")
@@ -262,7 +264,9 @@ async def test_conflicting_model_location_is_marked_and_corrected(tmp_path: Path
     app = create_app(ApiDeps(services, SessionManager(tmp_path)))
     app.dependency_overrides[get_request_context] = lambda: context
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://localhost"
+        ) as client:
             response = await client.post(
                 "/api/decide", json={"request": "2026-10-03去西岸拍火烧云值得冲吗"}
             )

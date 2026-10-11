@@ -1,3 +1,4 @@
+import { saveFixturePlan, readFixturePlan } from "./saved-plan-fixture";
 /** 在真实浏览器中回归 D2 请求体与 D4 用户确认写入。 */
 
 import { createElement } from "react";
@@ -34,6 +35,8 @@ function changeValue(element: HTMLInputElement | HTMLSelectElement, value: strin
 
 window.fetch = (async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const url = String(input);
+  const savedResponse = readFixturePlan(url);
+  if (savedResponse) return savedResponse;
   if (url === "/api/profile") {
     return Response.json({
       common_locations: [],
@@ -51,9 +54,9 @@ window.fetch = (async (input: RequestInfo | URL, init?: RequestInit): Promise<Re
     });
   }
   calls.push({ url, body: typeof init?.body === "string" ? init.body : "" });
-  if (url === "/api/spot-plans") {
-    const request = JSON.parse(String(init?.body)) as Record<string, unknown>;
-    return Response.json({
+  if (url === "/api/saved-spot-plans") {
+    const request = JSON.parse(String(init?.body)).request as Record<string, unknown>;
+    return saveFixturePlan({
       status: "needs_data", request, selected_date: request.target_date,
       site: null, direction: null, arrival_window: null, setup_window: null,
       shoot_window: null, departure_window: null, focal_length_mm: null,
@@ -92,8 +95,8 @@ async function run(): Promise<void> {
   changeValue(selects[1], "spot-west");
   await waitFor(() => !document.querySelector<HTMLButtonElement>(".page-head button")!.disabled);
   document.querySelector<HTMLButtonElement>(".page-head button")!.click();
-  await waitFor(() => calls.some((call) => call.url === "/api/spot-plans"));
-  const request = JSON.parse(calls.find((call) => call.url === "/api/spot-plans")!.body) as Record<string, unknown>;
+  await waitFor(() => calls.some((call) => call.url === "/api/saved-spot-plans"));
+  const request = JSON.parse(calls.find((call) => call.url === "/api/saved-spot-plans")!.body).request as Record<string, unknown>;
   assert(request.target_date === "2026-10-03" && request.subject_type === "火烧云", "D2 请求丢失日期或题材");
   assert((request.spot as { site_id: string; name: string }).site_id === "spot-west", "D2 请求未使用当前机位 ID");
   assert(request.tz_offset === "+08:00", "D2 请求未使用机位时区");

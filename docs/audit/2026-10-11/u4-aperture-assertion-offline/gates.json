@@ -1,0 +1,124 @@
+{
+  "red": {
+    "tests": 34,
+    "failures": 23,
+    "errors": 0,
+    "skipped": 0
+  },
+  "red_network": {
+    "external_connections": 0,
+    "blocked_nonloopback_attempts": 0
+  },
+  "green": {
+    "tests": 65,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "green_network": {
+    "external_connections": 0,
+    "blocked_nonloopback_attempts": 0
+  },
+  "related": {
+    "tests": 238,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "related_network": {
+    "external_connections": 0,
+    "blocked_nonloopback_attempts": 0
+  },
+  "red_probe": [
+    {
+      "prefix": "如果",
+      "aperture": 2.8,
+      "verdict": "go",
+      "data_status": "ready",
+      "params": [
+        {
+          "name": "镜头",
+          "value": "14mm",
+          "reason": ""
+        },
+        {
+          "name": "光圈",
+          "value": "f/2.8",
+          "reason": ""
+        }
+      ],
+      "synthesis_calls": 1
+    },
+    {
+      "prefix": "若",
+      "aperture": 2.8,
+      "verdict": "go",
+      "data_status": "ready",
+      "params": [
+        {
+          "name": "镜头",
+          "value": "14mm",
+          "reason": ""
+        },
+        {
+          "name": "光圈",
+          "value": "f/2.8",
+          "reason": ""
+        }
+      ],
+      "synthesis_calls": 1
+    }
+  ],
+  "green_probe": [
+    {
+      "prefix": "如果",
+      "aperture": null,
+      "verdict": "wait",
+      "data_status": "needs_data",
+      "params": [],
+      "synthesis_calls": 1
+    },
+    {
+      "prefix": "若",
+      "aperture": null,
+      "verdict": "wait",
+      "data_status": "needs_data",
+      "params": [],
+      "synthesis_calls": 1
+    }
+  ],
+  "smoke": {
+    "passed": 21,
+    "total": 21
+  },
+  "layers": {
+    "kept": 3,
+    "broken": 0
+  },
+  "smoke_network": {
+    "external_connections": 0,
+    "blocked_nonloopback_attempts": 0
+  },
+  "lint_network": {
+    "external_connections": 0,
+    "blocked_nonloopback_attempts": 0
+  },
+  "probe_network": {
+    "external_connections": 0,
+    "blocked_nonloopback_attempts": 0
+  },
+  "ruff": {
+    "check": "passed",
+    "format_check": "passed",
+    "files": 2
+  },
+  "real_supplier_requests": 0,
+  "not_rerun": [
+    "full_pytest",
+    "L2",
+    "frontend_build",
+    "SSR",
+    "browser",
+    "original_real_round"
+  ]
+}

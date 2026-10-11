@@ -4,20 +4,20 @@
  */
 
 export interface paths {
-    "/api/chase-plans": {
+    "/api/data-boundaries": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
         /**
-         * 多机位赶场规划（C1-1）
-         * @description 按拍摄窗口和路线服务生成确定性赶场计划，不调用 LLM。
+         * Data Boundaries
+         * @description 返回配置模型服务的主机名，不返回路径、查询参数或认证信息。
          */
-        post: operations["create_chase_plan_api_chase_plans_post"];
+        get: operations["data_boundaries_api_data_boundaries_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -64,7 +64,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/events": {
+    "/api/photos/review": {
         parameters: {
             query?: never;
             header?: never;
@@ -74,10 +74,58 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 确认写入拍摄事件（M1），仅显式请求才落库
-         * @description 写入一条用户明确确认的事件记忆，不从照片复盘自动落盘。
+         * 照片复盘（D4），上传图片 → SSE 事件至复盘卡片
+         * @description 上传照片 → 复盘管线（多模态分析）→ 复盘卡 → done。
+         *
+         *     临时文件由流内 worker 线程自建自销（**不能**在端点里建删）：SSE 流是惰性的，
+         *     端点在返回响应时流还没被消费，若那时删文件，worker 读图必 FileNotFoundError
+         *     （D4 真实联调实测「图片读取失败」，见 tests/test_api.py 的竞态回归用例）。
          */
-        post: operations["create_event_api_events_post"];
+        post: operations["photos_review_api_photos_review_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/photos/reverse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 参考图反推（D1.2），上传图片 → SSE 事件至复刻计划卡片
+         * @description 上传参考图 → 反推管线 → 复刻计划卡片 → done。
+         */
+        post: operations["photos_reverse_api_photos_reverse_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 读取用户档案（M1.1-01）
+         * @description 返回当前档案（camera_body/lenses/preferences/…）。
+         */
+        get: operations["get_profile_api_profile_get"];
+        /**
+         * 更新用户档案（M1.1-01，显式写入）
+         * @description 部分更新档案：只更新出现字段，未知字段忽略。
+         */
+        put: operations["put_profile_api_profile_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -170,134 +218,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/map/config": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 读取手动加载地图所需的公开配置
-         * @description 只在前端主动加载地图时读取公开 Web Key，私密 jscode 不出服务端。
-         */
-        get: operations["get_map_config_api_map_config_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/map/convert": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 手动加载地图时转换已确认坐标
-         * @description 只转换当前用户已确认的 WGS84 机位，浏览器不提交精确坐标。
-         */
-        post: operations["convert_map_coordinates_api_map_convert_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/photos/reverse": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 参考图反推（D1.2），上传图片 → SSE 事件至复刻计划卡片
-         * @description 上传参考图 → 反推管线 → 复刻计划卡片 → done。
-         */
-        post: operations["photos_reverse_api_photos_reverse_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/photos/review": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 照片复盘（D4），上传图片 → SSE 事件至复盘卡片
-         * @description 上传照片 → 复盘管线（多模态分析）→ 复盘卡 → done。
-         *
-         *     临时文件由流内 worker 线程自建自销（**不能**在端点里建删）：SSE 流是惰性的，
-         *     端点在返回响应时流还没被消费，若那时删文件，worker 读图必 FileNotFoundError
-         *     （D4 真实联调实测「图片读取失败」，见 tests/test_api.py 的竞态回归用例）。
-         */
-        post: operations["photos_review_api_photos_review_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/profile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 读取用户档案（M1.1-01）
-         * @description 返回当前档案（camera_body/lenses/preferences/…）。
-         */
-        get: operations["get_profile_api_profile_get"];
-        /**
-         * 更新用户档案（M1.1-01，显式写入）
-         * @description 部分更新档案：只更新出现字段，未知字段忽略。
-         */
-        put: operations["put_profile_api_profile_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/sessions/{session_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 会话历史与 TraceReport 回放
-         * @description 返回会话记录（历史 + 工作区）与最近一次运行的 TraceReport。
-         */
-        get: operations["get_session_api_sessions__session_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/spot-plans": {
         parameters: {
             query?: never;
@@ -370,6 +290,270 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/map/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 读取手动加载地图所需的公开配置
+         * @description 只在前端主动加载地图时读取公开 Web Key，私密 jscode 不出服务端。
+         */
+        get: operations["get_map_config_api_map_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/map/convert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 手动加载地图时转换已确认坐标
+         * @description 只转换当前用户已确认的 WGS84 机位，浏览器不提交精确坐标。
+         */
+        post: operations["convert_map_coordinates_api_map_convert_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 确认写入拍摄事件（M1），仅显式请求才落库
+         * @description 写入一条用户明确确认的事件记忆，不从照片复盘自动落盘。
+         */
+        post: operations["create_event_api_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/chase-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 多机位赶场规划（C1-1）
+         * @description 按拍摄窗口和路线服务生成确定性赶场计划，不调用 LLM。
+         */
+        post: operations["create_chase_plan_api_chase_plans_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Sessions
+         * @description 读取当前用户已保存会话，不依赖浏览器缓存索引。
+         */
+        get: operations["list_sessions_api_sessions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sessions/{session_id}/results/{result_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Saved Result
+         * @description 按稳定标识只读原结果，不触发数据采集或更改有效期。
+         */
+        get: operations["get_saved_result_api_sessions__session_id__results__result_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/saved-spot-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Saved Spot Plan
+         * @description 生成后保存实际 SpotPlan；保存故障明确失败，既有计划契约不变。
+         */
+        post: operations["create_saved_spot_plan_api_saved_spot_plans_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 会话历史与 TraceReport 回放
+         * @description 返回会话记录（历史 + 工作区）与最近一次运行的 TraceReport。
+         */
+        get: operations["get_session_api_sessions__session_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sessions/{session_id}/results/{result_id}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Feedback
+         * @description 只读恢复当前反馈，不创建任何反馈文件。
+         */
+        get: operations["read_feedback_api_sessions__session_id__results__result_id__feedback_get"];
+        /**
+         * Save Feedback
+         * @description 保存或修改原始反馈，使既有经验确认失效。
+         */
+        put: operations["save_feedback_api_sessions__session_id__results__result_id__feedback_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sessions/{session_id}/results/{result_id}/feedback/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw Feedback
+         * @description 撤回原始反馈并原子清空关联经验。
+         */
+        post: operations["withdraw_feedback_api_sessions__session_id__results__result_id__feedback_withdraw_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sessions/{session_id}/results/{result_id}/feedback/experience": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save Experience
+         * @description 保存当前反馈版本的本人经验草稿。
+         */
+        put: operations["save_experience_api_sessions__session_id__results__result_id__feedback_experience_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sessions/{session_id}/results/{result_id}/feedback/experience/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Experience
+         * @description 独立确认当前草稿，不写入Agent记忆。
+         */
+        post: operations["confirm_experience_api_sessions__session_id__results__result_id__feedback_experience_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sessions/{session_id}/results/{result_id}/feedback/experience/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw Experience
+         * @description 仅撤回经验，保留原始反馈。
+         */
+        post: operations["withdraw_experience_api_sessions__session_id__results__result_id__feedback_experience_withdraw_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -379,30 +563,30 @@ export interface components {
          * @description 去掉中心经纬度后的待选区域。
          */
         ArchivedArea: {
+            /** Name */
+            name: string;
+            /** Radius Km */
+            radius_km: number;
             /**
              * Coordinate System
              * @enum {string}
              */
             coordinate_system: "WGS84" | "GCJ-02" | "BD-09";
-            /** Name */
-            name: string;
-            /** Radius Km */
-            radius_km: number;
         };
         /**
          * ArchivedPlanSite
          * @description 计划机位的非坐标属性；坐标系保留以防误解。
          */
         ArchivedPlanSite: {
+            /** Name */
+            name: string;
+            /** Site Id */
+            site_id?: string | null;
             /**
              * Coordinate System
              * @enum {string}
              */
             coordinate_system: "WGS84" | "GCJ-02" | "BD-09";
-            /** Name */
-            name: string;
-            /** Site Id */
-            site_id?: string | null;
             /** Source */
             source: string;
         };
@@ -411,26 +595,34 @@ export interface components {
          * @description 保留题材、日期、时区及位置语义的脱敏规划请求。
          */
         ArchivedPlanningRequest: {
-            area?: components["schemas"]["ArchivedArea"] | null;
-            date_range?: components["schemas"]["DateRange"] | null;
-            spot?: components["schemas"]["SpotSelector"] | null;
             /** Subject Type */
             subject_type: string;
             /** Target Date */
             target_date?: string | null;
+            date_range?: components["schemas"]["DateRange"] | null;
             /** Tz Offset */
             tz_offset: string;
+            spot?: components["schemas"]["SpotSelector"] | null;
+            area?: components["schemas"]["ArchivedArea"] | null;
         };
         /**
          * ArchivedSpotPlan
          * @description 完整行动与证据快照，刻意不包含请求副本和经纬度。
          */
         ArchivedSpotPlan: {
-            arrival_window: components["schemas"]["PlanWindow"] | null;
-            departure_window: components["schemas"]["PlanWindow"] | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ready" | "needs_data";
+            /** Selected Date */
+            selected_date: string | null;
+            site: components["schemas"]["ArchivedPlanSite"] | null;
             direction: components["schemas"]["PlanDirection"] | null;
-            /** Evidence Refs */
-            evidence_refs: components["schemas"]["PlanEvidenceRef"][];
+            arrival_window: components["schemas"]["PlanWindow"] | null;
+            setup_window: components["schemas"]["PlanWindow"] | null;
+            shoot_window: components["schemas"]["PlanWindow"] | null;
+            departure_window: components["schemas"]["PlanWindow"] | null;
             /** Focal Length Mm */
             focal_length_mm: number | null;
             /** Gear */
@@ -439,25 +631,11 @@ export interface components {
             parameters: components["schemas"]["PlanParameter"][];
             /** Risks */
             risks: components["schemas"]["PlanRisk"][];
-            /** Selected Date */
-            selected_date: string | null;
-            setup_window: components["schemas"]["PlanWindow"] | null;
-            shoot_window: components["schemas"]["PlanWindow"] | null;
-            site: components["schemas"]["ArchivedPlanSite"] | null;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "ready" | "needs_data";
+            /** Evidence Refs */
+            evidence_refs: components["schemas"]["PlanEvidenceRef"][];
         };
         /** Body_photos_reverse_api_photos_reverse_post */
         Body_photos_reverse_api_photos_reverse_post: {
-            /**
-             * Equipment
-             * @description 器材覆盖，如「14mm f/2.8」
-             * @default
-             */
-            equipment: string;
             /**
              * File
              * @description 参考图（jpg/png，≤10MB）
@@ -469,6 +647,12 @@ export interface components {
              * @default
              */
             note: string;
+            /**
+             * Equipment
+             * @description 器材覆盖，如「14mm f/2.8」
+             * @default
+             */
+            equipment: string;
             /**
              * Session Id
              * @description 会话标识；缺省自动新建
@@ -507,74 +691,74 @@ export interface components {
          * @description 决策卡片事件（管线末端产物）。
          */
         CardEvent: {
-            card: components["schemas"]["DecisionCard"];
             /**
-             * Session Id
-             * @default
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
-            session_id: string;
+            type: "card";
+            card: components["schemas"]["DecisionCard"];
             /**
              * Text
              * @default
              */
             text: string;
             /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
+             * Session Id
+             * @default
              */
-            type: "card";
+            session_id: string;
         };
         /**
          * ChaseLegPayload
          * @description 一个机位窗口对应的行程段。
          */
         ChaseLegPayload: {
-            /**
-             * Arrive At
-             * Format: date-time
-             */
-            arrive_at: string;
-            /** Effective Shooting Minutes */
-            effective_shooting_minutes: number;
             /** From Site */
             from_site: string;
-            /**
-             * Latest Leave At
-             * Format: date-time
-             */
-            latest_leave_at: string;
+            /** To Site */
+            to_site: string;
             /**
              * Leave At
              * Format: date-time
              */
             leave_at: string;
+            /**
+             * Arrive At
+             * Format: date-time
+             */
+            arrive_at: string;
+            /**
+             * Latest Leave At
+             * Format: date-time
+             */
+            latest_leave_at: string;
+            /** Effective Shooting Minutes */
+            effective_shooting_minutes: number;
             /** Margin Minutes */
             margin_minutes: number;
-            route: components["schemas"]["ChaseRoutePayload"];
-            /** To Site */
-            to_site: string;
             /** Transition Buffer Minutes */
             transition_buffer_minutes: number;
+            route: components["schemas"]["ChaseRoutePayload"];
         };
         /**
          * ChasePlanPayload
          * @description 多机位赶场规划的完整响应契约。
          */
         ChasePlanPayload: {
-            /** Explanation */
-            explanation: string;
-            /** Feasible */
-            feasible: boolean;
-            /** Legs */
-            legs: components["schemas"]["ChaseLegPayload"][];
             /** Ordered Site Names */
             ordered_site_names: string[];
-            /** Rejected Options */
-            rejected_options: components["schemas"]["ChaseRejectedOptionPayload"][];
+            /** Feasible */
+            feasible: boolean;
             /** Risk Level */
             risk_level: string;
             /** Total Effective Shooting Minutes */
             total_effective_shooting_minutes: number;
+            /** Explanation */
+            explanation: string;
+            /** Legs */
+            legs: components["schemas"]["ChaseLegPayload"][];
+            /** Rejected Options */
+            rejected_options: components["schemas"]["ChaseRejectedOptionPayload"][];
         };
         /**
          * ChasePlanRequest
@@ -582,34 +766,10 @@ export interface components {
          */
         ChasePlanRequest: {
             /**
-             * Depart At
-             * Format: date-time
-             * @description 首次出发时间，ISO 8601 且必须含时区
-             */
-            depart_at: string;
-            /**
-             * Min Shoot Minutes
-             * @description 每个机位最少有效拍摄分钟数
-             * @default 15
-             */
-            min_shoot_minutes: number;
-            /**
              * Sites
              * @description 2 到 4 个机位
              */
             sites: components["schemas"]["ChaseSitePayload"][];
-            /**
-             * Transit City
-             * @description 公共交通路线所需城市名称
-             * @default
-             */
-            transit_city: string;
-            /**
-             * Transition Buffer Minutes
-             * @description 每次换机位附加缓冲分钟数
-             * @default 18
-             */
-            transition_buffer_minutes: number;
             /**
              * Transport Mode
              * @description 交通方式：驾车、骑行、步行或公共交通
@@ -617,6 +777,30 @@ export interface components {
              * @enum {string}
              */
             transport_mode: "driving" | "cycling" | "walking" | "transit";
+            /**
+             * Depart At
+             * Format: date-time
+             * @description 首次出发时间，ISO 8601 且必须含时区
+             */
+            depart_at: string;
+            /**
+             * Transition Buffer Minutes
+             * @description 每次换机位附加缓冲分钟数
+             * @default 18
+             */
+            transition_buffer_minutes: number;
+            /**
+             * Min Shoot Minutes
+             * @description 每个机位最少有效拍摄分钟数
+             * @default 15
+             */
+            min_shoot_minutes: number;
+            /**
+             * Transit City
+             * @description 公共交通路线所需城市名称
+             * @default
+             */
+            transit_city: string;
         };
         /**
          * ChaseRejectedOptionPayload
@@ -633,29 +817,29 @@ export interface components {
          * @description 一段赶场路线的来源、耗时和降级信息。
          */
         ChaseRoutePayload: {
-            /** Confidence */
-            confidence: string;
-            /** Degraded Reason */
-            degraded_reason: string;
             /** Distance M */
             distance_m: number | null;
             /** Duration Minutes */
             duration_minutes: number;
-            /** Is Future Prediction */
-            is_future_prediction: boolean;
+            /** Transport Mode */
+            transport_mode: string;
+            /** Traffic Level */
+            traffic_level: string;
+            /** Traffic Summary */
+            traffic_summary: string;
             /** Provider */
             provider: string;
+            /** Confidence */
+            confidence: string;
             /**
              * Queried At
              * Format: date-time
              */
             queried_at: string;
-            /** Traffic Level */
-            traffic_level: string;
-            /** Traffic Summary */
-            traffic_summary: string;
-            /** Transport Mode */
-            transport_mode: string;
+            /** Is Future Prediction */
+            is_future_prediction: boolean;
+            /** Degraded Reason */
+            degraded_reason: string;
         };
         /**
          * ChaseSitePayload
@@ -668,17 +852,17 @@ export interface components {
              */
             name: string;
             /**
-             * Window End
-             * Format: date-time
-             * @description 拍摄窗口结束，ISO 8601 且必须含时区
-             */
-            window_end: string;
-            /**
              * Window Start
              * Format: date-time
              * @description 拍摄窗口开始，ISO 8601 且必须含时区
              */
             window_start: string;
+            /**
+             * Window End
+             * Format: date-time
+             * @description 拍摄窗口结束，ISO 8601 且必须含时区
+             */
+            window_end: string;
         };
         /**
          * ChatRequest
@@ -696,13 +880,23 @@ export interface components {
              * @default
              */
             session_id: string;
+            /**
+             * Result Id
+             * @default
+             */
+            result_id: string;
+            /**
+             * Requery
+             * @default false
+             */
+            requery: boolean;
         };
         /**
          * ConfidenceDetail
-         * @description 置信度明细：主值 + 区间 + 依据构成（**规则推导，非概率估计**）。
+         * @description 历史置信度明细兼容契约；分数与区间未经校准，不供页面展示。
          *
          *     由 infra/confidence.confidence_detail() 依据 evidence 的来源级别加权推导；
-         *     契约层只承载字段，不含推导规则。前端铁律①（主值 + 区间条 + 依据）直接渲染本对象。
+         *     契约层仅保留字段以兼容旧归档；U1 已核验的决策卡不再生成本对象。
          *
          *     Attributes:
          *         level: 卡片整体等级（high / medium / low），沿用模型给出的等级标注。
@@ -716,45 +910,78 @@ export interface components {
          */
         ConfidenceDetail: {
             /**
-             * Basis
-             * @default
-             */
-            basis: string;
-            /**
-             * High
-             * @default 0
-             */
-            high: number;
-            /**
-             * High Count
-             * @default 0
-             */
-            high_count: number;
-            /**
              * Level
              * @default low
              */
             level: string;
+            /**
+             * Score
+             * @default 0
+             */
+            score: number;
             /**
              * Low
              * @default 0
              */
             low: number;
             /**
-             * Low Count
+             * High
              * @default 0
              */
-            low_count: number;
+            high: number;
+            /**
+             * Basis
+             * @default
+             */
+            basis: string;
+            /**
+             * High Count
+             * @default 0
+             */
+            high_count: number;
             /**
              * Medium Count
              * @default 0
              */
             medium_count: number;
             /**
-             * Score
+             * Low Count
              * @default 0
              */
-            score: number;
+            low_count: number;
+        };
+        /**
+         * ConfirmExperience
+         * @description 对当前草稿及当前反馈版本的独立本人确认。
+         */
+        ConfirmExperience: {
+            /** Expected Revision */
+            expected_revision: number;
+            /**
+             * Mutation Id
+             * Format: uuid
+             */
+            mutation_id: string;
+            /**
+             * Experience Id
+             * Format: uuid
+             */
+            experience_id: string;
+            /** Source Feedback Revision */
+            source_feedback_revision: number;
+            /**
+             * Confirmed By User
+             * @constant
+             */
+            confirmed_by_user: true;
+        };
+        /**
+         * DataBoundaryInfo
+         * @description 不含凭据的发送接收方说明。
+         */
+        DataBoundaryInfo: {
+            /** Llm Receiver */
+            llm_receiver: string;
         };
         /**
          * DateRange
@@ -762,17 +989,17 @@ export interface components {
          */
         DateRange: {
             /**
-             * End
-             * Format: date
-             * @description 最后一个候选拍摄日期，如 2026-10-05
-             */
-            end: string;
-            /**
              * Start
              * Format: date
              * @description 首个候选拍摄日期，如 2026-10-03
              */
             start: string;
+            /**
+             * End
+             * Format: date
+             * @description 最后一个候选拍摄日期，如 2026-10-05
+             */
+            end: string;
         };
         /**
          * DecideRequest
@@ -790,6 +1017,16 @@ export interface components {
              * @default
              */
             session_id: string;
+            /**
+             * Result Id
+             * @default
+             */
+            result_id: string;
+            /**
+             * Requery
+             * @default false
+             */
+            requery: boolean;
         };
         /**
          * DecisionCard
@@ -801,7 +1038,7 @@ export interface components {
          *         confidence: 整体置信度（high / medium / low；必填）。
          *         verdict: 三态结论（go 值得去 / wait 再观察 / risk 不建议专程；未知为空串）。
          *             由模型按提示词给出，前端直接读字段，不做中文正则猜测（B4-3）。
-         *         confidence_detail: 置信度明细（代码规则推导，B4-3 起随卡片下发；缺省为 None）。
+         *         confidence_detail: 历史兼容明细，未经概率校准；U1 核验卡为 None。
          *         time_window: 建议时间窗口文案（如「05:10-05:40，黄金 05:20-06:10」）。
          *         window_start: 建议窗口开始时间（ISO 8601，含时区；未知为空）。
          *         window_end: 建议窗口结束时间（ISO 8601，含时区；未知为空）。
@@ -811,56 +1048,89 @@ export interface components {
          *         degraded: 降级原因（配额 / 管线降级标注，空串表示未降级）。
          *         target_date: 本次拍摄目标日期（请求时区中的 YYYY-MM-DD）。
          *         subject_type: 本次请求的拍摄题材，不由收藏机位元数据覆盖。
+         *         data_status: 证据资格（ready / needs_data / unverified），由采集边界写入。
+         *         missing_data: 关键数据不足的实际原因。
+         *         evaluated_at: 本次评估的请求基准时间（含时区）。
+         *         updated_at: 合格预报中最早的获取时间，不代表供应商发布时间。
+         *         valid_until: 最早的预报到期、新鲜度上限或目标事件时刻。
+         *         tz_offset: 请求目标日期使用的时区。
          */
         DecisionCard: {
-            /** Alternatives */
-            alternatives?: string[];
             /** Conclusion */
             conclusion: string;
-            /** Confidence */
-            confidence: string;
-            confidence_detail?: components["schemas"]["ConfidenceDetail"] | null;
-            /**
-             * Degraded
-             * @default
-             */
-            degraded: string;
             /** Evidence */
             evidence: components["schemas"]["Source"][];
-            /** Locations */
-            locations?: components["schemas"]["LocationSuggestion"][];
-            /** Params */
-            params?: components["schemas"]["ParamSuggestion"][];
+            /** Confidence */
+            confidence: string;
             /**
-             * Subject Type
+             * Verdict
              * @default
              */
-            subject_type: string;
-            /**
-             * Target Date
-             * @default
-             */
-            target_date: string;
+            verdict: string;
+            confidence_detail?: components["schemas"]["ConfidenceDetail"] | null;
             /**
              * Time Window
              * @default
              */
             time_window: string;
             /**
-             * Verdict
+             * Window Start
              * @default
              */
-            verdict: string;
+            window_start: string;
             /**
              * Window End
              * @default
              */
             window_end: string;
+            /** Locations */
+            locations?: components["schemas"]["LocationSuggestion"][];
+            /** Params */
+            params?: components["schemas"]["ParamSuggestion"][];
+            /** Alternatives */
+            alternatives?: string[];
             /**
-             * Window Start
+             * Degraded
              * @default
              */
-            window_start: string;
+            degraded: string;
+            /**
+             * Target Date
+             * @default
+             */
+            target_date: string;
+            /**
+             * Subject Type
+             * @default
+             */
+            subject_type: string;
+            /**
+             * Data Status
+             * @default unverified
+             */
+            data_status: string;
+            /** Missing Data */
+            missing_data?: string[];
+            /**
+             * Evaluated At
+             * @default
+             */
+            evaluated_at: string;
+            /**
+             * Updated At
+             * @default
+             */
+            updated_at: string;
+            /**
+             * Valid Until
+             * @default
+             */
+            valid_until: string;
+            /**
+             * Tz Offset
+             * @default
+             */
+            tz_offset: string;
         };
         /**
          * DeletedSpotPayload
@@ -876,26 +1146,35 @@ export interface components {
          */
         DoneEvent: {
             /**
-             * Session Id
-             * @default
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
-            session_id: string;
+            type: "done";
             /**
              * Text
              * @default
              */
             text: string;
             /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
+             * Session Id
+             * @default
              */
-            type: "done";
+            session_id: string;
+            /** Saved */
+            saved?: boolean | null;
+            /** Result Id */
+            result_id?: string | null;
         };
         /**
          * ErrorEvent
          * @description 错误事件（单请求失败不中断流，随后必有 done）。
          */
         ErrorEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "error";
             /**
              * Message
              * @default
@@ -906,11 +1185,6 @@ export interface components {
              * @default
              */
             session_id: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "error";
         };
         /**
          * EventCreatePayload
@@ -923,12 +1197,6 @@ export interface components {
              */
             location: string;
             /**
-             * Outcome
-             * @description 结果：success、fail 或空
-             * @default
-             */
-            outcome: string;
-            /**
              * Subject Type
              * @description 题材，如火烧云或银河
              * @default
@@ -940,6 +1208,12 @@ export interface components {
              * @default
              */
             summary: string;
+            /**
+             * Outcome
+             * @description 结果：success、fail 或空
+             * @default
+             */
+            outcome: string;
             /**
              * Timestamp
              * @description 带时区的 ISO 8601 拍摄时间；空则以确认时刻写入
@@ -965,15 +1239,10 @@ export interface components {
          */
         FavoriteSpotInput: {
             /**
-             * Coordinate System
-             * @description 坐标系；旧机位未知时为空，不得参与计算
+             * Name
+             * @description 机位名称，如崇明东滩
              */
-            coordinate_system?: ("WGS84" | "GCJ-02" | "BD-09") | null;
-            /**
-             * Direction Deg
-             * @description 主要朝向方位角
-             */
-            direction_deg?: number | null;
+            name: string;
             /**
              * Latitude
              * @description 纬度，北纬为正
@@ -985,10 +1254,25 @@ export interface components {
              */
             longitude?: number | null;
             /**
-             * Name
-             * @description 机位名称，如崇明东滩
+             * Coordinate System
+             * @description 坐标系；旧机位未知时为空，不得参与计算
              */
-            name: string;
+            coordinate_system?: ("WGS84" | "GCJ-02" | "BD-09") | null;
+            /**
+             * Tz Offset
+             * @description 拍摄地时区偏移，如 +08:00
+             */
+            tz_offset?: string | null;
+            /**
+             * Direction Deg
+             * @description 主要朝向方位角
+             */
+            direction_deg?: number | null;
+            /**
+             * Subject Types
+             * @description 适合拍摄的题材
+             */
+            subject_types?: string[];
             /**
              * Notes
              * @description 机位备注
@@ -1000,16 +1284,6 @@ export interface components {
              * @description 坐标或机位信息来源
              */
             source: string;
-            /**
-             * Subject Types
-             * @description 适合拍摄的题材
-             */
-            subject_types?: string[];
-            /**
-             * Tz Offset
-             * @description 拍摄地时区偏移，如 +08:00
-             */
-            tz_offset?: string | null;
         };
         /**
          * FavoriteSpotListPayload
@@ -1027,26 +1301,10 @@ export interface components {
          */
         FavoriteSpotRecord: {
             /**
-             * Coordinate State
-             * @description 机位能否参与 WGS84 计算
-             * @enum {string}
+             * Name
+             * @description 机位名称，如崇明东滩
              */
-            coordinate_state: "ready" | "missing_coordinates" | "unknown_system" | "unsupported_system";
-            /**
-             * Coordinate System
-             * @description 坐标系；旧机位未知时为空，不得参与计算
-             */
-            coordinate_system?: ("WGS84" | "GCJ-02" | "BD-09") | null;
-            /**
-             * Direction Deg
-             * @description 主要朝向方位角
-             */
-            direction_deg?: number | null;
-            /**
-             * Id
-             * @description 稳定机位标识
-             */
-            id: string;
+            name: string;
             /**
              * Latitude
              * @description 纬度，北纬为正
@@ -1058,10 +1316,25 @@ export interface components {
              */
             longitude?: number | null;
             /**
-             * Name
-             * @description 机位名称，如崇明东滩
+             * Coordinate System
+             * @description 坐标系；旧机位未知时为空，不得参与计算
              */
-            name: string;
+            coordinate_system?: ("WGS84" | "GCJ-02" | "BD-09") | null;
+            /**
+             * Tz Offset
+             * @description 拍摄地时区偏移，如 +08:00
+             */
+            tz_offset?: string | null;
+            /**
+             * Direction Deg
+             * @description 主要朝向方位角
+             */
+            direction_deg?: number | null;
+            /**
+             * Subject Types
+             * @description 适合拍摄的题材
+             */
+            subject_types?: string[];
             /**
              * Notes
              * @description 机位备注
@@ -1074,27 +1347,129 @@ export interface components {
              */
             source: string;
             /**
-             * Subject Types
-             * @description 适合拍摄的题材
+             * Id
+             * @description 稳定机位标识
              */
-            subject_types?: string[];
+            id: string;
             /**
-             * Tz Offset
-             * @description 拍摄地时区偏移，如 +08:00
+             * Coordinate State
+             * @description 机位能否参与 WGS84 计算
+             * @enum {string}
              */
-            tz_offset?: string | null;
+            coordinate_state: "ready" | "missing_coordinates" | "unknown_system" | "unsupported_system";
+        };
+        /**
+         * FeedbackMutation
+         * @description 比较并更新与最近操作去重的请求头字段。
+         */
+        FeedbackMutation: {
+            /** Expected Revision */
+            expected_revision: number;
+            /**
+             * Mutation Id
+             * Format: uuid
+             */
+            mutation_id: string;
+        };
+        /**
+         * FeedbackSnapshot
+         * @description 可公开反馈快照，不包含内部请求摘要。
+         */
+        FeedbackSnapshot: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Feedback Id
+             * Format: uuid
+             */
+            feedback_id: string;
+            /** User Id */
+            user_id: string;
+            target: components["schemas"]["FeedbackTarget"];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "withdrawn";
+            /** Revision */
+            revision: number;
+            /** Feedback Revision */
+            feedback_revision: number;
+            feedback: components["schemas"]["RawFeedback"] | null;
+            experience?: components["schemas"]["LocalExperience"] | null;
+            /** Photo Refs */
+            photo_refs?: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Withdrawn At */
+            withdrawn_at?: string | null;
+        };
+        /**
+         * FeedbackTarget
+         * @description 稳定结果引用与固定v1规范指纹。
+         */
+        FeedbackTarget: {
+            /** Session Id */
+            session_id: string;
+            /** Result Id */
+            result_id: string;
+            /** Source Fingerprint */
+            source_fingerprint: string;
+        };
+        /**
+         * FeedbackView
+         * @description API只读状态；有效性派生，不在恢复中修改文件。
+         */
+        FeedbackView: {
+            /**
+             * Saved
+             * @default true
+             */
+            saved: boolean;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "none" | "active" | "withdrawn";
+            /**
+             * Source State
+             * @enum {string}
+             */
+            source_state: "unchanged" | "changed" | "missing";
+            /** Revision */
+            revision: number;
+            record: components["schemas"]["FeedbackSnapshot"] | null;
+            /** Last Mutation Id */
+            last_mutation_id?: string | null;
+            /**
+             * Experience Effective
+             * @default false
+             */
+            experience_effective: boolean;
+            /**
+             * Memory Written
+             * @default false
+             * @constant
+             */
+            memory_written: false;
         };
         /**
          * GeoPoint
          * @description 携带坐标系的地理坐标；禁止将不同坐标系当作同一数值使用。
          */
         GeoPoint: {
-            /**
-             * Coordinate System
-             * @description 坐标系，必须显式标注
-             * @enum {string}
-             */
-            coordinate_system: "WGS84" | "GCJ-02" | "BD-09";
             /**
              * Latitude
              * @description 纬度，北纬为正，如 31.52
@@ -1105,11 +1480,46 @@ export interface components {
              * @description 经度，东经为正，如 121.95
              */
             longitude: number;
+            /**
+             * Coordinate System
+             * @description 坐标系，必须显式标注
+             * @enum {string}
+             */
+            coordinate_system: "WGS84" | "GCJ-02" | "BD-09";
         };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * LocalExperience
+         * @description 本地经验记录；撤回后正文清空，不写入Agent记忆。
+         */
+        LocalExperience: {
+            /**
+             * Experience Id
+             * Format: uuid
+             */
+            experience_id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "planning_preference" | "observation_note";
+            /** Content */
+            content: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "confirmed" | "needs_review" | "withdrawn";
+            /** Source Feedback Revision */
+            source_feedback_revision: number;
+            /** Confirmed At */
+            confirmed_at?: string | null;
+            /** Withdrawn At */
+            withdrawn_at?: string | null;
         };
         /**
          * LocationSuggestion
@@ -1158,10 +1568,28 @@ export interface components {
          * @description 高德地图标记使用的 GCJ-02 经度、纬度。
          */
         MapConvertedPoint: {
-            /** Latitude */
-            latitude: number;
             /** Longitude */
             longitude: number;
+            /** Latitude */
+            latitude: number;
+        };
+        /**
+         * ObservationScope
+         * @description 本人观察范围；不推断是否覆盖计划。
+         */
+        ObservationScope: {
+            /**
+             * Place Matches Plan
+             * @enum {string}
+             */
+            place_matches_plan: "yes" | "no" | "unknown";
+            /**
+             * Window Covers Plan
+             * @enum {string}
+             */
+            window_covers_plan: "yes" | "no" | "unknown";
+            /** Description */
+            description: string;
         };
         /**
          * ParamSuggestion
@@ -1174,15 +1602,15 @@ export interface components {
              */
             name: string;
             /**
-             * Reason
-             * @default
-             */
-            reason: string;
-            /**
              * Value
              * @default
              */
             value: string;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
         };
         /**
          * PlanArchive
@@ -1190,12 +1618,17 @@ export interface components {
          */
         PlanArchive: {
             /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
              * Format
              * @default lighttrail.spot-plan
              * @constant
              */
             format: "lighttrail.spot-plan";
-            plan: components["schemas"]["ArchivedSpotPlan"];
             /**
              * Privacy
              * @default coordinates_removed
@@ -1203,12 +1636,7 @@ export interface components {
              */
             privacy: "coordinates_removed";
             request: components["schemas"]["ArchivedPlanningRequest"];
-            /**
-             * Schema Version
-             * @default 1
-             * @constant
-             */
-            schema_version: 1;
+            plan: components["schemas"]["ArchivedSpotPlan"];
         };
         /**
          * PlanDirection
@@ -1232,6 +1660,11 @@ export interface components {
          */
         PlanEvidenceRef: {
             /**
+             * Source
+             * @description 数据源或工具名称
+             */
+            source: string;
+            /**
              * Field
              * @description 被引用的结果字段
              */
@@ -1241,11 +1674,6 @@ export interface components {
              * @description 数据采集时刻；未知则为空
              */
             observed_at?: string | null;
-            /**
-             * Source
-             * @description 数据源或工具名称
-             */
-            source: string;
             /**
              * Valid Until
              * @description 数据有效期；未知则为空
@@ -1263,15 +1691,15 @@ export interface components {
              */
             name: string;
             /**
-             * Reason
-             * @description 推荐理由
-             */
-            reason: string;
-            /**
              * Value
              * @description 参数值，如 f/4
              */
             value: string;
+            /**
+             * Reason
+             * @description 推荐理由
+             */
+            reason: string;
         };
         /**
          * PlanRisk
@@ -1284,16 +1712,16 @@ export interface components {
              */
             code: string;
             /**
-             * Detail
-             * @description 用户可理解的风险和应对
-             */
-            detail: string;
-            /**
              * Severity
              * @description 风险严重程度
              * @enum {string}
              */
             severity: "low" | "medium" | "high";
+            /**
+             * Detail
+             * @description 用户可理解的风险和应对
+             */
+            detail: string;
         };
         /**
          * PlanSite
@@ -1305,13 +1733,13 @@ export interface components {
              * @description 本次拍摄机位名称
              */
             name: string;
-            /** @description 机位坐标及坐标系 */
-            point: components["schemas"]["GeoPoint"];
             /**
              * Site Id
              * @description 收藏机位稳定标识
              */
             site_id?: string | null;
+            /** @description 机位坐标及坐标系 */
+            point: components["schemas"]["GeoPoint"];
             /**
              * Source
              * @description 坐标来源，如用户收藏机位
@@ -1324,29 +1752,23 @@ export interface components {
          */
         PlanWindow: {
             /**
-             * End
-             * Format: date-time
-             * @description 窗口结束，ISO 8601 且含时区
-             */
-            end: string;
-            /**
              * Start
              * Format: date-time
              * @description 窗口开始，ISO 8601 且含时区
              */
             start: string;
+            /**
+             * End
+             * Format: date-time
+             * @description 窗口结束，ISO 8601 且含时区
+             */
+            end: string;
         };
         /**
          * PlanningRequest
          * @description 结构化拍摄请求：题材、日期、时区和位置选择均为必需语义。
          */
         PlanningRequest: {
-            /** @description 仍需挑选机位的区域 */
-            area?: components["schemas"]["SearchArea"] | null;
-            /** @description 候选日期范围 */
-            date_range?: components["schemas"]["DateRange"] | null;
-            /** @description 用户明确选择的收藏机位 */
-            spot?: components["schemas"]["SpotSelector"] | null;
             /**
              * Subject Type
              * @description 拍摄题材，如银河
@@ -1357,11 +1779,17 @@ export interface components {
              * @description 明确的本地拍摄日期
              */
             target_date?: string | null;
+            /** @description 候选日期范围 */
+            date_range?: components["schemas"]["DateRange"] | null;
             /**
              * Tz Offset
              * @description 拍摄地时区偏移，如 +08:00
              */
             tz_offset: string;
+            /** @description 用户明确选择的收藏机位 */
+            spot?: components["schemas"]["SpotSelector"] | null;
+            /** @description 仍需挑选机位的区域 */
+            area?: components["schemas"]["SearchArea"] | null;
         };
         /**
          * ProfilePayload
@@ -1370,24 +1798,29 @@ export interface components {
         ProfilePayload: {
             /** Camera Body */
             camera_body?: string | null;
-            /** Common Locations */
-            common_locations?: string[] | null;
-            /** Favorite Spots */
-            favorite_spots?: {
-                [key: string]: unknown;
-            }[] | null;
             /** Lenses */
             lenses?: string[] | null;
             /** Preferences */
             preferences?: string[] | null;
+            /** Common Locations */
+            common_locations?: string[] | null;
             /** Skill Level */
             skill_level?: string | null;
+            /** Favorite Spots */
+            favorite_spots?: {
+                [key: string]: unknown;
+            }[] | null;
         };
         /**
          * QueuedEvent
          * @description 排队事件：告知当前 LLM 队列位置。
          */
         QueuedEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "queued";
             /**
              * Position
              * @default 1
@@ -1398,24 +1831,143 @@ export interface components {
              * @default
              */
             session_id: string;
+        };
+        /**
+         * RawFeedback
+         * @description 出门、观察、结果与原因独立的原始反馈。
+         */
+        RawFeedback: {
             /**
-             * @description discriminator enum property added by openapi-typescript
+             * Departure Status
              * @enum {string}
              */
-            type: "queued";
+            departure_status: "went" | "not_went" | "unknown";
+            /**
+             * Observation Status
+             * @enum {string}
+             */
+            observation_status: "observed" | "not_observed" | "unknown";
+            /** Observation Result */
+            observation_result?: ("seen" | "not_seen" | "uncertain") | null;
+            observation_scope?: components["schemas"]["ObservationScope"] | null;
+            /** Departure Reason */
+            departure_reason?: string | null;
+            /** Observation Reason */
+            observation_reason?: string | null;
+            /** Result Reason */
+            result_reason?: string | null;
+            /** Note */
+            note?: string | null;
+        };
+        /**
+         * SaveExperience
+         * @description 本人手写经验草稿，不能连带确认。
+         */
+        SaveExperience: {
+            /** Expected Revision */
+            expected_revision: number;
+            /**
+             * Mutation Id
+             * Format: uuid
+             */
+            mutation_id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "planning_preference" | "observation_note";
+            /** Content */
+            content: string;
+        };
+        /**
+         * SaveFeedback
+         * @description 完整替换当前原始反馈，不支持照片引用。
+         */
+        SaveFeedback: {
+            /** Expected Revision */
+            expected_revision: number;
+            /**
+             * Mutation Id
+             * Format: uuid
+             */
+            mutation_id: string;
+            feedback: components["schemas"]["RawFeedback"];
+            /** Photo Refs */
+            photo_refs?: string[];
+        };
+        /**
+         * SavedPlanRequest
+         * @description 复用现有计划请求，附加可选的会话及父版本关联。
+         */
+        SavedPlanRequest: {
+            request: components["schemas"]["PlanningRequest"];
+            /**
+             * Session Id
+             * @default
+             */
+            session_id: string;
+            /**
+             * Result Id
+             * @default
+             */
+            result_id: string;
+        };
+        /**
+         * SavedResult
+         * @description 实际生成结果的不可变版本；时间和证据只保存，不在恢复时重算。
+         */
+        SavedResult: {
+            /** Session Id */
+            session_id: string;
+            /** Result Id */
+            result_id: string;
+            /** Version */
+            version: number;
+            /** Kind */
+            kind: string;
+            /** Created At */
+            created_at: string;
+            /**
+             * Parent Result Id
+             * @default
+             */
+            parent_result_id: string;
+            /** Request */
+            request?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            card?: components["schemas"]["DecisionCard"] | null;
+            plan?: components["schemas"]["SpotPlan"] | null;
+            /** History */
+            history?: {
+                [key: string]: unknown;
+            }[];
+            /** Pipeline */
+            pipeline?: {
+                [key: string]: unknown;
+            };
+            /** Trace */
+            trace?: {
+                [key: string]: unknown;
+            };
         };
         /**
          * SearchArea
          * @description 待选区域；规划器须在区域内确定实际机位后才能给出完整计划。
          */
         SearchArea: {
-            /** @description 区域中心坐标及坐标系 */
-            center: components["schemas"]["GeoPoint"];
             /**
              * Name
              * @description 区域名称，如崇明东部
              */
             name: string;
+            /** @description 区域中心坐标及坐标系 */
+            center: components["schemas"]["GeoPoint"];
             /**
              * Radius Km
              * @description 候选搜索半径，单位公里
@@ -1427,14 +1979,14 @@ export interface components {
          * @description 会话历史中一条 OpenAI 兼容消息。
          */
         SessionMessagePayload: {
+            /** Role */
+            role: string;
             /** Content */
             content?: string | {
                 [key: string]: unknown;
             }[] | null;
             /** Name */
             name?: string | null;
-            /** Role */
-            role: string;
             /** Tool Call Id */
             tool_call_id?: string | null;
             /** Tool Calls */
@@ -1447,24 +1999,26 @@ export interface components {
          * @description 会话详情中的可持久化记录字段。
          */
         SessionPayload: {
-            /** Created At */
-            created_at: string;
+            /** Session Id */
+            session_id: string;
             /** History */
             history: components["schemas"]["SessionMessagePayload"][];
             /** Pipeline */
             pipeline: {
                 [key: string]: unknown;
             };
-            /** Session Id */
-            session_id: string;
-            /** Updated At */
-            updated_at: string;
-            /** User Id */
-            user_id: string;
             /** Workspace */
             workspace: {
                 [key: string]: unknown;
             };
+            /** User Id */
+            user_id: string;
+            /** Created At */
+            created_at: string;
+            /** Updated At */
+            updated_at: string;
+            /** Results */
+            results?: components["schemas"]["SavedResult"][];
         };
         /**
          * SessionResponsePayload
@@ -1496,42 +2050,56 @@ export interface components {
          */
         Source: {
             /**
-             * Confidence
-             * @default low
+             * Tool
+             * @default
              */
-            confidence: string;
+            tool: string;
             /**
              * Field
              * @default
              */
             field: string;
             /**
+             * Confidence
+             * @default low
+             */
+            confidence: string;
+            /**
              * Note
              * @default
              */
             note: string;
-            /**
-             * Tool
-             * @default
-             */
-            tool: string;
         };
         /**
          * SpotPlan
          * @description 可执行单机位计划；缺关键字段时必须标为 needs_data。
          */
         SpotPlan: {
-            /** @description 到达窗口 */
-            arrival_window: components["schemas"]["PlanWindow"] | null;
-            /** @description 离场窗口 */
-            departure_window: components["schemas"]["PlanWindow"] | null;
+            /**
+             * Status
+             * @description ready=可执行；needs_data=缺关键事实
+             * @enum {string}
+             */
+            status: "ready" | "needs_data";
+            /** @description 生成本计划的结构化请求快照 */
+            request: components["schemas"]["PlanningRequest"];
+            /**
+             * Selected Date
+             * @description 最终选择的本地拍摄日期
+             */
+            selected_date: string | null;
+            /** @description 本次实际机位与坐标 */
+            site: components["schemas"]["PlanSite"] | null;
             /** @description 拍摄朝向 */
             direction: components["schemas"]["PlanDirection"] | null;
-            /**
-             * Evidence Refs
-             * @description 关键判断的数据依据引用
-             */
-            evidence_refs: components["schemas"]["PlanEvidenceRef"][];
+            /** @description 到达窗口 */
+            arrival_window: components["schemas"]["PlanWindow"] | null;
+            /** @description 准备窗口 */
+            setup_window: components["schemas"]["PlanWindow"] | null;
+            /** @description 拍摄窗口 */
+            shoot_window: components["schemas"]["PlanWindow"] | null;
+            /** @description 离场窗口 */
+            departure_window: components["schemas"]["PlanWindow"] | null;
             /**
              * Focal Length Mm
              * @description 建议焦距，单位毫米
@@ -1547,30 +2115,16 @@ export interface components {
              * @description 建议曝光等拍摄参数
              */
             parameters: components["schemas"]["PlanParameter"][];
-            /** @description 生成本计划的结构化请求快照 */
-            request: components["schemas"]["PlanningRequest"];
             /**
              * Risks
              * @description 天气、可达性或数据缺口风险
              */
             risks: components["schemas"]["PlanRisk"][];
             /**
-             * Selected Date
-             * @description 最终选择的本地拍摄日期
+             * Evidence Refs
+             * @description 关键判断的数据依据引用
              */
-            selected_date: string | null;
-            /** @description 准备窗口 */
-            setup_window: components["schemas"]["PlanWindow"] | null;
-            /** @description 拍摄窗口 */
-            shoot_window: components["schemas"]["PlanWindow"] | null;
-            /** @description 本次实际机位与坐标 */
-            site: components["schemas"]["PlanSite"] | null;
-            /**
-             * Status
-             * @description ready=可执行；needs_data=缺关键事实
-             * @enum {string}
-             */
-            status: "ready" | "needs_data";
+            evidence_refs: components["schemas"]["PlanEvidenceRef"][];
         };
         /**
          * SpotSelector
@@ -1594,15 +2148,20 @@ export interface components {
          */
         StepEvent: {
             /**
-             * Input Summary
-             * @default
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
-            input_summary: string;
+            type: "step";
             /**
              * Name
              * @default
              */
             name: string;
+            /**
+             * Input Summary
+             * @default
+             */
+            input_summary: string;
             /**
              * Output Summary
              * @default
@@ -1618,17 +2177,17 @@ export interface components {
              * @default
              */
             ts: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "step";
         };
         /**
          * TokenEvent
          * @description 正文事件（当前按「每轮完整文本」发送，逐 token 流式留待 streaming 通道）。
          */
         TokenEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "token";
             /**
              * Content
              * @default
@@ -1639,11 +2198,6 @@ export interface components {
              * @default
              */
             session_id: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "token";
         };
         /**
          * ToolCallEvent
@@ -1651,15 +2205,20 @@ export interface components {
          */
         ToolCallEvent: {
             /**
-             * Arguments
-             * @default
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
-            arguments: string;
+            type: "tool_call";
             /**
              * Name
              * @default
              */
             name: string;
+            /**
+             * Arguments
+             * @default
+             */
+            arguments: string;
             /**
              * Session Id
              * @default
@@ -1670,11 +2229,6 @@ export interface components {
              * @default
              */
             ts: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "tool_call";
         };
         /**
          * ToolResultEvent
@@ -1687,29 +2241,10 @@ export interface components {
          */
         ToolResultEvent: {
             /**
-             * Confidence
-             * @default low
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
-            confidence: string;
-            /** Data */
-            data?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Data Source
-             * @default
-             */
-            data_source: string;
-            /**
-             * Elapsed Ms
-             * @default 0
-             */
-            elapsed_ms: number;
-            /**
-             * Field
-             * @default
-             */
-            field: string;
+            type: "tool_result";
             /**
              * Name
              * @default
@@ -1720,6 +2255,30 @@ export interface components {
              * @default
              */
             result: string;
+            /** Data */
+            data?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Data Source
+             * @default
+             */
+            data_source: string;
+            /**
+             * Confidence
+             * @default low
+             */
+            confidence: string;
+            /**
+             * Field
+             * @default
+             */
+            field: string;
+            /**
+             * Elapsed Ms
+             * @default 0
+             */
+            elapsed_ms: number;
             /**
              * Session Id
              * @default
@@ -1730,24 +2289,19 @@ export interface components {
              * @default
              */
             ts: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "tool_result";
         };
         /** ValidationError */
         ValidationError: {
-            /** Context */
-            ctx?: Record<string, never>;
-            /** Input */
-            input?: unknown;
             /** Location */
             loc: (string | number)[];
             /** Message */
             msg: string;
             /** Error Type */
             type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
         };
     };
     responses: never;
@@ -1758,18 +2312,14 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    create_chase_plan_api_chase_plans_post: {
+    data_boundaries_api_data_boundaries_get: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChasePlanRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -1777,16 +2327,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChasePlanPayload"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["DataBoundaryInfo"];
                 };
             };
         };
@@ -1857,7 +2398,7 @@ export interface operations {
             };
         };
     };
-    create_event_api_events_post: {
+    photos_review_api_photos_review_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -1866,7 +2407,93 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["EventCreatePayload"];
+                "multipart/form-data": components["schemas"]["Body_photos_review_api_photos_review_post"];
+            };
+        };
+        responses: {
+            /** @description SSE 事件流（event: <type> + data: JSON） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["QueuedEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["ToolCallEvent"] | components["schemas"]["ToolResultEvent"] | components["schemas"]["TokenEvent"] | components["schemas"]["CardEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["DoneEvent"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    photos_reverse_api_photos_reverse_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_photos_reverse_api_photos_reverse_post"];
+            };
+        };
+        responses: {
+            /** @description SSE 事件流（event: <type> + data: JSON） */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["QueuedEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["ToolCallEvent"] | components["schemas"]["ToolResultEvent"] | components["schemas"]["TokenEvent"] | components["schemas"]["CardEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["DoneEvent"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_profile_api_profile_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfilePayload"];
+                };
+            };
+        };
+    };
+    put_profile_api_profile_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfilePayload"];
             };
         };
         responses: {
@@ -1876,7 +2503,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EventCreatedPayload"];
+                    "application/json": components["schemas"]["ProfilePayload"];
                 };
             };
             /** @description Validation Error */
@@ -2009,209 +2636,6 @@ export interface operations {
             };
         };
     };
-    get_map_config_api_map_config_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MapConfigPayload"];
-                };
-            };
-        };
-    };
-    convert_map_coordinates_api_map_convert_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MapConvertPayload"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MapConvertResult"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    photos_reverse_api_photos_reverse_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_photos_reverse_api_photos_reverse_post"];
-            };
-        };
-        responses: {
-            /** @description SSE 事件流（event: <type> + data: JSON） */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": components["schemas"]["QueuedEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["ToolCallEvent"] | components["schemas"]["ToolResultEvent"] | components["schemas"]["TokenEvent"] | components["schemas"]["CardEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["DoneEvent"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    photos_review_api_photos_review_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_photos_review_api_photos_review_post"];
-            };
-        };
-        responses: {
-            /** @description SSE 事件流（event: <type> + data: JSON） */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": components["schemas"]["QueuedEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["ToolCallEvent"] | components["schemas"]["ToolResultEvent"] | components["schemas"]["TokenEvent"] | components["schemas"]["CardEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["DoneEvent"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_profile_api_profile_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProfilePayload"];
-                };
-            };
-        };
-    };
-    put_profile_api_profile_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ProfilePayload"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProfilePayload"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_session_api_sessions__session_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionResponsePayload"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     create_spot_plan_api_spot_plans_post: {
         parameters: {
             query?: never;
@@ -2298,6 +2722,453 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlanArchive"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_map_config_api_map_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MapConfigPayload"];
+                };
+            };
+        };
+    };
+    convert_map_coordinates_api_map_convert_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MapConvertPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MapConvertResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_event_api_events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventCreatePayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventCreatedPayload"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_chase_plan_api_chase_plans_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChasePlanRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChasePlanPayload"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sessions_api_sessions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionPayload"][];
+                };
+            };
+        };
+    };
+    get_saved_result_api_sessions__session_id__results__result_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+                result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_saved_spot_plan_api_saved_spot_plans_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavedPlanRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_session_api_sessions__session_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponsePayload"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_feedback_api_sessions__session_id__results__result_id__feedback_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+                result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_feedback_api_sessions__session_id__results__result_id__feedback_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+                result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveFeedback"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdraw_feedback_api_sessions__session_id__results__result_id__feedback_withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+                result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackMutation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_experience_api_sessions__session_id__results__result_id__feedback_experience_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+                result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveExperience"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_experience_api_sessions__session_id__results__result_id__feedback_experience_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+                result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmExperience"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdraw_experience_api_sessions__session_id__results__result_id__feedback_experience_withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+                result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackMutation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackView"];
                 };
             };
             /** @description Validation Error */

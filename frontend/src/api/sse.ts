@@ -24,16 +24,20 @@ export function parseFrame(frame: string): SSEEvent | null {
 }
 
 /** 读取 SSE 流；done 是协议终点，不依赖代理是否立即关闭连接。 */
-export async function pipeSSE(resp: Response, onEvent: (event: SSEEvent) => void): Promise<void> {
+export async function pipeSSE(resp: Response, onEvent: (event: SSEEvent) => void, signal?: AbortSignal): Promise<void> {
   if (!resp.body) {
     throw new Error("响应无流式内容");
   }
   const reader = resp.body.getReader();
+  const stopReading = () => { void reader.cancel().catch(() => undefined); };
+  signal?.addEventListener("abort", stopReading, { once: true });
   const decoder = new TextDecoder();
   let buffer = "";
   try {
     for (;;) {
+      signal?.throwIfAborted();
       const { done, value } = await reader.read();
+      signal?.throwIfAborted();
       buffer += decoder.decode(value, { stream: !done });
       for (;;) {
         const boundary = /\r?\n\r?\n/.exec(buffer);
@@ -44,6 +48,7 @@ export async function pipeSSE(resp: Response, onEvent: (event: SSEEvent) => void
         buffer = buffer.slice(boundary.index + boundary[0].length);
         const event = parseFrame(frame);
         if (event) {
+          signal?.throwIfAborted();
           onEvent(event);
           if (event.type === "done") {
             return;
@@ -55,6 +60,7 @@ export async function pipeSSE(resp: Response, onEvent: (event: SSEEvent) => void
       }
     }
   } finally {
+    signal?.removeEventListener("abort", stopReading);
     await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }

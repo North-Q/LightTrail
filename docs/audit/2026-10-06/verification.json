@@ -1,0 +1,162 @@
+{
+  "date": "2026-10-06",
+  "baseline": "4b04b81",
+  "mode": "离线/合成；无真实外部API或个人数据",
+  "checks": {
+    "pytest": {
+      "passed": 458,
+      "seconds": 19.71,
+      "environment": "项目basetemp与cache；默认临时目录初检权限失败"
+    },
+    "ruff_check": "passed",
+    "ruff_format_initial": "183符合，原追加稿Python围栏1处不符合",
+    "smoke": "21/21",
+    "import_linter": "3 kept / 0 broken",
+    "frontend_build": "passed",
+    "openapi_sha256": "6ab39ae922318abf66a47d884722b4b0d92b5d4a5002a207c7934994aa88ddcb",
+    "ui_shell": "7/7",
+    "fixture_browsers": [
+      "R0-6",
+      "S1-3",
+      "S1-5",
+      "S1 gate"
+    ],
+    "L2": {
+      "pipeline": "12/12",
+      "tools": "10/10",
+      "llm_calls": 0
+    },
+    "new_proxy_ui": "M1创建成功；D3虚拟时间harness超时，不能认定产品缺陷",
+    "final_document_checks": "passed: 28 effective Markdown, 128 local links, no broken links; 73 requirement IDs; 26 original hashes and initial8 exact; product diff empty"
+  },
+  "reproductions": {
+    "failed_data_card": {
+      "verdict": "go",
+      "confidence": "high",
+      "degraded": "",
+      "evidence": [
+        {
+          "tool": "weather_forecast",
+          "field": "云量",
+          "confidence": "high",
+          "note": "条件理想"
+        }
+      ],
+      "detail": {
+        "level": "high",
+        "score": 85,
+        "low": 61,
+        "high": 100,
+        "basis": "按 1 条依据的来源级别加权（确定性 high 1 条 / 外部或启发式 0 条）",
+        "high_count": 1,
+        "medium_count": 0,
+        "low_count": 0
+      }
+    },
+    "decide_history_not_loaded": true,
+    "cross_origin_event_write": {
+      "status": 200,
+      "allow_origin": "*"
+    },
+    "invalid_event_timestamp_status": 422,
+    "d2_failed_source": "needs_data",
+    "timeout_wiring": {
+      "settings": [
+        1,
+        2
+      ],
+      "client": [
+        30,
+        120
+      ],
+      "sdk_retries": 2
+    },
+    "production_npf_autofill": null,
+    "time_offset": "2026-10-05T17:52:10+00:00",
+    "short_shutter_rounding": 0,
+    "equivalent_fraction": false,
+    "astral_phase_contract": "Calculates the phase of the moon on the specified date.\n\nArgs:\n    date: The date to calculate the phase for. Dates are always in the UTC timezone.\n          If not specified then today's date is used.\n\nReturns:\n    A number designating the phase.\n\n    ============  ==============\n    0 .. 6.99     New moon\n    7 .. 13.99    First quarter\n    14 .. 20.99   Full moon\n    21 .. 27.99   Last quarter\n    ============  ==============\n",
+    "moon_last_quarter": {
+      "日期": "2026-10-06",
+      "月相名称": "下弦月",
+      "月龄（天）": 21,
+      "照亮比例（%）": 62,
+      "月光影响建议": "月光明显，星空对比度下降；适合月景、地景月光补光",
+      "提示": "月相周期约 29.53 天；『月亮升起前/落下后的时段』需配合 moon_events 工具判断"
+    },
+    "sun_failure_78.2": "Sun is always above the horizon on this day, at this location.",
+    "sun_failure_51.5": "Sun never reaches 18 degrees below the horizon, at this location.",
+    "six_day_missing_weather": {
+      "日期": "2026-10-12",
+      "日落时间": "18:00",
+      "评分（0-100）": 100,
+      "等级": "高（值得赌一把）",
+      "依据": [
+        "日落前后平均云量 50%（30-70% 为理想区间）",
+        "高云占比约 80%（高云利于染红）",
+        "平均能见度 50.0 km",
+        "最大降水概率 0%",
+        "最大风速 0 km/h"
+      ],
+      "置信度": "高",
+      "说明": "经验启发式模型（非气象学精确概率），建议结合实时天空观察；反烧（日落后 20-40 分钟）可小幅加分参考同模型偏移"
+    },
+    "forecast_missing_and_timezone": {
+      "位置": "40.7,-74",
+      "时区": "+08:00",
+      "预报天数": 1,
+      "每日预报": [
+        {
+          "日期": "2026-10-06",
+          "平均云量（%）": 0,
+          "云量范围（%）": "0-0",
+          "最低能见度（km）": null,
+          "最高降水概率（%）": 0,
+          "最大风速（km/h）": 0,
+          "傍晚云量序列": [
+            {
+              "时间": "18:00",
+              "云量（%）": null,
+              "高云（%）": null,
+              "能见度（km）": null
+            }
+          ]
+        }
+      ],
+      "数据来源": "Open-Meteo（免费）",
+      "说明": "傍晚云量序列为 16:00-19:00 当地小时数据；预测越接近当下越可靠，供规划参考"
+    },
+    "early_leave_order": {
+      "order": [
+        "B",
+        "A"
+      ],
+      "rejections": [
+        "B 的有效拍摄时长不足"
+      ]
+    },
+    "unvalidated_evidence": {
+      "level": "high",
+      "score": 85,
+      "low": 61,
+      "high": 100,
+      "basis": "按 1 条依据的来源级别加权（确定性 high 1 条 / 外部或启发式 0 条）",
+      "high_count": 1,
+      "medium_count": 0,
+      "low_count": 0
+    }
+  },
+  "cancellation": {
+    "cancelled_waiter_permit_available": false,
+    "active": 0,
+    "llm_key_visible_in_repr": true,
+    "baidu_ak_visible_in_repr": true
+  },
+  "unverified": [
+    "真实LLM/天气/地图",
+    "实际拍摄质量与概率校准",
+    "新环境安装/独立wheel",
+    "公网部署/许可/费用",
+    "全部输入和分支"
+  ]
+}

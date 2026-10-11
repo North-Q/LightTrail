@@ -1,0 +1,15 @@
+{
+  "delayed_bridge": {
+    "trigger": "只延迟桥回调，线程完成通知正常",
+    "before_full_body": "event: done\ndata: {\"type\": \"done\", \"text\": \"\", \"session_id\": \"synthetic\"}\n\n",
+    "after_full_body": "event: step\ndata: {\"type\": \"step\", \"name\": \"合成延迟步骤\", \"input_summary\": \"\", \"output_summary\": \"\", \"session_id\": \"synthetic\", \"ts\": \"2026-10-06T16:22:37.617+00:00\"}\n\nevent: done\ndata: {\"type\": \"done\", \"text\": \"\", \"session_id\": \"synthetic\"}\n\n",
+    "before_missing": [
+      "step"
+    ],
+    "before_done_present": true
+  },
+  "save_errors_after": {
+    "decide": "event: queued\ndata: {\"type\": \"queued\", \"position\": 1, \"session_id\": \"c4d5651cf56745018e3d9f31164bb2da\"}\n\nevent: step\ndata: {\"type\": \"step\", \"name\": \"意图路由_超工具集\", \"input_summary\": \"帮我订机票去拍星空\", \"output_summary\": \"超出摄影工具能力；显式告知不可代办\", \"session_id\": \"c4d5651cf56745018e3d9f31164bb2da\", \"ts\": \"2026-10-06T16:22:37.718+00:00\"}\n\nevent: error\ndata: {\"type\": \"error\", \"message\": \"synthetic disk unavailable request_id=save-probe\", \"session_id\": \"c4d5651cf56745018e3d9f31164bb2da\"}\n\nevent: done\ndata: {\"type\": \"done\", \"text\": \"\", \"session_id\": \"c4d5651cf56745018e3d9f31164bb2da\"}\n\n",
+    "chat": "event: queued\ndata: {\"type\": \"queued\", \"position\": 1, \"session_id\": \"72a231f7495e44e2acc1742023b8b186\"}\n\nevent: step\ndata: {\"type\": \"step\", \"name\": \"记忆_注入\", \"input_summary\": \"帮我订机票去拍星空\", \"output_summary\": \"users/_local/memory/：profile\", \"session_id\": \"72a231f7495e44e2acc1742023b8b186\", \"ts\": \"2026-10-06T16:22:37.836+00:00\"}\n\nevent: error\ndata: {\"type\": \"error\", \"message\": \"synthetic disk unavailable request_id=save-probe\", \"session_id\": \"72a231f7495e44e2acc1742023b8b186\"}\n\nevent: done\ndata: {\"type\": \"done\", \"text\": \"\", \"session_id\": \"72a231f7495e44e2acc1742023b8b186\"}\n\n"
+  }
+}

@@ -4,12 +4,11 @@
 - 模型自评置信度不可控，规则必须在代码里确定性地推导；
 - 规则分层：
   1. 确定性来源（天文/曝光纯计算，结果不依赖外部数据）→ high；
-  2. 天气预报（外部网口数据）→ 时效敏感：覆盖当日 → high（≤6h 语义近似），跨天 → medium；
+  2. 天气预报必须含可核验的获取时间与有效范围；合格至多 medium，否则 low；
   3. 启发式组合（火烧云评分 / 机位匹配，经验模型叠加）→ medium；
   4. 未知工具：带数据来源字段 → medium，否则 → low；
 - 规则随数据字段细化时在此表追加（如：「云图外推 → medium」），供 E8 评估回归；
-- `confidence_detail()` 把卡片等级 + 依据列表推导为「主值 + 区间 + 依据构成」，
-  前端只渲染不下判断（B4-3 根治 `D3Page` 硬编码常量表 78/58/34）。
+- `confidence_detail()` 仅为兼容旧契约保留；分数和区间未经校准，页面不展示。
 """
 
 from __future__ import annotations
@@ -20,6 +19,7 @@ from typing import Any
 
 from lighttrail.contracts.models import ConfidenceDetail, Source
 from lighttrail.contracts.tool import ToolSpec
+from lighttrail.infra.forecast import forecast_problem
 
 # 确定性来源：纯计算 / 天文历法，不依赖外部数据与预测
 DETERMINISTIC_TOOLS = frozenset(
@@ -68,6 +68,10 @@ def resolve_confidence(
     Returns:
         high / medium / low 之一。
     """
+    if not result_data or "error" in result_data or result_data.get("缺失字段"):
+        return _CONF_LOW
+    if result_data.get("置信度") == "低":
+        return _CONF_LOW
     if spec.confidence_rule == "forecast":
         return _forecast_confidence(result_data, now)
     return spec.confidence.value
@@ -86,6 +90,10 @@ def confidence_for_tool(
     Returns:
         high / medium / low 之一。
     """
+    if not result_data or "error" in result_data or result_data.get("缺失字段"):
+        return _CONF_LOW
+    if result_data.get("置信度") == "低":
+        return _CONF_LOW
     if name in DETERMINISTIC_TOOLS:
         return _CONF_HIGH
     if name in FORECAST_TOOLS:
@@ -146,16 +154,13 @@ def confidence_detail(level: str, evidence: Sequence[Source]) -> ConfidenceDetai
 
 
 def _forecast_confidence(result_data: dict[str, Any], now: datetime | None) -> str:
-    """天气预报置信度：覆盖当日 → high（时效 ≤6h 的日期级近似），跨天 → medium。"""
+    """获取时间与绝对有效范围可核对时为 medium，其余为 low。"""
+    current = now or datetime.now(timezone.utc)
+    if forecast_problem(result_data, current):
+        return _CONF_LOW
     entries = result_data.get("每日预报")
     if not isinstance(entries, list) or not entries:
-        # 无有效预报条目：退化为「有外部数据 → medium」
-        return _CONF_MEDIUM
-    today = (now.date() if now is not None else datetime.now(timezone.utc).date()).isoformat()
-    for entry in entries:
-        day = str(entry.get("日期", ""))
-        if day.startswith(today):
-            return _CONF_HIGH
+        return _CONF_LOW
     return _CONF_MEDIUM
 
 

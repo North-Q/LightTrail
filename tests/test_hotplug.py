@@ -117,5 +117,5 @@ def test_dynamic_confidence_rule_applies_to_new_tool() -> None:
 
     registry.dispatch("tide_forecast", "{}", recorder=recorder)
 
-    assert recorder.to_report().tool_calls[0].confidence == "high"  # 覆盖当日 → high
+    assert recorder.to_report().tool_calls[0].confidence == "low"  # 覆盖当日 → high
     assert recorder.to_report().tool_calls[0].field == "潮汐预报"

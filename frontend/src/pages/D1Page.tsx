@@ -2,11 +2,16 @@
 
 import { useCallback, useRef, useState } from "react";
 import { postFormSSE, sendChat, sendDecide } from "../api/client";
+import { STOP_WAITING_NOTICE } from "../api/requestScope";
+import { useRequestScope } from "../api/useRequestScope";
 import type { DecisionCard, SSEEvent, TraceItem } from "../api/events";
 import { useSources } from "../context/SourceContext";
 import { DecisionCardView } from "../components/DecisionCard";
 import { MarkdownMessage } from "../components/MarkdownMessage";
 import { TracePanel } from "../components/TracePanel";
+import { DataNotice } from "../components/DataNotice";
+import { SavedHistory } from "../components/SavedHistory";
+import { useSavedResults } from "../api/savedResults";
 
 interface Message {
   role: "user" | "assistant";
@@ -45,9 +50,17 @@ export function D1Page() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const sessionRef = useRef<string>(localStorage.getItem(SESSION_KEY) ?? "");
-  const abortRef = useRef<AbortController | null>(null);
+  const waiting = useRequestScope();
+  const [notice, setNotice] = useState("");
   const userMessageRef = useRef("");
   const { addSource } = useSources();
+  const [historical, setHistorical] = useState(false);
+  const saved = useSavedResults("chat", (result, history) => {
+    sessionRef.current = result.session_id;
+    setMessages((result.history ?? []).filter(message => message.role === "user" || message.role === "assistant").map(message => ({ role: message.role as Message["role"], content: String(message.content ?? "") })));
+    setCard(result.card ?? null); setHistorical(history);
+    setMode(result.kind === "decision" ? "decide" : "chat");
+  });
 
   const appendTrace = useCallback((item: TraceItem) => {
     setTrace((prev) => [...prev.slice(-199), item]);
@@ -87,8 +100,9 @@ export function D1Page() {
           setError(event.message);
           break;
         case "done":
+          saved.confirm(event);
           setQueuePos(null);
-          if (event.session_id) {
+          if (event.session_id && event.saved !== false) {
             sessionRef.current = event.session_id;
             localStorage.setItem(SESSION_KEY, event.session_id);
             rememberSession({
@@ -113,45 +127,48 @@ export function D1Page() {
   const streamingRef = useRef("");
   streamingRef.current = streaming;
 
-  async function submit(): Promise<void> {
-    const text = input.trim();
-    if (!text || running) {
+  async function submit(requery = false): Promise<void> {
+    const text = requery ? String(saved.active?.request?.request ?? saved.active?.request?.message ?? "") : input.trim();
+    if (!text || running || uploading) {
       return;
     }
     setInput("");
+    saved.start();
     setError("");
+    setNotice("");
     setCard(null);
+    setHistorical(false);
     setTrace([]);
     setQueuePos(null);
     setStreaming("");
     userMessageRef.current = text;
     setMessages((prev) => [...prev, { role: "user", content: text }]);
     setRunning(true);
-    const controller = new AbortController();
-    abortRef.current = controller;
+    const controller = waiting.begin();
+    const onEvent = (event: SSEEvent) => { if (waiting.isCurrent(controller)) handleEvent(event); };
     try {
       if (mode === "chat") {
-        await sendChat(text, sessionRef.current, handleEvent, controller.signal);
+        await sendChat(text, sessionRef.current, onEvent, controller.signal, saved.pointer.result_id, requery);
       } else {
-        await sendDecide(text, sessionRef.current, handleEvent, controller.signal);
+        await sendDecide(text, sessionRef.current, onEvent, controller.signal, saved.pointer.result_id, requery);
       }
     } catch (caught) {
-      if (!controller.signal.aborted) {
+      if (waiting.isCurrent(controller)) {
         setError(caught instanceof Error ? caught.message : String(caught));
       }
     } finally {
-      setRunning(false);
-      setQueuePos(null);
-      abortRef.current = null;
+      waiting.finish(controller, () => { setRunning(false); setQueuePos(null); });
     }
   }
 
   async function handleUpload(file: File | undefined): Promise<void> {
-    if (!file) {
+    if (!file || running || uploading) {
       return;
     }
     setError("");
     setUploadError("");
+    saved.start();
+    setNotice("");
     if (!ALLOWED_TYPES.has(file.type)) {
       setUploadError("仅支持 jpg/png 照片");
       return;
@@ -168,23 +185,33 @@ export function D1Page() {
     form.append("file", file);
     form.append("note", "");
     form.append("equipment", "");
+    const controller = waiting.begin();
     try {
-      await postFormSSE("/api/photos/reverse", form, handleEvent);
+      await postFormSSE("/api/photos/reverse", form, (event) => {
+        if (waiting.isCurrent(controller)) handleEvent(event);
+      }, controller.signal);
     } catch (caught) {
-      setUploadError(caught instanceof Error ? caught.message : String(caught));
+      if (waiting.isCurrent(controller)) setUploadError(caught instanceof Error ? caught.message : String(caught));
     } finally {
-      setUploading(false);
+      waiting.finish(controller, () => { setUploading(false); setQueuePos(null); });
     }
   }
   const [uploadError, setUploadError] = useState("");
 
   function stop(): void {
-    abortRef.current?.abort();
+    waiting.stop();
+    setRunning(false);
+    setUploading(false);
+    setQueuePos(null);
+    setStreaming("");
+    setNotice(STOP_WAITING_NOTICE);
   }
 
   function clearConversation(): void {
+    if (running || uploading) stop();
     sessionRef.current = "";
     localStorage.removeItem(SESSION_KEY);
+    saved.clear();
     setMessages([]);
     setStreaming("");
     setTrace([]);
@@ -203,6 +230,7 @@ export function D1Page() {
 
       <div className="chat-layout">
         <section className="chat-main">
+          <SavedHistory {...saved} disabled={running || uploading || saved.loading} onRestore={target => void saved.restore(target)} onRequery={() => void submit(true)} />
           <div className="card">
             <span className="card-kicker">功能选择</span>
             <div className="segmented" role="tablist" aria-label="输入模式">
@@ -234,6 +262,7 @@ export function D1Page() {
               ))}
             </div>
 
+            <DataNotice kind="decision" />
             <form
               className="prompt-row"
               style={{ marginTop: 12 }}
@@ -246,28 +275,31 @@ export function D1Page() {
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 placeholder={mode === "chat" ? "问光迹：现在几点？或 这周末去拍银河…" : "一句话决策：今晚火烧云值得冲吗？"}
-                disabled={running}
+                disabled={running || uploading || saved.loading}
                 aria-label="输入内容"
               />
-              <button type="submit" className="btn btn-primary" disabled={running || !input.trim()}>
+              <button type="submit" className="btn btn-primary" disabled={running || uploading || saved.loading || !input.trim()}>
                 {mode === "chat" ? "发送" : "决策"}
               </button>
-              {running ? (
-                <button type="button" className="btn btn-ghost" onClick={stop}>停止</button>
+              {running || uploading ? (
+                <button type="button" className="btn btn-ghost" onClick={stop}>停止等待</button>
               ) : null}
               {messages.length > 0 ? (
                 <button type="button" className="btn btn-ghost" onClick={clearConversation}>清空</button>
               ) : null}
+              <button type="button" className="btn btn-ghost" onClick={clearConversation}>新会话</button>
             </form>
-            {queuePos !== null ? <span className="queue-badge">排队第 {queuePos} 位</span> : null}
+            {queuePos !== null ? <span className="queue-badge">已提交，等待处理…</span> : null}
+            {notice ? <p className="page-sub" role="status">{notice}</p> : null}
           </div>
 
+          <DataNotice kind="photo" />
           <label className="upload-zone" htmlFor="ref-upload">
             <input
               id="ref-upload"
               type="file"
               accept="image/jpeg,image/png"
-              disabled={uploading}
+              disabled={running || uploading}
               onChange={(event) => void handleUpload(event.target.files?.[0])}
             />
             <p style={{ margin: 0 }}>📷 参考图反推——选择一张参考大片，光迹反推复刻计划</p>
@@ -297,7 +329,7 @@ export function D1Page() {
 
           {card ? (
             <div className="plan-cards">
-              <DecisionCardView card={card} />
+              <DecisionCardView card={card} historical={historical} />
               {card.alternatives && card.alternatives.length > 0 ? (
                 <div className="plan-alts">
                   {card.alternatives.map((alternative, index) => (

@@ -7,14 +7,14 @@
       "conclusion": "2026-09-28去东岸拍火烧云，依据日落18:05，建议暂缓并补查天气。",
       "evidence": [
         {
-          "tool": "sun_times",
-          "field": "日落",
+          "tool": "weather_forecast",
+          "field": "虚构天气",
           "confidence": "high",
-          "note": "离线合成：日落 18:05"
+          "note": "错误模型自报：天气完美，值得出发"
         }
       ],
-      "confidence": "low",
-      "verdict": "wait",
+      "confidence": "high",
+      "verdict": "go",
       "time_window": "2026-09-28 17:30-18:30",
       "locations": [
         {
@@ -24,7 +24,7 @@
       ],
       "params": [],
       "alternatives": [],
-      "degraded": "missing_weather",
+      "degraded": "",
       "target_date": "2026-09-28",
       "subject_type": "火烧云"
     }
@@ -36,7 +36,9 @@
     "sun_times": {
       "日出": "05:45",
       "日落": "18:05",
-      "数据来源": "离线合成"
+      "数据来源": "离线合成",
+      "日期": "2026-09-28",
+      "时区": "+08:00"
     },
     "sunset_glow_score": {
       "error": "离线夹具：评分不可用"

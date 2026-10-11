@@ -1,0 +1,44 @@
+{
+  "baseline_files": 212,
+  "unchanged": 206,
+  "authorized_document_updates": [
+    "AGENTS.md",
+    "README.md",
+    "TODO.md",
+    "docs/AGENT-ROADMAP.md",
+    "docs/FEATURES.md",
+    "docs/devlog.md"
+  ],
+  "missing": [],
+  "unauthorized_changes": [],
+  "prior_production_frontend_tests_and_audit_files_unchanged": 130,
+  "local_links_checked": 77,
+  "broken_links": [],
+  "current_preparation_only_state": {
+    "AGENTS.md": true,
+    "README.md": true,
+    "TODO.md": true,
+    "docs\\AGENT-ROADMAP.md": true,
+    "docs\\FEATURES.md": true,
+    "docs\\devlog.md": true,
+    "docs\\audit\\2026-10-07\\u4-acceptance-plan.md": true
+  },
+  "fake_private_key_in_supplier_evidence": false,
+  "gates": {
+    "related_pytest_passed": 133,
+    "smoke": 21,
+    "imports_kept": 3,
+    "imports_broken": 0,
+    "eval_ruff_check_and_format": true,
+    "offline_cases_passed": 5,
+    "full_suite_rerun": false,
+    "previous_U3_full_suite": 591,
+    "real_business_requests": 0
+  },
+  "source_snapshots": {
+    "ECNU": "https://developer.ecnu.edu.cn/vitepress/llm/limit.html",
+    "Open-Meteo": "https://open-meteo.com/en/pricing",
+    "checked_date": "2026-10-07"
+  },
+  "stop": "await_real_call_approval_no_U5_U6"
+}

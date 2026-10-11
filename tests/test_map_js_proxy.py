@@ -39,20 +39,20 @@ async def test_proxy_only_forwards_allowlisted_path_and_server_secret() -> None:
     status, content, content_type = await forward_js_service(
         "v4/map/styles",
         [("key", "attacker"), ("jscode", "attacker")],
-        public_key="public-test-key",
+        public_key="public-browser-identifier",
         security_code="private-test-code",
         transport=transport,
     )
     assert status == 200 and b"status" in content and "application/json" in content_type
     assert len(seen) == 1
     assert seen[0].url.host == "webapi.amap.com"
-    assert seen[0].url.params["key"] == "public-test-key"
+    assert seen[0].url.params["key"] == "public-browser-identifier"
     assert seen[0].url.params["jscode"] == "private-test-code"
     with pytest.raises(MapProxyError, match="未开放"):
         await forward_js_service(
             "v3/assistant/coordinate/convert",
             [],
-            public_key="public-test-key",
+            public_key="public-browser-identifier",
             security_code="private-test-code",
             transport=transport,
         )
@@ -110,7 +110,7 @@ async def test_map_upstream_error_traceback_hides_credentials_and_coordinates() 
     assert "web-test-key" not in trace
     assert "121.4,31.1" not in trace
 
-    public_key = "public-test-key"
+    public_key = "public-browser-identifier"
     security_code = "private-test-code"
     with pytest.raises(MapProxyError) as caught:
         await forward_js_service(
@@ -134,7 +134,7 @@ async def test_map_config_never_returns_security_code(
         data_dir=str(tmp_path),
         api_key="offline-test-key",
         amap_web_service_key="web-test-key",
-        amap_js_api_key="public-test-key",
+        amap_js_api_key="public-browser-identifier",
         amap_security_js_code="private-test-code",
     )
     assert "web-test-key" not in repr(settings)
@@ -175,10 +175,12 @@ async def test_map_config_never_returns_security_code(
     monkeypatch.setattr("lighttrail.api.routes.forward_js_service", fake_forward)
     monkeypatch.setattr("lighttrail.api.routes.convert_wgs84_points", fake_convert)
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://localhost"
+        ) as client:
             config = await client.get("/api/map/config")
             assert config.status_code == 200
-            assert config.json() == {"available": True, "js_key": "public-test-key"}
+            assert config.json() == {"available": True, "js_key": "public-browser-identifier"}
             assert "private-test-code" not in config.text
             assert config.headers["cache-control"] == "private, no-store"
             cross_site = await client.get(
@@ -216,4 +218,4 @@ async def test_map_config_never_returns_security_code(
             assert denied.status_code == 422
             assert len(converted_calls) == 1
     finally:
-        services.close()
+        await services.aclose()

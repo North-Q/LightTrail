@@ -67,11 +67,13 @@ def app_with_fake(tmp_path):
 async def test_concurrent_chat_requests_complete_without_deadlock(app_with_fake) -> None:
     """并发 4 个请求（含同 session_id 复用）：全部拿到 done，不挂死。"""
     app, _ = app_with_fake
+    shared = app.state.deps.sessions.create(user_id="_local")
+    app.state.deps.sessions.save(shared)
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         batches = await asyncio.gather(
-            _collect(client, {"message": "现在几点？", "session_id": "shared"}),
-            _collect(client, {"message": "现在几点？", "session_id": "shared"}),
+            _collect(client, {"message": "现在几点？", "session_id": shared.session_id}),
+            _collect(client, {"message": "现在几点？", "session_id": shared.session_id}),
             _collect(client, {"message": "现在几点？"}),
             _collect(client, {"message": "现在几点？"}),
         )
@@ -80,13 +82,14 @@ async def test_concurrent_chat_requests_complete_without_deadlock(app_with_fake)
         kinds = [event["type"] for event in events]
         assert kinds[-1] == "done"
         assert "error" not in kinds
+    assert len(app.state.deps.sessions.get(shared.session_id).results) == 2
 
 
 async def test_concurrent_sessions_persist_valid_json(app_with_fake) -> None:
     """并发写入后：每个会话文件都是完整可解析的 JSON（快照隔离 + 原子写仍有效）。"""
     app, tmp_path = app_with_fake
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         await asyncio.gather(
             *(_collect(client, {"message": f"第 {index} 问"}) for index in range(4))
         )

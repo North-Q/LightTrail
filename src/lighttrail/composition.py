@@ -24,14 +24,20 @@ from lighttrail.adapters.maps import (
     BaiduRoutingAdapter,
     FallbackTravelTimeProvider,
 )
+from lighttrail.application.feedback import FeedbackService
 from lighttrail.config import DEFAULT_PIPELINE_MAX_STEPS, PROJECT_ROOT, Settings, load_settings
 from lighttrail.contracts.context import RequestContext
 from lighttrail.contracts.knowledge import KnowledgeProvider
 from lighttrail.contracts.plan import DEFAULT_PLAN_MAX_STEPS
 from lighttrail.contracts.tool import ToolContext
 from lighttrail.domain.chase import ChasePlanner, ManualTravelTimeProvider, TravelTimeProvider
-from lighttrail.domain.knowledge import FtsKnowledgeProvider
-from lighttrail.infra.quota import QuotaLedger
+from lighttrail.domain.knowledge import (
+    CameraSpecsCatalog,
+    FtsKnowledgeProvider,
+    GlobalKnowledgeProvider,
+)
+from lighttrail.infra.feedback import FeedbackStore
+from lighttrail.infra.quota import Pricing, QuotaLedger
 from lighttrail.infra.trace import Recorder, TraceRecorder
 from lighttrail.llm.router import ModelRouter, RouteIntent
 from lighttrail.memory import MemoryManager
@@ -96,21 +102,28 @@ class ApplicationServices:
     knowledge: KnowledgeProvider
     registry: ToolRegistry
     chase_planner: ChasePlanner
+    feedback: FeedbackService | None = field(default=None, repr=False)
     dispatch: Callable[[str, str], str] | None = field(default=None, repr=False)
     photo_analyze: Callable[[str, str], dict[str, Any]] | None = field(default=None, repr=False)
     photo_reverse: Callable[[str, str, str], dict[str, Any]] | None = field(
         default=None, repr=False
     )
-    _owned_knowledge: FtsKnowledgeProvider | None = field(default=None, repr=False)
+    _owned_knowledge: GlobalKnowledgeProvider | None = field(default=None, repr=False)
+    _owned_client: ChatClient | None = field(default=None, repr=False)
 
     def create_scope(
-        self, request: RequestContext, *, recorder: TraceRecorder | None = None
+        self,
+        request: RequestContext,
+        *,
+        recorder: TraceRecorder | None = None,
+        authorized_photo_paths: tuple[str, ...] = (),
     ) -> RequestScope:
         """装配一次请求，所有执行通道使用相同的身份、工具上下文和记录器。
 
         Args:
             request: 入口解析的身份与会话上下文。
             recorder: 可选的请求记录器，供 SSE 在执行前订阅。
+            authorized_photo_paths: 由入口明确授权的单个照片文件，模型不能扩大此清单。
 
         Returns:
             独立的请求作用域；不修改应用级共享依赖。
@@ -123,6 +136,9 @@ class ApplicationServices:
             memory=self.memory,
             knowledge=self.knowledge,
             sink=active_recorder,
+            authorized_photo_paths=tuple(
+                str(Path(path).resolve()) for path in authorized_photo_paths
+            ),
         )
         runtime = build_runtime(
             self.provider,
@@ -160,9 +176,26 @@ class ApplicationServices:
         return RequestScope(self, request, active_recorder, tool_context, runtime, orchestrator)
 
     def close(self) -> None:
-        """释放本装配拥有的知识索引连接；调用方注入的知识服务由调用方管理。"""
-        if self._owned_knowledge is not None:
-            self._owned_knowledge.close()
+        """同步宿主结束请求后释放自建资源，注入资源由调用方管理。
+
+        Runtime 与 SDK 同步入口共用进程级循环；本应用只关闭自己的连接池与索引，
+        不终止其他应用仍可能使用的共享执行器。异步宿主应在循环停止前 await aclose。
+        """
+        try:
+            if self._owned_client is not None:
+                self._owned_client.close()
+        finally:
+            if self._owned_knowledge is not None:
+                self._owned_knowledge.close()
+
+    async def aclose(self) -> None:
+        """异步宿主结束请求后、所属循环停止前释放自建资源，注入资源仍归调用方。"""
+        try:
+            if self._owned_client is not None:
+                await self._owned_client.aclose()
+        finally:
+            if self._owned_knowledge is not None:
+                self._owned_knowledge.close()
 
 
 def build_application(
@@ -215,10 +248,12 @@ def build_application(
         if registry is not None
         else build_registry(photo_client_factory=lambda: active_client, photo_router=active_router),
         chase_planner=ChasePlanner(travel_provider or build_travel_provider(settings)),
+        feedback=FeedbackService(FeedbackStore(settings.data_dir)),
         dispatch=dispatch,
         photo_analyze=photo_analyze,
         photo_reverse=photo_reverse,
         _owned_knowledge=owned_knowledge,
+        _owned_client=active_client if client is None else None,
     )
 
 
@@ -251,7 +286,19 @@ def build_registry(
 
 def build_ledger(settings: Settings, *, now: float | None = None) -> QuotaLedger:
     """构造配额账本（按 settings 的水位阈值）。"""
-    return QuotaLedger(warn_threshold=settings.quota_warn_threshold, now=now)
+    return QuotaLedger(
+        warn_threshold=settings.quota_warn_threshold,
+        now=now,
+        windows=(("weekly", 7 * 24 * 3600.0, settings.quota_weekly_credits),),
+        pricing=(
+            {name: Pricing(**values) for name, values in settings.quota_pricing.items()}
+            if settings.quota_pricing is not None
+            else None
+        ),
+        peak_hours=settings.quota_peak_hours,
+        pricing_tz_offset=settings.quota_pricing_tz_offset,
+        valley_dates=settings.quota_valley_dates,
+    )
 
 
 def build_client(settings: Settings, *, quota: QuotaLedger | None = None) -> ChatClient:
@@ -260,7 +307,10 @@ def build_client(settings: Settings, *, quota: QuotaLedger | None = None) -> Cha
         settings.api_key,
         settings.base_url,
         concurrency=settings.concurrency,
+        timeout=settings.llm_timeout,
         quota=quota or build_ledger(settings),
+        max_output_tokens=settings.max_output_tokens,
+        output_limit_field=settings.output_limit_field,
     )
 
 
@@ -397,14 +447,19 @@ def build_travel_provider(settings: Settings) -> TravelTimeProvider:
     return ManualTravelTimeProvider()
 
 
-def build_knowledge(settings: Settings) -> FtsKnowledgeProvider:
-    """构造全局只读知识检索器（索引位于 data/knowledge/）。"""
+def build_knowledge(settings: Settings) -> GlobalKnowledgeProvider:
+    """构造全局知识门面，接入既有相机表和全文索引。"""
     root = Path(settings.data_dir) / "knowledge"
     root.mkdir(parents=True, exist_ok=True)
     seed = root / "seed" / "atmospheric-knowledge.json"
     if not seed.exists():
         seed = PROJECT_ROOT / "data" / "knowledge" / "seed" / "atmospheric-knowledge.json"
-    return FtsKnowledgeProvider(root / "knowledge.db", seed)
+    catalog = root / "camera_specs.yaml"
+    if not catalog.exists():
+        catalog = PROJECT_ROOT / "data" / "knowledge" / "camera_specs.yaml"
+    return GlobalKnowledgeProvider(
+        CameraSpecsCatalog(catalog), FtsKnowledgeProvider(root / "knowledge.db", seed)
+    )
 
 
 def build_recorder() -> TraceRecorder:

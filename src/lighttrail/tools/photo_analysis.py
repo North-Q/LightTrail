@@ -41,6 +41,31 @@ _BASE64_WARN_KB = 800
 # 输出解析自愈重试次数（首轮之外最多再试 2 次）
 _MAX_RETRIES = 2
 
+
+def _authorized_path(image_path: str, ctx: ToolContext | None) -> str:
+    """工具上下文仅允许入口授权的确切文件；直接库调用由调用者显式授权。
+
+    Args:
+        image_path: 调用参数中的路径。
+        ctx: 入口工具上下文；None 表示可信的直接库调用。
+
+    Returns:
+        已验证的绝对路径。
+
+    Raises:
+        PhotoError: 工具请求读取未授权文件、目录或无法解析的路径。
+    """
+    try:
+        path = Path(image_path).resolve()
+        if ctx is not None and str(path) not in ctx.authorized_photo_paths:
+            raise PhotoError("未授权的照片路径；请上传图片或通过 CLI --photo 明确授权文件")
+        if not path.is_file():
+            raise PhotoError("照片路径不是可读取的文件")
+        return str(path)
+    except (OSError, ValueError) as exc:
+        raise PhotoError("照片路径无法解析") from exc
+
+
 # EXIF 常用 tag 名（exifread 输出形如 'Image Model'/'EXIF LensModel'）→ 中文键。
 # 匹配用「尾部完整 tag 名」，避免 'Model' 误中 'LensModel' 等子串冲突。
 _EXIF_FIELDS: dict[str, str] = {
@@ -191,6 +216,7 @@ def analyze_photo(
     """
     gear = equipment.strip() or _read_gear(ctx)
     active_router = router or ModelRouter()
+    image_path = _authorized_path(image_path, ctx)
     exif = _read_exif(image_path)
     encoded = _encode_image(image_path)
     prompt = _build_analysis_prompt(exif, gear, focus)
@@ -359,6 +385,7 @@ def reverse_engineer_photo(
     """
     gear = equipment.strip() or _read_gear(ctx)
     active_router = router or ModelRouter()
+    image_path = _authorized_path(image_path, ctx)
     exif = _read_exif(image_path)
     encoded = _encode_image(image_path)
     prompt = _build_reverse_prompt(exif, gear, note)

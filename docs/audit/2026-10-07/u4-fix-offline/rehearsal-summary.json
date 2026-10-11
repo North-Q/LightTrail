@@ -1,0 +1,255 @@
+{
+  "synthetic_only": true,
+  "business_socket_connections_permitted": false,
+  "real_business_requests": 0,
+  "cases": [
+    {
+      "mode": "normal",
+      "http_attempts": {
+        "weather": 2,
+        "model": 1
+      },
+      "map_attempts": 0,
+      "restoration_attempts": 0,
+      "same_directory_new_fastapi_instance": true,
+      "restore_exact_snapshot_next_day": true,
+      "card_status": "ready",
+      "verdict": "go",
+      "sdk_max_retries": 0,
+      "LLM_CONCURRENCY": 1,
+      "output_token_limit_sent": true,
+      "output_limit": {
+        "field": "max_tokens",
+        "value": 4096,
+        "thinking_enforcement": "供应商未明确确认，非费用硬上限"
+      },
+      "observed_usage": {
+        "hours_ratio": 0.0,
+        "daily_ratio": 0.0,
+        "monthly_ratio": 0.0,
+        "weekly_ratio": 0.00027,
+        "window_ratios": {
+          "weekly": 0.00027
+        },
+        "observed_credits": 5.4,
+        "unknown_attempts": 0,
+        "scope": "本应用已观测用量（内存账本，非平台余额）",
+        "total_credits": 5.4
+      },
+      "synthesis_json_chars": [
+        4283
+      ],
+      "data_directory": "D:\\Project\\LightTrail\\.pytest-run-u4\\2f4619a37e4f4c2e8eee80ead59202d2\\normal",
+      "local_files_sha256": {
+        "knowledge\\knowledge.db": "e7e9770adce6a676e27fef4c714cd8c8343f401d27137926e883b8bbe807c0cc",
+        "sessions\\1b0b13c1364b4f95914bedfffcf585b4.json": "58c2da3615383e36bd19887e2f549a2c61968af1884c8210d278bdbb2e678cfd",
+        "users\\_local\\memory\\events.db": "1b6227fdbfc2ea6beaacb3e74eae01403d3b517e4527bd0a5f530ed55434af14",
+        "users\\_local\\memory\\profile.json": "9d5bde51539d3283e6b9cf48a895584f76cbbb4df303cb173c9d72004c0c0f03",
+        "users\\_local\\memory\\profile.pre-s1-2.json.bak": "09f0e5526413da4c15b802967fed4cf354ae7ecfa7f040da72ef3346b164c958"
+      }
+    },
+    {
+      "mode": "retry_and_schema",
+      "http_attempts": {
+        "weather": 6,
+        "model": 9
+      },
+      "map_attempts": 0,
+      "restoration_attempts": 0,
+      "same_directory_new_fastapi_instance": true,
+      "restore_exact_snapshot_next_day": true,
+      "card_status": "ready",
+      "verdict": "go",
+      "sdk_max_retries": 0,
+      "LLM_CONCURRENCY": 1,
+      "output_token_limit_sent": true,
+      "output_limit": {
+        "field": "max_tokens",
+        "value": 4096,
+        "thinking_enforcement": "供应商未明确确认，非费用硬上限"
+      },
+      "observed_usage": {
+        "hours_ratio": 0.0,
+        "daily_ratio": 0.0,
+        "monthly_ratio": 0.0,
+        "weekly_ratio": 0.0008100000000000002,
+        "window_ratios": {
+          "weekly": 0.0008100000000000002
+        },
+        "observed_credits": 16.200000000000003,
+        "unknown_attempts": 6,
+        "scope": "本应用已观测用量（内存账本，非平台余额）",
+        "total_credits": null
+      },
+      "synthesis_json_chars": [
+        4283,
+        4283,
+        4283,
+        4283,
+        4283,
+        4283,
+        4283,
+        4283,
+        4283
+      ],
+      "data_directory": "D:\\Project\\LightTrail\\.pytest-run-u4\\2f4619a37e4f4c2e8eee80ead59202d2\\retry_and_schema",
+      "local_files_sha256": {
+        "knowledge\\knowledge.db": "e7e9770adce6a676e27fef4c714cd8c8343f401d27137926e883b8bbe807c0cc",
+        "sessions\\b5e90dba5103462bb50617792f53b17d.json": "31b49b67b5b569b6834ddede9a46977ed68394abdcfa1c523856fe37369ffc43",
+        "users\\_local\\memory\\events.db": "1b6227fdbfc2ea6beaacb3e74eae01403d3b517e4527bd0a5f530ed55434af14",
+        "users\\_local\\memory\\profile.json": "9d21a22b795e268b3a72094464539b25673341e8d0ad123bec4e31cf3df1b3dd",
+        "users\\_local\\memory\\profile.pre-s1-2.json.bak": "09f0e5526413da4c15b802967fed4cf354ae7ecfa7f040da72ef3346b164c958"
+      }
+    },
+    {
+      "mode": "weather_failed",
+      "http_attempts": {
+        "weather": 6,
+        "model": 1
+      },
+      "map_attempts": 0,
+      "restoration_attempts": 0,
+      "same_directory_new_fastapi_instance": true,
+      "restore_exact_snapshot_next_day": true,
+      "card_status": "needs_data",
+      "verdict": "wait",
+      "sdk_max_retries": 0,
+      "LLM_CONCURRENCY": 1,
+      "output_token_limit_sent": true,
+      "output_limit": {
+        "field": "max_tokens",
+        "value": 4096,
+        "thinking_enforcement": "供应商未明确确认，非费用硬上限"
+      },
+      "observed_usage": {
+        "hours_ratio": 0.0,
+        "daily_ratio": 0.0,
+        "monthly_ratio": 0.0,
+        "weekly_ratio": 0.00027,
+        "window_ratios": {
+          "weekly": 0.00027
+        },
+        "observed_credits": 5.4,
+        "unknown_attempts": 0,
+        "scope": "本应用已观测用量（内存账本，非平台余额）",
+        "total_credits": 5.4
+      },
+      "synthesis_json_chars": [
+        2455
+      ],
+      "data_directory": "D:\\Project\\LightTrail\\.pytest-run-u4\\2f4619a37e4f4c2e8eee80ead59202d2\\weather_failed",
+      "local_files_sha256": {
+        "knowledge\\knowledge.db": "e7e9770adce6a676e27fef4c714cd8c8343f401d27137926e883b8bbe807c0cc",
+        "sessions\\87fbae18b8954ef1a219252a094898c5.json": "9317124730d524bb556d342ebff1d68c141018b76c1cc24a0f440d2f3dc861dd",
+        "users\\_local\\memory\\events.db": "1b6227fdbfc2ea6beaacb3e74eae01403d3b517e4527bd0a5f530ed55434af14",
+        "users\\_local\\memory\\profile.json": "8e963e55703a79a74ddb062ba962e91fdb6f1cc82a44715c76147f96054a93b9",
+        "users\\_local\\memory\\profile.pre-s1-2.json.bak": "09f0e5526413da4c15b802967fed4cf354ae7ecfa7f040da72ef3346b164c958"
+      }
+    },
+    {
+      "mode": "schema_failed",
+      "http_attempts": {
+        "weather": 2,
+        "model": 3
+      },
+      "map_attempts": 0,
+      "restoration_attempts": 0,
+      "same_directory_new_fastapi_instance": true,
+      "restore_exact_snapshot_next_day": true,
+      "card_status": "ready",
+      "verdict": "wait",
+      "sdk_max_retries": 0,
+      "LLM_CONCURRENCY": 1,
+      "output_token_limit_sent": true,
+      "output_limit": {
+        "field": "max_tokens",
+        "value": 4096,
+        "thinking_enforcement": "供应商未明确确认，非费用硬上限"
+      },
+      "observed_usage": {
+        "hours_ratio": 0.0,
+        "daily_ratio": 0.0,
+        "monthly_ratio": 0.0,
+        "weekly_ratio": 0.0008100000000000002,
+        "window_ratios": {
+          "weekly": 0.0008100000000000002
+        },
+        "observed_credits": 16.200000000000003,
+        "unknown_attempts": 0,
+        "scope": "本应用已观测用量（内存账本，非平台余额）",
+        "total_credits": 16.200000000000003
+      },
+      "synthesis_json_chars": [
+        4283,
+        4283,
+        4283
+      ],
+      "data_directory": "D:\\Project\\LightTrail\\.pytest-run-u4\\2f4619a37e4f4c2e8eee80ead59202d2\\schema_failed",
+      "local_files_sha256": {
+        "knowledge\\knowledge.db": "e7e9770adce6a676e27fef4c714cd8c8343f401d27137926e883b8bbe807c0cc",
+        "sessions\\83501aa66ca54e5786f3a95365e17562.json": "ef779b89e452bb410f120a156bd7502071149efbefd3f5b41a2e5470372f3cec",
+        "users\\_local\\memory\\events.db": "1b6227fdbfc2ea6beaacb3e74eae01403d3b517e4527bd0a5f530ed55434af14",
+        "users\\_local\\memory\\profile.json": "e94bed78a99411564c52ec61033869f3e1374fe8b715a406283907da464bb79c",
+        "users\\_local\\memory\\profile.pre-s1-2.json.bak": "09f0e5526413da4c15b802967fed4cf354ae7ecfa7f040da72ef3346b164c958"
+      }
+    },
+    {
+      "mode": "non_retry_error",
+      "http_attempts": {
+        "weather": 2,
+        "model": 1
+      },
+      "map_attempts": 0,
+      "restoration_attempts": 0,
+      "same_directory_new_fastapi_instance": true,
+      "restore_exact_snapshot_next_day": true,
+      "card_status": "ready",
+      "verdict": "wait",
+      "sdk_max_retries": 0,
+      "LLM_CONCURRENCY": 1,
+      "output_token_limit_sent": true,
+      "output_limit": {
+        "field": "max_tokens",
+        "value": 4096,
+        "thinking_enforcement": "供应商未明确确认，非费用硬上限"
+      },
+      "observed_usage": {
+        "hours_ratio": 0.0,
+        "daily_ratio": 0.0,
+        "monthly_ratio": 0.0,
+        "weekly_ratio": 0.0,
+        "window_ratios": {
+          "weekly": 0.0
+        },
+        "observed_credits": 0,
+        "unknown_attempts": 1,
+        "scope": "本应用已观测用量（内存账本，非平台余额）",
+        "total_credits": null
+      },
+      "synthesis_json_chars": [
+        4283
+      ],
+      "data_directory": "D:\\Project\\LightTrail\\.pytest-run-u4\\2f4619a37e4f4c2e8eee80ead59202d2\\non_retry_error",
+      "local_files_sha256": {
+        "knowledge\\knowledge.db": "e7e9770adce6a676e27fef4c714cd8c8343f401d27137926e883b8bbe807c0cc",
+        "sessions\\fccfe024ab2b410ea44a1712d3001819.json": "262a9e79fcfe480055b204fba281d122c48fb128e4b26f618f6cc330764cc3cf",
+        "users\\_local\\memory\\events.db": "1b6227fdbfc2ea6beaacb3e74eae01403d3b517e4527bd0a5f530ed55434af14",
+        "users\\_local\\memory\\profile.json": "811cdf81ce3261644707c290982bfed663f8ab22c7c838fd87326ed527c6ab39",
+        "users\\_local\\memory\\profile.pre-s1-2.json.bak": "09f0e5526413da4c15b802967fed4cf354ae7ecfa7f040da72ef3346b164c958"
+      }
+    }
+  ],
+  "pricing_verification": {
+    "synthetic_usage": {
+      "input_miss": 10000,
+      "output_including_thinking": 2000
+    },
+    "current_local_credits": 5.4,
+    "official_valley_credits": 5.4,
+    "official_peak_credits": 10.8,
+    "source": "https://developer.ecnu.edu.cn/vitepress/llm/limit.html",
+    "local_windows": "本应用已观测用量：7d/20000，非平台余额；未知尝试不记零费用",
+    "official_default_window": "7d/20000；实际令牌额度待本人核对",
+    "production_changed": true
+  }
+}

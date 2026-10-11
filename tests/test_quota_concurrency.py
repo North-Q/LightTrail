@@ -25,7 +25,7 @@ def test_concurrent_records_are_not_lost() -> None:
 
     assert len(results) == _CALLS
     assert sum(results) == pytest_approx(expected * _CALLS)
-    assert ledger.usage().hours_ratio == pytest_approx(expected * _CALLS / 2000.0)
+    assert ledger.usage().weekly_ratio == pytest_approx(expected * _CALLS / 20000.0)
 
 
 def test_concurrent_record_and_usage_interleaved() -> None:
@@ -39,7 +39,7 @@ def test_concurrent_record_and_usage_interleaved() -> None:
             ledger.record(_MODEL, 500, 200)
         else:
             with lock:
-                ratios.append(ledger.usage().hours_ratio)
+                ratios.append(ledger.usage().weekly_ratio)
 
     with ThreadPoolExecutor(max_workers=8) as pool:
         list(pool.map(worker, range(100)))

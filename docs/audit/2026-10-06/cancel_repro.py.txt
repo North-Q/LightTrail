@@ -1,0 +1,32 @@
+"""隔离验证取消后的限流器状态和密钥 repr；仅使用合成数据。"""
+from __future__ import annotations
+import asyncio
+import json
+from lighttrail.adapters.llm.client import _ConcurrencyLimiter
+from lighttrail.config import Settings
+
+async def main() -> None:
+    """取消排队任务，检查被线程获取的许可是否归还。"""
+    limiter = _ConcurrencyLimiter(1)
+    async def waiting() -> None:
+        """尝试进入已占满的限流器。"""
+        async with limiter.acquire():
+            pass
+    async with limiter.acquire():
+        task = asyncio.create_task(waiting())
+        await asyncio.sleep(0.05)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+    await asyncio.sleep(0.05)
+    available = limiter._semaphore.acquire(blocking=False)
+    if available:
+        limiter._semaphore.release()
+    fake = Settings(_env_file=None, api_key="audit-only-fake-key", baidu_map_ak="audit-only-fake-ak")
+    result = {"cancelled_waiter_permit_available": available, "active": limiter.in_flight(), "llm_key_visible_in_repr": "audit-only-fake-key" in repr(fake), "baidu_ak_visible_in_repr": "audit-only-fake-ak" in repr(fake)}
+    print(json.dumps(result))
+
+if __name__ == "__main__":
+    asyncio.run(main())

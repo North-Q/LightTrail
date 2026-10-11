@@ -254,7 +254,7 @@ async def test_decide_sse_sequence_order(make_app) -> None:
     transport = ASGITransport(app=app)
     events: list[dict] = []
     async with (
-        AsyncClient(transport=transport, base_url="http://test") as client,
+        AsyncClient(transport=transport, base_url="http://localhost") as client,
         client.stream("POST", "/api/decide", json={"request": "今晚火烧云值得冲吗"}) as resp,
     ):
         assert resp.status_code == 200
@@ -314,7 +314,7 @@ async def test_decide_sse_tool_result_carries_structured_data(make_app) -> None:
     transport = ASGITransport(app=app)
     events: list[dict] = []
     async with (
-        AsyncClient(transport=transport, base_url="http://test") as client,
+        AsyncClient(transport=transport, base_url="http://localhost") as client,
         client.stream("POST", "/api/decide", json={"request": "今晚火烧云值得冲吗"}) as resp,
     ):
         assert resp.status_code == 200

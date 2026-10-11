@@ -28,11 +28,12 @@ const HASH_ROUTES: { hash: string; key: RouteKey }[] = [
 ];
 
 export function routeKey(hash: string): RouteKey {
-  const found = HASH_ROUTES.find((item) => hash === item.hash);
+  const found = HASH_ROUTES.find((item) => hash.split("?", 1)[0] === item.hash);
   return found ? found.key : "home";
 }
 
 export function go(hash: string): void {
+  if (!window.dispatchEvent(new Event("lighttrail:before-navigation", { cancelable: true }))) return;
   window.location.hash = hash;
 }
 

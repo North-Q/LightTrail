@@ -1,0 +1,372 @@
+{
+  "session_id": "1cdbbbf7ec89486ab96204e717e903fa",
+  "result_id": "2e2a548d4c344cac9d0c81f5f302413b",
+  "version": 1,
+  "kind": "decision",
+  "created_at": "2026-10-07T07:36:28.354+00:00",
+  "parent_result_id": "",
+  "request": {
+    "request": "今晚火烧云是否值得去"
+  },
+  "text": "## 拍摄方案（决策卡片）\n- 结论：2026-10-07 在U4合成西岸拍摄火烧云的关键数据不足，暂不能判断是否值得出门。请补齐或更新数据后重新查询。\n- 置信度：low\n- 推荐机位：U4合成西岸（唯一合成收藏）\n- 依据：sun_times/日落 [置信度 high]；user_profile/器材 [置信度 medium]\n- 备选：补齐或更新缺失数据后重新查询；临场自行观察天空。\n- ⚠ 降级标注：needs_data",
+  "card": {
+    "conclusion": "2026-10-07 在U4合成西岸拍摄火烧云的关键数据不足，暂不能判断是否值得出门。请补齐或更新数据后重新查询。",
+    "evidence": [
+      {
+        "tool": "sun_times",
+        "field": "日落",
+        "confidence": "high",
+        "note": "\"17:34\""
+      },
+      {
+        "tool": "user_profile",
+        "field": "器材",
+        "confidence": "medium",
+        "note": "松下 S5M2"
+      }
+    ],
+    "confidence": "low",
+    "verdict": "wait",
+    "confidence_detail": null,
+    "time_window": "",
+    "window_start": "",
+    "window_end": "",
+    "locations": [
+      {
+        "name": "U4合成西岸",
+        "reason": "唯一合成收藏"
+      }
+    ],
+    "params": [],
+    "alternatives": [
+      "补齐或更新缺失数据后重新查询；临场自行观察天空。"
+    ],
+    "degraded": "needs_data",
+    "target_date": "2026-10-07",
+    "subject_type": "火烧云",
+    "data_status": "needs_data",
+    "missing_data": [
+      "weather_forecast：天气数据获取失败：取数失败（已重试 3 次）：HTTP 503：{\"error\":{\"message\":\"合成故障\"}}",
+      "sunset_glow_score：天气数据获取失败：取数失败（已重试 3 次）：HTTP 503：{\"error\":{\"message\":\"合成故障\"}}"
+    ],
+    "evaluated_at": "2026-10-07T08:00:00+00:00",
+    "updated_at": "",
+    "valid_until": "",
+    "tz_offset": "+08:00"
+  },
+  "plan": null,
+  "history": [
+    {
+      "role": "user",
+      "content": "今晚火烧云是否值得去"
+    },
+    {
+      "role": "assistant",
+      "content": "## 拍摄方案（决策卡片）\n- 结论：2026-10-07 在U4合成西岸拍摄火烧云的关键数据不足，暂不能判断是否值得出门。请补齐或更新数据后重新查询。\n- 置信度：low\n- 推荐机位：U4合成西岸（唯一合成收藏）\n- 依据：sun_times/日落 [置信度 high]；user_profile/器材 [置信度 medium]\n- 备选：补齐或更新缺失数据后重新查询；临场自行观察天空。\n- ⚠ 降级标注：needs_data"
+    }
+  ],
+  "pipeline": {
+    "user_request": "今晚火烧云是否值得去",
+    "intent": {
+      "subject_type": "火烧云",
+      "location": "",
+      "time_hint": "今晚",
+      "mode": "live"
+    },
+    "data": {
+      "sun_times": {
+        "日期": "2026-10-07",
+        "时区": "+08:00",
+        "事件状态": {
+          "日出": {
+            "状态": "可用"
+          },
+          "日落": {
+            "状态": "可用"
+          },
+          "正午": {
+            "状态": "可用"
+          },
+          "民用晨光始": {
+            "状态": "可用"
+          },
+          "民用昏影终": {
+            "状态": "可用"
+          },
+          "航海晨光始": {
+            "状态": "可用"
+          },
+          "航海昏影终": {
+            "状态": "可用"
+          },
+          "天文晨光始": {
+            "状态": "可用"
+          },
+          "天文昏影终": {
+            "状态": "可用"
+          },
+          "日出方位（度）": {
+            "状态": "可用"
+          },
+          "日落方位（度）": {
+            "状态": "可用"
+          },
+          "黄金时刻": {
+            "状态": "可用"
+          },
+          "蓝调时刻": {
+            "状态": "可用"
+          }
+        },
+        "日出": "05:53",
+        "日落": "17:34",
+        "正午": "11:43",
+        "民用晨光始": "05:28",
+        "民用昏影终": "17:58",
+        "航海晨光始": "05:00",
+        "航海昏影终": "18:26",
+        "天文晨光始": "04:32",
+        "天文昏影终": "18:54",
+        "日出方位（度）": 95.8,
+        "日出_iso": "2026-10-07T05:53+08:00",
+        "日落方位（度）": 264.0,
+        "日落_iso": "2026-10-07T17:34+08:00",
+        "昼长（时分）": "11小时40分",
+        "黄金时刻（晨）": [
+          {
+            "开始": "05:40",
+            "结束": "06:25",
+            "开始_iso": "2026-10-07T05:40+08:00",
+            "结束_iso": "2026-10-07T06:25+08:00"
+          }
+        ],
+        "黄金时刻（暮）": [
+          {
+            "开始": "17:05",
+            "结束": "17:50",
+            "开始_iso": "2026-10-07T17:05+08:00",
+            "结束_iso": "2026-10-07T17:50+08:00"
+          }
+        ],
+        "蓝调时刻（晨）": [
+          {
+            "开始": "05:30",
+            "结束": "05:40",
+            "开始_iso": "2026-10-07T05:30+08:00",
+            "结束_iso": "2026-10-07T05:40+08:00"
+          }
+        ],
+        "蓝调时刻（暮）": [
+          {
+            "开始": "17:50",
+            "结束": "18:00",
+            "开始_iso": "2026-10-07T17:50+08:00",
+            "结束_iso": "2026-10-07T18:00+08:00"
+          }
+        ],
+        "提示": "每个事件独立计算；null 须结合事件状态区分不存在与计算失败。蓝调/黄金窗口按太阳高度角阈值采样 5 分钟估算，非精确边界；晨/暮沿用当日第一个/第二个连续窗口，高纬单窗口不保证对应日出/日落。时区为固定偏移，不自动处理夏令时。"
+      },
+      "weather_forecast": {
+        "error": "天气数据获取失败：取数失败（已重试 3 次）：HTTP 503：{\"error\":{\"message\":\"合成故障\"}}"
+      },
+      "sunset_glow_score": {
+        "error": "天气数据获取失败：取数失败（已重试 3 次）：HTTP 503：{\"error\":{\"message\":\"合成故障\"}}"
+      },
+      "目标日期": "2026-10-07",
+      "目标机位": "U4合成西岸",
+      "目标坐标": "31.0,121.0",
+      "请求题材": "火烧云",
+      "候选机位": [
+        {
+          "名称": "U4合成西岸",
+          "纬度": 31.0,
+          "经度": 121.0,
+          "题材": "火烧云",
+          "档案题材": "火烧云"
+        }
+      ],
+      "match_sites": {
+        "日期": "2026-10-07",
+        "时区": "+08:00",
+        "排序结果": [
+          {
+            "名称": "U4合成西岸",
+            "题材": "日落",
+            "匹配度": 5,
+            "关键天象": {
+              "日出": "05:53",
+              "日落": "17:34",
+              "日落方位（度）": 264.0
+            },
+            "依据": [
+              "未提供朝向，仅按当天该天象存在性评分，建议补充朝向字段",
+              "日落 17:34"
+            ]
+          }
+        ],
+        "提示": "匹配度仅依据天文条件（题材朝向 × 天象窗口）；光污染/可达性/地形遮挡需结合记忆档案与地图数据进一步判断"
+      },
+      "目标时区": "+08:00",
+      "用户器材": "松下 S5M2"
+    },
+    "scores": {},
+    "card": {
+      "conclusion": "2026-10-07 在U4合成西岸拍摄火烧云的关键数据不足，暂不能判断是否值得出门。请补齐或更新数据后重新查询。",
+      "evidence": [
+        {
+          "tool": "sun_times",
+          "field": "日落",
+          "confidence": "high",
+          "note": "\"17:34\""
+        },
+        {
+          "tool": "user_profile",
+          "field": "器材",
+          "confidence": "medium",
+          "note": "松下 S5M2"
+        }
+      ],
+      "confidence": "low",
+      "verdict": "wait",
+      "confidence_detail": null,
+      "time_window": "",
+      "window_start": "",
+      "window_end": "",
+      "locations": [
+        {
+          "name": "U4合成西岸",
+          "reason": "唯一合成收藏"
+        }
+      ],
+      "params": [],
+      "alternatives": [
+        "补齐或更新缺失数据后重新查询；临场自行观察天空。"
+      ],
+      "degraded": "needs_data",
+      "target_date": "2026-10-07",
+      "subject_type": "火烧云",
+      "data_status": "needs_data",
+      "missing_data": [
+        "weather_forecast：天气数据获取失败：取数失败（已重试 3 次）：HTTP 503：{\"error\":{\"message\":\"合成故障\"}}",
+        "sunset_glow_score：天气数据获取失败：取数失败（已重试 3 次）：HTTP 503：{\"error\":{\"message\":\"合成故障\"}}"
+      ],
+      "evaluated_at": "2026-10-07T08:00:00+00:00",
+      "updated_at": "",
+      "valid_until": "",
+      "tz_offset": "+08:00"
+    }
+  },
+  "trace": {
+    "llm_calls": [
+      {
+        "模型": "ecnu-max",
+        "prompt_summary": "消息数 2（pydantic-ai 桥）",
+        "耗时_秒": 0.0022846999927423894,
+        "tokens": 12000,
+        "输入_tokens": 10000,
+        "输出_tokens": 2000
+      }
+    ],
+    "tool_calls": [
+      {
+        "name": "sun_times",
+        "arguments_summary": "{\"latitude\": 31.0, \"longitude\": 121.0, \"date\": \"2026-10-07\", \"tz_offset\": \"+08:00\"}",
+        "result_summary": "日期: 2026-10-07，时区: +08:00，事件状态: {\"日出\": {\"状态\": \"可用\"}, \"日落\": {\"状态\": \"可用\"}, \"正午\": {\"状态\": \"可用\"}…，日出: 05:53，日落: 17:34，正午: 11:43，民用晨光始: 05:28，民用昏影终: 17:58，航海晨光始: 05:00，航海昏影终: 18:26，天文晨光始: 04:32，天文昏影终: 18:54，日出方位（度）: 95.8，日出_iso: 2026-10-07T05:53+08:00，日落方位（度）: 264.0，日落_iso: 2026-10-07T17:34+08:00，昼长（时分）:…",
+        "data_source": "",
+        "confidence": "high",
+        "field": "太阳时刻",
+        "elapsed_ms": 6.360100000165403
+      },
+      {
+        "name": "weather_forecast",
+        "arguments_summary": "{\"latitude\": 31.0, \"longitude\": 121.0, \"days\": 3, \"tz_offset\": \"+08:00\"}",
+        "result_summary": "error: 天气数据获取失败：取数失败（已重试 3 次）：HTTP 503：{\"error\":{\"message\":\"合成故障\"}}",
+        "data_source": "",
+        "confidence": "low",
+        "field": "每日预报",
+        "elapsed_ms": 5.962700000964105
+      },
+      {
+        "name": "sunset_glow_score",
+        "arguments_summary": "{\"latitude\": 31.0, \"longitude\": 121.0, \"date\": \"2026-10-07\", \"tz_offset\": \"+08:00\"}",
+        "result_summary": "error: 天气数据获取失败：取数失败（已重试 3 次）：HTTP 503：{\"error\":{\"message\":\"合成故障\"}}",
+        "data_source": "",
+        "confidence": "low",
+        "field": "评分",
+        "elapsed_ms": 12.10610000998713
+      },
+      {
+        "name": "match_sites",
+        "arguments_summary": "{\"sites\": [{\"名称\": \"U4合成西岸\", \"纬度\": 31.0, \"经度\": 121.0, \"题材\": \"日落\"}], \"date\": \"2026-10-07\", \"tz_offset\": \"+08:00\"}",
+        "result_summary": "日期: 2026-10-07，时区: +08:00，排序结果: [{\"名称\": \"U4合成西岸\", \"题材\": \"日落\", \"匹配度\": 5, \"关键天象\": {\"日出\": \"05:…，提示: 匹配度仅依据天文条件（题材朝向 × 天象窗口）；光污染/可达性/地形遮挡需结合记忆档案与地图数据进一步判断",
+        "data_source": "",
+        "confidence": "medium",
+        "field": "匹配结果",
+        "elapsed_ms": 4.606600006809458
+      }
+    ],
+    "steps": [
+      {
+        "name": "意图路由_规则",
+        "input_summary": "今晚火烧云是否值得去",
+        "output_summary": "规则关键词命中：live/火烧云"
+      },
+      {
+        "name": "管线_live",
+        "input_summary": "今晚火烧云是否值得去",
+        "output_summary": "启动"
+      },
+      {
+        "name": "采集_sun_times",
+        "input_summary": "{\"latitude\": 31.0, \"longitude\": 121.0, \"date\": \"2026-10-07\", \"tz_offset\": \"+08:0",
+        "output_summary": ""
+      },
+      {
+        "name": "采集_sunset_glow_score",
+        "input_summary": "{\"latitude\": 31.0, \"longitude\": 121.0, \"date\": \"2026-10-07\", \"tz_offset\": \"+08:0",
+        "output_summary": ""
+      },
+      {
+        "name": "采集_weather_forecast",
+        "input_summary": "{\"latitude\": 31.0, \"longitude\": 121.0, \"days\": 3, \"tz_offset\": \"+08:00\"}",
+        "output_summary": ""
+      },
+      {
+        "name": "机位匹配",
+        "input_summary": "{\"sites\": [{\"名称\": \"U4合成西岸\", \"纬度\": 31.0, \"经度\": 121.0, \"题材\": \"日落\"}], \"date\": \"2026",
+        "output_summary": ""
+      },
+      {
+        "name": "记忆_注入",
+        "input_summary": "",
+        "output_summary": "users/_local/memory/：profile"
+      }
+    ],
+    "sources": [
+      {
+        "tool": "sun_times",
+        "field": "太阳时刻",
+        "confidence": "high",
+        "data_source": ""
+      },
+      {
+        "tool": "weather_forecast",
+        "field": "每日预报",
+        "confidence": "low",
+        "data_source": ""
+      },
+      {
+        "tool": "sunset_glow_score",
+        "field": "评分",
+        "confidence": "low",
+        "data_source": ""
+      },
+      {
+        "tool": "match_sites",
+        "field": "匹配结果",
+        "confidence": "medium",
+        "data_source": ""
+      }
+    ]
+  }
+}

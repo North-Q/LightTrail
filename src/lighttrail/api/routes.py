@@ -41,7 +41,7 @@ from lighttrail.api.events import (
     pump,
     to_payload,
 )
-from lighttrail.api.session import SessionRecord
+from lighttrail.api.session import SavedResult, SessionRecord, snapshot_context
 from lighttrail.application.plan_archive import archive_spot_plan
 from lighttrail.application.spot_planner import SpotPlanInputError, build_spot_plan
 from lighttrail.composition import RequestScope, build_recorder
@@ -72,6 +72,8 @@ class ChatRequest(BaseModel):
 
     message: str = Field(..., min_length=1, max_length=2000, description="用户消息文本")
     session_id: str = Field(default="", description="会话标识；缺省自动新建")
+    result_id: str = ""
+    requery: bool = False
 
 
 class DecideRequest(BaseModel):
@@ -79,6 +81,16 @@ class DecideRequest(BaseModel):
 
     request: str = Field(..., min_length=1, max_length=2000, description="决策请求（一句话）")
     session_id: str = Field(default="", description="会话标识；缺省自动新建")
+    result_id: str = ""
+    requery: bool = False
+
+
+class SavedPlanRequest(BaseModel):
+    """复用现有计划请求，附加可选的会话及父版本关联。"""
+
+    request: PlanningRequest
+    session_id: str = ""
+    result_id: str = ""
 
 
 class ProfilePayload(BaseModel):
@@ -286,6 +298,7 @@ class SessionPayload(BaseModel):
     user_id: str
     created_at: str
     updated_at: str
+    results: list[SavedResult] = Field(default_factory=list)
 
 
 class SessionResponsePayload(BaseModel):
@@ -401,17 +414,37 @@ def _stream_response(stream: AsyncIterator[str]) -> StreamingResponse:
 router = APIRouter()
 
 
+class DataBoundaryInfo(BaseModel):
+    """不含凭据的发送接收方说明。"""
+
+    llm_receiver: str
+
+
+@router.get("/api/data-boundaries", response_model=DataBoundaryInfo)
+async def data_boundaries(request: Request) -> DataBoundaryInfo:
+    """返回配置模型服务的主机名，不返回路径、查询参数或认证信息。"""
+    host = urlsplit(request.app.state.deps.services.settings.base_url).hostname
+    return DataBoundaryInfo(llm_receiver=host or "配置的模型 API（主机名不可解析）")
+
+
 def get_request_context() -> RequestContext:
     """返回本地单用户身份；未来认证可替换此依赖，不从请求体接受用户身份。"""
     return RequestContext()
 
 
 def _run_setup(
-    deps: Any, recorder: TraceRecorder, context: RequestContext, session: SessionRecord
+    deps: Any,
+    recorder: TraceRecorder,
+    context: RequestContext,
+    session: SessionRecord,
+    *,
+    authorized_photo_paths: tuple[str, ...] = (),
 ) -> RequestScope:
     """将入口身份与已解析会话交给统一装配根，不在路由内构造领域依赖。"""
     return deps.services.create_scope(
-        replace(context, session_id=session.session_id), recorder=recorder
+        replace(context, session_id=session.session_id),
+        recorder=recorder,
+        authorized_photo_paths=authorized_photo_paths,
     )
 
 
@@ -429,6 +462,9 @@ async def chat(
     """接收消息 → queued → ReAct 过程事件（工具）→ token → done。"""
     deps = request.app.state.deps
     session = _load_or_create(deps, payload.session_id, context)
+    _select_history(session, payload.result_id)
+    if payload.requery:
+        session.history = []
     queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
     loop = asyncio.get_running_loop()
     recorder = build_recorder()
@@ -442,20 +478,39 @@ async def chat(
         return to_openai_history(runtime.messages), text, report
 
     async def worker() -> None:
+        done_text = ""
+        saved_result: SavedResult | None = None
         try:
             history, text, report = await asyncio.to_thread(run)
+            bridge.flush()
+            session.history = history
+            session.workspace["last_trace"] = _report_to_dict(report)
+            saved_result = deps.sessions.save_result(
+                session,
+                kind="chat",
+                request={"message": payload.message},
+                text=text,
+                parent_result_id=payload.result_id,
+            )
+            queue.put_nowait(to_payload(TokenEvent(content=text, session_id=session.session_id)))
+            done_text = text
         except Exception as exc:
             logger.exception("会话 %s 对话失败", session.session_id)
             queue.put_nowait(
                 to_payload(ErrorEvent(message=str(exc), session_id=session.session_id))
             )
-            queue.put_nowait(to_payload(DoneEvent(session_id=session.session_id)))
-            return
-        session.history = history
-        session.workspace["last_trace"] = _report_to_dict(report)
-        deps.sessions.save(session)
-        queue.put_nowait(to_payload(TokenEvent(content=text, session_id=session.session_id)))
-        queue.put_nowait(to_payload(DoneEvent(text=text, session_id=session.session_id)))
+        finally:
+            bridge.flush()
+            queue.put_nowait(
+                to_payload(
+                    DoneEvent(
+                        text=done_text,
+                        session_id=session.session_id,
+                        saved=saved_result is not None,
+                        result_id=saved_result.result_id if saved_result else None,
+                    )
+                )
+            )
 
     async def stream() -> AsyncIterator[str]:
         queue.put_nowait(
@@ -489,6 +544,9 @@ async def decide(
     """一句话经统一规划入口，推送步骤及卡片或明确的文本边界。"""
     deps = request.app.state.deps
     session = _load_or_create(deps, payload.session_id, context)
+    _select_history(session, payload.result_id)
+    if payload.requery:
+        session.history = []
     queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
     loop = asyncio.get_running_loop()
     recorder = build_recorder()
@@ -497,32 +555,55 @@ async def decide(
 
     def run() -> tuple[DecisionCard | None, str, Any]:
         orchestrator = _run_setup(deps, recorder, context, session).orchestrator
+        orchestrator.load_history(session.history)
         text = orchestrator.plan(payload.request)
+        session.pipeline = snapshot_context(orchestrator.last_context)
         return orchestrator.last_card, text, recorder.to_report()
 
     async def worker() -> None:
+        done_text = ""
+        saved_result: SavedResult | None = None
         try:
             card, text, report = await asyncio.to_thread(run)
+            bridge.flush()
+            session.history.append({"role": "user", "content": payload.request})
+            session.history.append({"role": "assistant", "content": text})
+            session.workspace["last_card"] = card.model_dump(mode="json") if card else None
+            session.workspace["last_trace"] = _report_to_dict(report)
+            saved_result = deps.sessions.save_result(
+                session,
+                kind="decision",
+                request={"request": payload.request},
+                text=text,
+                card=card,
+                parent_result_id=payload.result_id,
+            )
+            if card is not None:
+                queue.put_nowait(
+                    to_payload(CardEvent(card=card, text=text, session_id=session.session_id))
+                )
+            else:
+                queue.put_nowait(
+                    to_payload(TokenEvent(content=text, session_id=session.session_id))
+                )
+            done_text = text
         except Exception as exc:
             logger.exception("会话 %s 决策失败", session.session_id)
             queue.put_nowait(
                 to_payload(ErrorEvent(message=str(exc), session_id=session.session_id))
             )
-            queue.put_nowait(to_payload(DoneEvent(session_id=session.session_id)))
-            return
-        session.history.append({"role": "user", "content": payload.request})
-        session.history.append({"role": "assistant", "content": text})
-        if card is not None:
-            session.workspace["last_card"] = card.model_dump(mode="json")
-        session.workspace["last_trace"] = _report_to_dict(report)
-        deps.sessions.save(session)
-        if card is not None:
+        finally:
+            bridge.flush()
             queue.put_nowait(
-                to_payload(CardEvent(card=card, text=text, session_id=session.session_id))
+                to_payload(
+                    DoneEvent(
+                        text=done_text,
+                        session_id=session.session_id,
+                        saved=saved_result is not None,
+                        result_id=saved_result.result_id if saved_result else None,
+                    )
+                )
             )
-        else:
-            queue.put_nowait(to_payload(TokenEvent(content=text, session_id=session.session_id)))
-        queue.put_nowait(to_payload(DoneEvent(text=text, session_id=session.session_id)))
 
     async def stream() -> AsyncIterator[str]:
         queue.put_nowait(
@@ -572,9 +653,7 @@ async def photos_review(
     if not content:
         raise HTTPException(status_code=400, detail="照片内容为空")
 
-    suffix = Path(file.filename or "").suffix.lower() or (
-        ".png" if file.content_type == "image/png" else ".jpg"
-    )
+    suffix = ".png" if file.content_type == "image/png" else ".jpg"
     display_name = Path(file.filename or "").name or f"photo{suffix}"
     return await _review_stream(
         deps, content, suffix, display_name, focus, plan_reference, session_id, context
@@ -602,9 +681,7 @@ async def photos_reverse(
     content = await _read_photo_upload(file)
     if not content:
         raise HTTPException(status_code=400, detail="照片内容为空")
-    suffix = Path(file.filename or "").suffix.lower() or (
-        ".png" if file.content_type == "image/png" else ".jpg"
-    )
+    suffix = ".png" if file.content_type == "image/png" else ".jpg"
     display_name = Path(file.filename or "").name or f"reference{suffix}"
     return await _reverse_stream(
         deps, content, suffix, display_name, note, equipment, session_id, context
@@ -631,11 +708,13 @@ async def _review_stream(
 
     def run() -> tuple[DecisionCard, str, Any]:
         """worker 线程内落临时文件 → 跑复盘管线 → 无论如何都清理（同线程，无竞态）。"""
-        orchestrator = _run_setup(deps, recorder, context, session).orchestrator
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp.write(content)
             image_path = tmp.name
         try:
+            orchestrator = _run_setup(
+                deps, recorder, context, session, authorized_photo_paths=(image_path,)
+            ).orchestrator
             card = orchestrator.run_review(image_path, focus=focus, plan_reference=plan_reference)
             return card, _render_card(card), recorder.to_report()
         finally:
@@ -645,6 +724,7 @@ async def _review_stream(
         done_text = ""
         try:
             card, text, report = await asyncio.to_thread(run)
+            bridge.flush()
             session.history.append(
                 {"role": "user", "content": f"复盘照片：{display_name}（{focus}）"}
             )
@@ -662,6 +742,7 @@ async def _review_stream(
                 to_payload(ErrorEvent(message=str(exc), session_id=session.session_id))
             )
         finally:
+            bridge.flush()
             queue.put_nowait(to_payload(DoneEvent(text=done_text, session_id=session.session_id)))
 
     async def stream() -> AsyncIterator[str]:
@@ -702,33 +783,42 @@ async def _reverse_stream(
 
     def run() -> tuple[DecisionCard, str, Any]:
         """运行反推并保证临时文件不泄漏。"""
-        orchestrator = _run_setup(deps, recorder, context, session).orchestrator
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp.write(content)
             image_path = tmp.name
         try:
+            orchestrator = _run_setup(
+                deps, recorder, context, session, authorized_photo_paths=(image_path,)
+            ).orchestrator
             card = orchestrator.run_reverse(image_path, note=note, equipment=equipment)
             return card, _render_card(card), recorder.to_report()
         finally:
             Path(image_path).unlink(missing_ok=True)
 
     async def worker() -> None:
+        done_text = ""
         try:
             card, text, report = await asyncio.to_thread(run)
+            bridge.flush()
+            session.history.append(
+                {"role": "user", "content": f"参考图反推：{display_name}（{note}）"}
+            )
+            session.history.append({"role": "assistant", "content": text})
+            session.workspace["last_card"] = card.model_dump(mode="json")
+            session.workspace["last_trace"] = _report_to_dict(report)
+            deps.sessions.save(session)
+            queue.put_nowait(
+                to_payload(CardEvent(card=card, text=text, session_id=session.session_id))
+            )
+            done_text = text
         except Exception as exc:
             logger.exception("会话 %s 参考图反推失败", session.session_id)
             queue.put_nowait(
                 to_payload(ErrorEvent(message=str(exc), session_id=session.session_id))
             )
-            queue.put_nowait(to_payload(DoneEvent(session_id=session.session_id)))
-            return
-        session.history.append({"role": "user", "content": f"参考图反推：{display_name}（{note}）"})
-        session.history.append({"role": "assistant", "content": text})
-        session.workspace["last_card"] = card.model_dump(mode="json")
-        session.workspace["last_trace"] = _report_to_dict(report)
-        deps.sessions.save(session)
-        queue.put_nowait(to_payload(CardEvent(card=card, text=text, session_id=session.session_id)))
-        queue.put_nowait(to_payload(DoneEvent(text=text, session_id=session.session_id)))
+        finally:
+            bridge.flush()
+            queue.put_nowait(to_payload(DoneEvent(text=done_text, session_id=session.session_id)))
 
     async def stream() -> AsyncIterator[str]:
         queue.put_nowait(
@@ -1088,6 +1178,65 @@ async def create_chase_plan(
     return ChasePlanPayload.model_validate(_chase_plan_to_dict(plan))
 
 
+@router.get("/api/sessions", response_model=list[SessionPayload])
+async def list_sessions(
+    request: Request,
+    response: Response,
+    context: RequestContext = Depends(get_request_context),  # noqa: B008
+) -> list[SessionPayload]:
+    """读取当前用户已保存会话，不依赖浏览器缓存索引。"""
+    response.headers["Cache-Control"] = "private, no-store"
+    return [
+        SessionPayload.model_validate(record.to_dict())
+        for record in request.app.state.deps.sessions.list_for(context.user_id)
+    ]
+
+
+@router.get("/api/sessions/{session_id}/results/{result_id}", response_model=SavedResult)
+async def get_saved_result(
+    session_id: str,
+    result_id: str,
+    request: Request,
+    response: Response,
+    context: RequestContext = Depends(get_request_context),  # noqa: B008
+) -> SavedResult:
+    """按稳定标识只读原结果，不触发数据采集或更改有效期。"""
+    response.headers["Cache-Control"] = "private, no-store"
+    session = _owned_session(request.app.state.deps, session_id, context)
+    return SavedResult.model_validate(_find_result(session, result_id))
+
+
+@router.post("/api/saved-spot-plans", response_model=SavedResult)
+async def create_saved_spot_plan(
+    payload: SavedPlanRequest,
+    request: Request,
+    response: Response,
+    context: RequestContext = Depends(get_request_context),  # noqa: B008
+) -> SavedResult:
+    """生成后保存实际 SpotPlan；保存故障明确失败，既有计划契约不变。"""
+    deps = request.app.state.deps
+    session = _load_or_create(deps, payload.session_id, context)
+    _select_history(session, payload.result_id)
+    plan = await create_spot_plan(payload.request, request, response, context)
+    session.history.extend(
+        [
+            {"role": "user", "content": payload.request.model_dump_json()},
+            {"role": "assistant", "content": plan.model_dump_json()},
+        ]
+    )
+    try:
+        return deps.sessions.save_result(
+            session,
+            kind="spot_plan",
+            request=payload.request.model_dump(mode="json"),
+            plan=plan,
+            parent_result_id=payload.result_id,
+        )
+    except OSError as exc:
+        logger.exception("会话 %s 计划保存失败", session.session_id)
+        raise HTTPException(status_code=500, detail="计划保存失败，未确认已保存，请重试") from exc
+
+
 @router.get(
     "/api/sessions/{session_id}",
     summary="会话历史与 TraceReport 回放",
@@ -1096,27 +1245,47 @@ async def create_chase_plan(
 async def get_session(
     session_id: str,
     request: Request,
+    response: Response,
     context: RequestContext = Depends(get_request_context),  # noqa: B008
 ) -> SessionResponsePayload:
     """返回会话记录（历史 + 工作区）与最近一次运行的 TraceReport。"""
+    response.headers["Cache-Control"] = "private, no-store"
     deps = request.app.state.deps
-    session = deps.sessions.get(session_id)
-    if session is None or (session.user_id or LOCAL_USER_ID) != context.user_id:
-        raise HTTPException(status_code=404, detail="会话不存在")
+    session = _owned_session(deps, session_id, context)
     return SessionResponsePayload(
         session=session.to_dict(), trace=session.workspace.get("last_trace")
     )
 
 
 # ------ 内部实现 ------
+def _owned_session(deps: Any, session_id: str, context: RequestContext) -> SessionRecord:
+    """读取会话前检查身份；不透露他人结果是否存在。"""
+    session = deps.sessions.get(session_id)
+    if session is None or (session.user_id or LOCAL_USER_ID) != context.user_id:
+        raise HTTPException(status_code=404, detail="会话不存在")
+    return session
+
+
+def _find_result(session: SessionRecord, result_id: str) -> dict[str, Any]:
+    """在已授权会话内按稳定版本 ID 查找结果。"""
+    for result in session.saved_results():
+        if result["result_id"] == result_id:
+            return result
+    raise HTTPException(status_code=404, detail="结果版本不存在")
+
+
+def _select_history(session: SessionRecord, result_id: str) -> None:
+    """续问所选版本，不能静默使用后来产生的另一版本历史。"""
+    if result_id:
+        result = _find_result(session, result_id)
+        session.history = list(result["history"])
+        session.pipeline = dict(result["pipeline"])
+
+
 def _load_or_create(deps: Any, session_id: str, context: RequestContext) -> SessionRecord:
-    """会话恢复或新建：提供 session_id 且存在则载入，否则新建。"""
+    """空 ID 才创建；明确引用不存在的会话不能静默换成新会话。"""
     if session_id:
-        existing = deps.sessions.get(session_id)
-        if existing is not None:
-            if (existing.user_id or LOCAL_USER_ID) != context.user_id:
-                raise HTTPException(status_code=404, detail="会话不存在")
-            return existing
+        return _owned_session(deps, session_id, context)
     return deps.sessions.create(user_id=context.user_id)
 
 

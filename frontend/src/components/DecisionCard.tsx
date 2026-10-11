@@ -1,6 +1,7 @@
-/** 决策卡片组件（E7-5）：结论/依据/置信度区间条/来源标签/机位/参数表。 */
+/** 决策卡片：资格、日期、数据获取时间、实际来源与缺失原因。 */
 
 import type { DecisionCard } from "../api/events";
+import { decisionState } from "../pages/decisionState";
 
 const CONFIDENCE_LABEL: Record<string, string> = {
   high: "高",
@@ -12,17 +13,32 @@ function confidenceLevel(level: string): string {
   return CONFIDENCE_LABEL[level] ?? level;
 }
 
-export function DecisionCardView({ card }: { card: DecisionCard }) {
+export function DecisionCardView({ card, historical = false }: { card: DecisionCard; historical?: boolean }) {
+  const state = decisionState(card);
+  const expires = Date.parse(card.valid_until ?? "");
+  const shootStart = Date.parse(card.window_start ?? "");
+  const needsUpdateBeforeShoot = Number.isFinite(expires) && Number.isFinite(shootStart) && expires <= shootStart;
   return (
     <article className="decision-card" data-testid="decision-card">
       <header className="card-head">
         <span className="card-kicker">拍摄方案 · 决策卡片</span>
         <span className={`badge confidence-${card.confidence || "low"}`}>
-          置信度 {confidenceLevel(card.confidence || "low")}
+          {state === "needs_data" ? "数据不足 · 暂缓" : state === "stale" ? "历史 / 待更新" : `证据等级 ${confidenceLevel(card.confidence || "low")}`}
         </span>
       </header>
 
       <p className="card-conclusion">{card.conclusion}</p>
+      <p className="page-sub">目标日期：{card.target_date || "未记录"} · 时区：{card.tz_offset || "未记录"}</p>
+      <p className="page-sub">数据获取时间：{card.updated_at || "未取得可核对的预报"}</p>
+      <p className="page-sub">评估时间：{card.evaluated_at || "未记录"}</p>
+      <p className="page-sub">有效截止：{card.valid_until || "未记录"}</p>
+      {needsUpdateBeforeShoot ? <p className="card-degraded" data-testid="departure-update-notice">本卡有效期早于拍摄窗口，出发前需手动更新天气与拍摄建议；回看不续期，不会自动查询。</p> : null}
+      {historical || state === "stale" ? <p className="card-degraded">历史结果，仅供回看；请重新查询目标日期的数据。</p> : null}
+      {(card.missing_data ?? []).length > 0 ? <div className="card-block">
+        <h4>数据不足的原因</h4>
+        <ul>{card.missing_data?.map((reason, index) => <li key={index}>{reason}</li>)}</ul>
+        <p>补齐或更新数据后，使用同一地点和日期重新查询。</p>
+      </div> : null}
 
       {card.time_window ? (
         <div className="card-row">

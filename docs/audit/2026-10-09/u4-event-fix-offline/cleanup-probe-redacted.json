@@ -1,0 +1,8 @@
+{
+  "real_business_requests": 0,
+  "transport": "本机合成HTTP keepalive",
+  "cleanup_error": {
+    "type": "RuntimeError",
+    "message": "Event loop is closed"
+  }
+}

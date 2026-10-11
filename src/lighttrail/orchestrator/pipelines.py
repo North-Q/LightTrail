@@ -5,7 +5,7 @@
 - 评分是**代码化确定性规则**（不让模型自评，与 E2-2 置信度规则同一哲学）；
 - LLM 只出现在两头：意图理解（默认模型，强约束 JSON）与末端综合
   （深推理 reason 通道），中间全部确定性；
-- 管线失败由上层 Orchestrator 捕获降级 ReAct 自由对话。
+- U1 文字决策按实际工具结果核验资格；关键失败及综合异常返回保守卡片。
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -22,13 +23,18 @@ from typing import Any
 from lighttrail.contracts.context import RequestContext
 from lighttrail.contracts.models import DecisionCard, Intent, LocationSuggestion
 from lighttrail.contracts.plan import DEFAULT_PIPELINE_MAX_STEPS
+from lighttrail.domain.shooting_constraints import ground_shooting_constraints
+from lighttrail.domain.solar_window import resolve_solar_window
 from lighttrail.infra.confidence import confidence_detail
 from lighttrail.infra.quota import QuotaLedger
 from lighttrail.infra.trace import Recorder, null_trace
 from lighttrail.infra.validation import parse_with_retry
 from lighttrail.llm.router import ModelRouter
 from lighttrail.memory import MemoryManager
+from lighttrail.orchestrator.constraints import constrain_card
 from lighttrail.orchestrator.context import PipelineContext
+from lighttrail.orchestrator.evidence import qualify_card
+from lighttrail.orchestrator.synthesis import build_synthesis_json
 
 logger = logging.getLogger("lighttrail.orchestrator.pipelines")
 
@@ -215,13 +221,33 @@ def _prepare_target(
 
 
 def _set_target_data(
-    ctx: PipelineContext, sites: list[dict[str, Any]], site: dict[str, Any], date_iso: str
+    ctx: PipelineContext,
+    sites: list[dict[str, Any]],
+    site: dict[str, Any],
+    date_iso: str,
+    tz_offset: str = "+08:00",
 ) -> None:
     """把本次请求事实与收藏机位元数据分开交给综合模型。"""
     subject = ctx.intent.subject_type if ctx.intent is not None else ""
     ctx.data["目标日期"] = date_iso
     ctx.data["目标机位"] = site["名称"]
+    ctx.data["目标坐标"] = f"{site['纬度']},{site['经度']}"
     ctx.data["请求题材"] = subject
+    ctx.data["目标时区"] = tz_offset
+    intent = ctx.intent or Intent(subject_type=subject)
+    event = intent.solar_event or (
+        "sunrise" if subject in {"日出", "朝霞"} else "ambiguous" if subject == "蓝调" else "sunset"
+    )
+    ctx.data["目标事件"] = event
+    if intent.solar_window or subject == "蓝调":
+        sun = ctx.data.get("sun_times")
+        ctx.data["目标拍摄窗口"] = resolve_solar_window(
+            sun if isinstance(sun, dict) else {},
+            date_iso,
+            tz_offset,
+            event,
+            intent.solar_window or "blue",
+        )
     ctx.data["候选机位"] = [
         {**candidate, "档案题材": candidate["题材"], "题材": subject} for candidate in sites
     ]
@@ -321,7 +347,12 @@ def _align_card(
 
 
 def _collection_steps(
-    subject_type: str, lat: float, lon: float, date_iso: str, tz_offset: str = "+08:00"
+    subject_type: str,
+    lat: float,
+    lon: float,
+    date_iso: str,
+    tz_offset: str = "+08:00",
+    solar_event: str = "",
 ) -> list[tuple[str, str]]:
     """题材 → 数据采集步骤（工具名, 参数 JSON）。"""
     subject = subject_type or ""
@@ -354,7 +385,7 @@ def _collection_steps(
             ),
         ]
     if subject in ("日出", "朝霞", "日落", "晚霞", "火烧云", "蓝调", "黄金时刻"):
-        return [
+        steps = [
             (
                 "sun_times",
                 json.dumps(
@@ -377,6 +408,12 @@ def _collection_steps(
                 ),
             ),
         ]
+        return [
+            step
+            for step in steps
+            if step[0] != "sunset_glow_score"
+            or (solar_event != "sunrise" and subject not in {"日出", "朝霞", "蓝调"})
+        ]
     return [
         (
             "weather_forecast",
@@ -389,10 +426,15 @@ def _collection_steps(
 
 
 def _planning_steps(
-    subject_type: str, lat: float, lon: float, date_iso: str, tz_offset: str = "+08:00"
+    subject_type: str,
+    lat: float,
+    lon: float,
+    date_iso: str,
+    tz_offset: str = "+08:00",
+    solar_event: str = "",
 ) -> list[tuple[str, str]]:
     """规划管线按题材采集，并把天气窗口扩至七天。"""
-    steps = _collection_steps(subject_type, lat, lon, date_iso, tz_offset)
+    steps = _collection_steps(subject_type, lat, lon, date_iso, tz_offset, solar_event)
     return [
         (
             name,
@@ -405,13 +447,17 @@ def _planning_steps(
 
 
 def _match_candidate_sites(
-    env: PipelineEnv, sites: list[dict[str, Any]], date_iso: str, subject_type: str
+    env: PipelineEnv,
+    sites: list[dict[str, Any]],
+    date_iso: str,
+    subject_type: str,
+    solar_event: str = "",
 ) -> dict[str, Any]:
     """调用确定性机位匹配，并把异常收敛为可解释的降级数据。"""
     subject = _MATCH_SUBJECT.get(subject_type, subject_type)
     if subject not in {"日出", "日落", "蓝调", "黄金", "银河", "星空", "夜景"}:
         return {"error": f"题材「{subject_type}」暂不支持机位天象匹配"}
-    normalized = [{**site, "题材": subject} for site in sites]
+    normalized = [{**site, "题材": subject, "事件": solar_event} for site in sites]
     args = json.dumps(
         {"sites": normalized, "date": date_iso, "tz_offset": env.request.tz_offset},
         ensure_ascii=False,
@@ -501,7 +547,11 @@ def _score(data: dict[str, Any]) -> dict[str, Any]:
     """
     scores: dict[str, Any] = {}
     glow = data.get("sunset_glow_score")
-    if isinstance(glow, dict):
+    if (
+        isinstance(glow, dict)
+        and data.get("目标事件") != "sunrise"
+        and ("请求题材" not in data or data["请求题材"] in {"火烧云", "晚霞"})
+    ):
         score_value = _first_value_of(glow, ("评分（0-100）",))
         if score_value is not None:
             scores["火烧云评分"] = score_value
@@ -549,6 +599,12 @@ _DECISION_CARD_INSTRUCTION = """请基于以上数据输出一份决策卡片，
 def _build_synthesis_prompt(ctx: PipelineContext, env: PipelineEnv) -> str:
     """组装综合 prompt：意图 + 数据 + 评分 + 记忆（第④层对齐）。"""
     lines = [f"用户请求：{ctx.user_request}"]
+    _set_shooting_constraints(ctx, env)
+    lines.append(
+        "拍摄前提以本轮原请求和镜头档案为准：出发→单程通勤→布置完成→开拍；"
+        "主方案及所有备选均须满足时长，不得默认三脚架、ND或未知最大光圈已具备。"
+        "有效期早于出发时只提供规划参考并提示出发前手动更新，不延长有效期或自动查询。"
+    )
     intent = ctx.intent
     if intent is not None:
         lines.append(
@@ -559,6 +615,12 @@ def _build_synthesis_prompt(ctx: PipelineContext, env: PipelineEnv) -> str:
             f"已验证目标：{ctx.data['目标日期']} 在 {ctx.data['目标机位']} 拍摄"
             f" {ctx.data.get('请求题材', '')}。结论、时间窗口和 locations 必须与此一致；"
             "收藏机位的档案题材仅是历史偏好，不得覆盖本次请求题材。"
+        )
+    if "目标拍摄窗口" in ctx.data:
+        lines.append(
+            "必须遵守目标拍摄窗口的绝对时间与晨暮事件；window_start/window_end 是拍摄窗口，"
+            "不是通勤或布置区间。blue_through_event 必须同时覆盖蓝调与跨越日出/日落；"
+            "不得用日落或火烧云评分证明晨间蓝调。缺失原因非空时返回 wait，禁止自行补造。"
         )
     memory_text = ""
     if env.memory is not None:
@@ -572,18 +634,37 @@ def _build_synthesis_prompt(ctx: PipelineContext, env: PipelineEnv) -> str:
         lines.append(f"用户记忆：\n{memory_text}")
     if ctx.data:
         lines.append(
-            "采集数据（JSON）：\n" + json.dumps(ctx.data, ensure_ascii=False, default=str)[:3000]
+            "采集数据（JSON）：\n"
+            + build_synthesis_json(
+                ctx.data,
+                now=env.request.requested_at,
+                tz_offset=env.request.tz_offset,
+                subject=intent.subject_type if intent else "",
+            )
         )
     if ctx.scores:
         lines.append("代码化评分：" + json.dumps(ctx.scores, ensure_ascii=False))
     return "\n\n".join(lines) + "\n\n" + _DECISION_CARD_INSTRUCTION
 
 
-def finalize_card(card: DecisionCard) -> DecisionCard:
-    """补全卡片的规则推导字段（M2：置信度不让模型自评）。
+def _set_shooting_constraints(ctx: PipelineContext, env: PipelineEnv) -> None:
+    """在综合和异常收口前固定本轮拍摄前提，不读取旧轮次前提。"""
+    if "目标日期" not in ctx.data:
+        return
+    lenses = env.memory.profile_for(env.request).lenses if env.memory is not None else []
+    ctx.data["拍摄前提"] = {
+        **ground_shooting_constraints(
+            ctx.user_request, ctx.data["目标日期"], env.request.tz_offset, lenses
+        ),
+        "目标日期": ctx.data["目标日期"],
+        "目标时区": env.request.tz_offset,
+    }
 
-    当前只补 `confidence_detail`（主值 + 区间 + 依据构成，规则见 infra/confidence.py）——
-    前端铁律①直接渲染该字段，不再自算区间（B4-3）。
+
+def finalize_card(card: DecisionCard) -> DecisionCard:
+    """收口卡片兼容字段；已核验卡不生成未经校准的百分比和区间。
+
+    unverified 历史链路保留 confidence_detail 兼容；页面不展示该字段。
 
     Args:
         card: 管线/反推产出的决策卡。
@@ -591,7 +672,11 @@ def finalize_card(card: DecisionCard) -> DecisionCard:
     Returns:
         同一张卡（就地补全后返回，便于链式调用）。
     """
-    card.confidence_detail = confidence_detail(card.confidence, card.evidence)
+    card.confidence_detail = (
+        None
+        if card.data_status != "unverified"
+        else confidence_detail(card.confidence, card.evidence)
+    )
     return card
 
 
@@ -603,7 +688,33 @@ class Pipeline:
 
     def run(self, ctx: PipelineContext, env: PipelineEnv) -> DecisionCard:
         """执行管线，并统一补全规则推导字段（置信度明细）。"""
-        return finalize_card(self._run(ctx, env))
+        try:
+            card = self._run(ctx, env)
+        except Exception as exc:
+            if "目标日期" not in ctx.data:
+                raise
+            logger.warning("综合失败，返回保守卡片：%s", type(exc).__name__)
+            card = DecisionCard(
+                conclusion="综合失败，请重新查询。",
+                evidence=[],
+                confidence="low",
+                verdict="wait",
+                degraded="synthesis_failed",
+                target_date=ctx.data["目标日期"],
+                subject_type=ctx.data["请求题材"],
+            )
+        if "目标日期" in ctx.data:
+            ctx.data["目标时区"] = env.request.tz_offset
+            if env.memory is not None:
+                ctx.data["用户器材"] = env.memory.profile_for(env.request).camera_body
+            card = qualify_card(card, ctx.data, env.request.requested_at)
+            _set_shooting_constraints(ctx, env)
+            card = constrain_card(card, ctx.data["拍摄前提"], env.request.requested_at)
+            card.tz_offset = env.request.tz_offset
+            if card.degraded == "synthesis_failed":
+                card.verdict = "wait"
+                card.confidence = "low"
+        return finalize_card(card)
 
     def _run(self, ctx: PipelineContext, env: PipelineEnv) -> DecisionCard:
         """子类实现：执行确定步骤序列并产出卡片。"""
@@ -623,10 +734,15 @@ class InspirationPipeline(Pipeline):
             return target
         site, sites, date_iso = target
         steps = _collection_steps(
-            intent.subject_type, site["纬度"], site["经度"], date_iso, env.request.tz_offset
+            intent.subject_type,
+            site["纬度"],
+            site["经度"],
+            date_iso,
+            env.request.tz_offset,
+            intent.solar_event,
         )
         ctx.data = _collect(env, ctx, steps)
-        _set_target_data(ctx, sites, site, date_iso)
+        _set_target_data(ctx, sites, site, date_iso, env.request.tz_offset)
         ctx.scores = _score(ctx.data)
         prompt = _build_synthesis_prompt(ctx, env)
         env.recorder.record_step("综合_reason", input_summary=prompt[:80], output_summary="")
@@ -648,12 +764,19 @@ class PlanningPipeline(Pipeline):
             return target
         site, sites, date_iso = target
         steps = _planning_steps(
-            intent.subject_type, site["纬度"], site["经度"], date_iso, env.request.tz_offset
+            intent.subject_type,
+            site["纬度"],
+            site["经度"],
+            date_iso,
+            env.request.tz_offset,
+            intent.solar_event,
         )
         _check_step_limit(env, len(steps) + 1)
         ctx.data = _collect(env, ctx, steps)
-        _set_target_data(ctx, sites, site, date_iso)
-        ctx.data["match_sites"] = _match_candidate_sites(env, sites, date_iso, intent.subject_type)
+        _set_target_data(ctx, sites, site, date_iso, env.request.tz_offset)
+        ctx.data["match_sites"] = _match_candidate_sites(
+            env, sites, date_iso, intent.subject_type, intent.solar_event
+        )
         ctx.scores = _score(ctx.data)
         prompt = _build_synthesis_prompt(ctx, env)
         ctx.card = parse_with_retry(DecisionCard, lambda p: env.reason(p, ""), prompt)
@@ -679,12 +802,13 @@ class LiveDecisionPipeline(Pipeline):
             site["经度"],
             date_iso,
             env.request.tz_offset,
+            ctx.intent.solar_event,
         )
         _check_step_limit(env, len(steps) + 1)
         ctx.data = _collect(env, ctx, steps)
-        _set_target_data(ctx, sites, site, date_iso)
+        _set_target_data(ctx, sites, site, date_iso, env.request.tz_offset)
         ctx.data["match_sites"] = _match_candidate_sites(
-            env, sites, date_iso, ctx.intent.subject_type
+            env, sites, date_iso, ctx.intent.subject_type, ctx.intent.solar_event
         )
         ctx.scores = _score(ctx.data)
         prompt = _build_synthesis_prompt(ctx, env)
@@ -749,18 +873,61 @@ def _diff_exif_vs_plan(exif: dict[str, Any], plan_params: Any) -> list[str]:
         if not actual:
             continue
         planned = next((value for name, value in plan_map.items() if label in name), None)
-        if planned is None or _values_equivalent(planned, actual):
+        if planned is None or _values_equivalent(planned, actual, quantity=label):
             continue
         diffs.append(f"计划{label} {planned}，实拍 {actual}")
     return diffs
 
 
-def _values_equivalent(left: str, right: str) -> bool:
-    """数值宽松相等（忽略单位/前缀，如 f/8 vs 8、1/125s vs 1/125）。"""
-    import re
+def _values_equivalent(left: str, right: str, *, quantity: str = "") -> bool:
+    """按物理量归一后比较，容许 0.1% 数值误差。
 
-    numbers = lambda text: re.findall(r"\d+\.?\d*", str(text))
-    return bool(numbers(left) and numbers(left) == numbers(right))
+    Args:
+        left: 计划参数，支持 f/8、ISO400、1/125s、8ms 等明确格式。
+        right: 实拍参数；裸数字按已知参数类别比较，快门默认为秒。
+        quantity: 对账字段名，用于识别缺少单位的快门、光圈或 ISO。
+
+    Returns:
+        两侧单位兼容且数值在容差内时为 True；不可解析时为 False。
+    """
+    a = _parse_parameter(left)
+    b = _parse_parameter(right)
+    if a is None or b is None:
+        return False
+    expected = {"光圈": "aperture", "快门": "time", "ISO": "iso"}.get(quantity, "")
+    unit_a, number_a = a
+    unit_b, number_b = b
+    if expected and any(unit and unit != expected for unit in (unit_a, unit_b)):
+        return False
+    if unit_a and unit_b and unit_a != unit_b:
+        return False
+    return math.isclose(number_a, number_b, rel_tol=0.001, abs_tol=1e-9)
+
+
+def _parse_parameter(value: str) -> tuple[str, float] | None:
+    """解析单个完整曝光参数；拒绝未知单位、零分母和非有限值。"""
+    text = str(value).strip().lower().replace(" ", "")
+    unit = ""
+    if text.startswith("f/"):
+        unit, text = "aperture", text[2:]
+    elif text.startswith("iso"):
+        unit, text = "iso", text[3:]
+    match = re.fullmatch(r"(\d+(?:\.\d*)?|\.\d+)(?:/(\d+(?:\.\d*)?))?(ms|us|μs|s|秒)?", text)
+    if match is None:
+        return None
+    numerator, denominator, suffix = match.groups()
+    if suffix and unit:
+        return None
+    divisor = float(denominator) if denominator else 1.0
+    if divisor <= 0:
+        return None
+    number = float(numerator) / divisor
+    if suffix:
+        unit = "time"
+        number *= {"ms": 0.001, "us": 0.000001, "μs": 0.000001}.get(suffix, 1.0)
+    if not math.isfinite(number) or number <= 0:
+        return None
+    return unit, number
 
 
 def _build_review_prompt(report: dict[str, Any], exif: dict[str, Any], diffs: list[str]) -> str:

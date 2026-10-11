@@ -34,3 +34,37 @@ test("没有 done 的关闭流报告错误，不再静默当作成功", async ()
     /未收到完成事件/,
   );
 });
+
+test("响应读取挂起时 abort 主动释放 reader 并停止等待", async () => {
+  let canceled = false;
+  const controller = new AbortController();
+  const stream = new ReadableStream({ cancel() { canceled = true; } });
+  const waiting = pipeSSE(new Response(stream), () => assert.fail("停止后不得回调"), controller.signal);
+  controller.abort();
+  await assert.rejects(waiting, { name: "AbortError" });
+  assert.equal(canceled, true);
+  assert.equal(stream.locked, false);
+});
+
+test("已经停止的迟到响应不派发任何帧", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  const stream = new ReadableStream({ start(reader) {
+    reader.enqueue(encoder.encode('event: done\ndata: {"text":"旧结果"}\n\n'));
+  } });
+  await assert.rejects(pipeSSE(new Response(stream), () => assert.fail("旧结果回写"), controller.signal), { name: "AbortError" });
+  assert.equal(stream.locked, false);
+});
+
+test("同一读取块内停止后剩余帧不能继续回写", async () => {
+  const controller = new AbortController();
+  const stream = new ReadableStream({ start(reader) {
+    reader.enqueue(encoder.encode('event: token\ndata: {"content":"部分"}\n\nevent: done\ndata: {"text":"完成"}\n\n'));
+  } });
+  const events = [];
+  await assert.rejects(pipeSSE(new Response(stream), (event) => {
+    events.push(event.type);
+    controller.abort();
+  }, controller.signal), { name: "AbortError" });
+  assert.deepEqual(events, ["token"]);
+});

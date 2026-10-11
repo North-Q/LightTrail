@@ -44,11 +44,11 @@ export default function App() {
   const page = (() => {
     switch (hash.split("?", 1)[0]) {
       case "#/d1":
-        return <D1Page />;
+        return <D1Page key={hash} />;
       case "#/d2":
         return <D2Page key={hash} />;
       case "#/d3":
-        return <D3Page />;
+        return <D3Page key={hash} />;
       case "#/d4":
         return <D4Page />;
       case "#/m1":

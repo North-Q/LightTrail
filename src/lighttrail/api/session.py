@@ -32,7 +32,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from pydantic import BaseModel, Field
+
 from lighttrail.contracts.models import DecisionCard, Intent
+from lighttrail.contracts.spot_plan import SpotPlan
+from lighttrail.infra.redact import redact
 from lighttrail.orchestrator.context import PipelineContext
 
 logger = logging.getLogger("lighttrail.api.session")
@@ -48,6 +52,24 @@ class SessionError(Exception):
     """会话管理参数非法或数据损坏。"""
 
 
+class SavedResult(BaseModel):
+    """实际生成结果的不可变版本；时间和证据只保存，不在恢复时重算。"""
+
+    session_id: str
+    result_id: str
+    version: int
+    kind: str
+    created_at: str
+    parent_result_id: str = ""
+    request: dict[str, Any] = Field(default_factory=dict)
+    text: str = ""
+    card: DecisionCard | None = None
+    plan: SpotPlan | None = None
+    history: list[dict[str, Any]] = Field(default_factory=list)
+    pipeline: dict[str, Any] = Field(default_factory=dict)
+    trace: dict[str, Any] = Field(default_factory=dict)
+
+
 def _now_iso() -> str:
     """当前 UTC 时间的 ISO 8601 字符串。"""
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
@@ -56,14 +78,16 @@ def _now_iso() -> str:
 def _json_safe(value: Any) -> Any:
     """把值转为 JSON 安全形态（pydantic 模型 dict 化，未知类型 str 兜底）。"""
     if hasattr(value, "model_dump"):
-        return value.model_dump(mode="json")
+        return _json_safe(value.model_dump(mode="json"))
     if isinstance(value, dict):
-        return {str(k): _json_safe(v) for k, v in value.items()}
+        return {redact(str(k)): _json_safe(v) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
         return [_json_safe(item) for item in value]
-    if isinstance(value, (str, int, float, bool)) or value is None:
+    if isinstance(value, str):
+        return redact(value)
+    if isinstance(value, (int, float, bool)) or value is None:
         return value
-    return str(value)
+    return redact(str(value))
 
 
 def snapshot_context(ctx: PipelineContext | None) -> dict[str, Any]:
@@ -127,6 +151,40 @@ class SessionRecord:
     user_id: str = ""
     created_at: str = field(default_factory=_now_iso)
     updated_at: str = field(default_factory=_now_iso)
+    results: list[dict[str, Any]] = field(default_factory=list)
+
+    def saved_results(self) -> list[dict[str, Any]]:
+        """读取版本；旧会话仅把已有内容映射为固定 legacy ID，不补造时间。"""
+        if self.results:
+            return copy.deepcopy(self.results)
+        if not self.history and not self.workspace.get("last_card") and not self.pipeline:
+            return []
+        return [
+            SavedResult(
+                session_id=self.session_id,
+                result_id="legacy",
+                version=1,
+                kind="decision" if self.workspace.get("last_card") else "chat",
+                created_at=self.updated_at or self.created_at,
+                request={
+                    "request": next(
+                        (m.get("content", "") for m in self.history if m.get("role") == "user"), ""
+                    )
+                },
+                text=next(
+                    (
+                        m.get("content", "")
+                        for m in reversed(self.history)
+                        if m.get("role") == "assistant"
+                    ),
+                    "",
+                ),
+                card=self.workspace.get("last_card"),
+                history=self.history,
+                pipeline=self.pipeline,
+                trace=self.workspace.get("last_trace") or {},
+            ).model_dump(mode="json")
+        ]
 
     # ------ 对外接口：序列化 ------
     def to_dict(self) -> dict[str, Any]:
@@ -139,6 +197,7 @@ class SessionRecord:
             "user_id": self.user_id,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "results": _json_safe(self.saved_results()),
         }
 
     @classmethod
@@ -152,6 +211,7 @@ class SessionRecord:
             user_id=str(data.get("user_id", "")),
             created_at=str(data.get("created_at", "")),
             updated_at=str(data.get("updated_at", "")),
+            results=list(data.get("results") or []),
         )
 
 
@@ -174,6 +234,7 @@ class SessionManager:
         self._lock = threading.Lock()
         # 实例级写锁：串行化落盘（只包住临时文件写入 + os.replace，不与 self._lock 嵌套）
         self._write_lock = threading.Lock()
+        self._result_lock = threading.RLock()
         self._cache: dict[str, SessionRecord] = {}
         self._access: dict[str, int] = {}
         self._clock = 0
@@ -228,7 +289,9 @@ class SessionManager:
             return None
         try:
             session = SessionRecord.from_dict(json.loads(raw))
-        except (ValueError, TypeError) as exc:
+            if session.session_id != session_id:
+                raise SessionError("会话文件标识不一致")
+        except (ValueError, TypeError, SessionError) as exc:
             logger.warning("会话 %s 落盘数据损坏，忽略：%s", session_id, exc)
             return None
         with self._lock:
@@ -252,15 +315,100 @@ class SessionManager:
         """
         if not session.session_id:
             raise SessionError("session_id 不能为空")
-        session.updated_at = _now_iso()
-        self._write_session(session)
-        with self._lock:
-            self._cache[session.session_id] = copy.deepcopy(session)
-            self._touch(session.session_id)
-            evicted = self._evict_if_needed()
-        self._persist_evicted(evicted)
+        with self._result_lock:
+            latest = self.get(session.session_id)
+            previous = latest.saved_results() if latest is not None else []
+            existing_ids = {item["result_id"] for item in previous}
+            # 旧入口的过时副本可以更新工作区，不能覆盖或删除已有不可变版本。
+            session.results = previous + [
+                item for item in session.results if item["result_id"] not in existing_ids
+            ]
+            session.updated_at = _now_iso()
+            self._write_session(session)
+            with self._lock:
+                self._cache[session.session_id] = copy.deepcopy(session)
+                self._touch(session.session_id)
+                evicted = self._evict_if_needed()
+            self._persist_evicted(evicted)
 
     # ------ 内部实现 ------
+    def read_saved(self, session_id: str) -> SessionRecord | None:
+        """只读取已落盘快照，反馈恢复不触发缓存淘汰写入。
+
+        Args:
+            session_id: 目标会话ID。
+        Returns:
+            无缓存副作用的记录；不存在或损坏时为None。
+        """
+        try:
+            raw = self._path_of(session_id).read_text(encoding="utf-8")
+            record = SessionRecord.from_dict(json.loads(raw))
+            return record if record.session_id == session_id else None
+        except (OSError, ValueError, TypeError, SessionError):
+            return None
+
+    def list_for(self, user_id: str) -> list[SessionRecord]:
+        """只列出已落盘且归属当前上下文的会话，不访问模型或档案。"""
+        from lighttrail.contracts.context import LOCAL_USER_ID
+
+        records = [self.get(path.stem) for path in self._sessions_dir.glob("*.json")]
+        return sorted(
+            [
+                record
+                for record in records
+                if record is not None and (record.user_id or LOCAL_USER_ID) == user_id
+            ],
+            key=lambda record: record.updated_at,
+            reverse=True,
+        )
+
+    def save_result(
+        self,
+        session: SessionRecord,
+        *,
+        kind: str,
+        request: dict[str, Any],
+        text: str = "",
+        card: DecisionCard | None = None,
+        plan: SpotPlan | None = None,
+        parent_result_id: str = "",
+    ) -> SavedResult:
+        """原子保存实际结果，合并既有版本，成功落盘后才返回保存确认。
+
+        Args:
+            session: 已执行完成的消息与管线快照。
+            kind: 结果类型。
+            request: 原始请求快照。
+            text: 实际生成文本。
+            card: 实际决策卡。
+            plan: 实际结构化计划。
+            parent_result_id: 续问或重查的父版本。
+
+        Returns:
+            已持久化的独立结果版本。
+        """
+        with self._result_lock:
+            latest = self.get(session.session_id)
+            previous = latest.saved_results() if latest is not None else []
+            result = SavedResult(
+                session_id=session.session_id,
+                result_id=uuid.uuid4().hex,
+                version=max((item["version"] for item in previous), default=0) + 1,
+                kind=kind,
+                created_at=_now_iso(),
+                parent_result_id=parent_result_id,
+                request=request,
+                text=text,
+                card=card,
+                plan=plan,
+                history=session.history,
+                pipeline=session.pipeline,
+                trace=session.workspace.get("last_trace") or {},
+            )
+            session.results = previous + [_json_safe(result)]
+            self.save(session)
+            return result
+
     def _path_of(self, session_id: str) -> Path:
         """会话落盘路径（session_id 只允许安全字符）。"""
         if any(ch in session_id for ch in '/\\:*?"<>|'):

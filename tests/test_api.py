@@ -24,6 +24,7 @@ import pytest
 from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
 
+from evals.fake_data import FakeDispatcher
 from lighttrail.adapters.llm.client import LLMError
 from lighttrail.api import routes
 from lighttrail.api.app import ApiDeps, create_app
@@ -107,27 +108,12 @@ def _tool_call_msg(name: str = "get_current_time", arguments: str = "{}") -> dic
     }
 
 
+_DISPATCHER = FakeDispatcher()
+
+
 def _fake_dispatch(name: str, args: str) -> str:
-    """Fake 数据源（不触网）。"""
-    data = {
-        "moon_phase": {"月相名称": "新月", "照亮比例（%）": 2, "月光影响建议": "低"},
-        "galaxy_visibility": {
-            "可见窗口": [{"开始": "20:10", "结束": "23:50"}],
-            "最高高度角": 55,
-            "提示": "好",
-        },
-        "weather_forecast": {
-            "每日预报": [{"日期": "2026-09-08", "平均云量（%）": 30}],
-            "数据来源": "Open-Meteo（免费）",
-        },
-        "sun_times": {"日出": "05:42", "日落": "18:06"},
-        "sunset_glow_score": {
-            "评分（0-100）": 62,
-            "等级": "中等（可看趋势再定）",
-            "数据来源": "Open-Meteo（免费）",
-        },
-    }
-    return json.dumps(data.get(name, {"error": f"未知工具 {name}"}), ensure_ascii=False)
+    """返回含资格元数据的合成天气，禁止访问外部服务。"""
+    return _DISPATCHER(name, args)
 
 
 def _fake_photo_analyze(image_path: str, focus: str) -> dict:
@@ -222,7 +208,7 @@ async def test_chat_sse_full_protocol(make_app) -> None:
         [_tool_call_msg(), {"role": "assistant", "content": "现在是北京时间 22:30。"}]
     )
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         events = await _collect_sse(client, "POST", "/api/chat", json={"message": "现在几点？"})
 
     types = [e["type"] for e in events]
@@ -238,7 +224,7 @@ async def test_chat_sse_full_protocol(make_app) -> None:
     # 会话持久化：done 带 session_id，随后可按 id 取回历史
     session_id = events[-1]["session_id"]
     assert session_id
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         resp = await client.get(f"/api/sessions/{session_id}")
     assert resp.status_code == 200
     body = resp.json()
@@ -263,7 +249,7 @@ async def test_chat_error_event(make_app) -> None:
     app, _ = make_app([])
     app.state.deps.services.client.acall = _BrokenClient().acall  # 覆盖底层调用
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         events = await _collect_sse(client, "POST", "/api/chat", json={"message": "hi"})
     types = [e["type"] for e in events]
     assert "error" in types
@@ -280,7 +266,7 @@ async def test_decide_sse_card(make_app) -> None:
         ]
     )
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         events = await _collect_sse(
             client, "POST", "/api/decide", json={"request": "今晚火烧云值得冲吗"}
         )
@@ -290,7 +276,8 @@ async def test_decide_sse_card(make_app) -> None:
     assert "step" in types  # 管线步骤事件实时推送
     assert types[-1] == "done"
     card_event = next(e for e in events if e["type"] == "card")
-    assert card_event["card"]["conclusion"] == "建议 18:10 到机位蹲守，风险中等可接受。"
+    assert card_event["card"]["target_date"]
+    assert card_event["card"]["verdict"] != "go"  # 样例无 go；晚于日落时须暂缓
     assert "step" in types
 
 
@@ -301,7 +288,7 @@ async def test_photos_review_sse(make_app) -> None:
     )
     transport = ASGITransport(app=app)
     png_bytes = b"\x89PNG\r\n\x1a\n" + b"0" * 64
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         events = await _collect_sse(
             client,
             "POST",
@@ -326,7 +313,7 @@ async def test_photos_review_save_failure_still_finishes_sse(make_app, monkeypat
     monkeypatch.setattr(app.state.deps.sessions, "save", fail_save)
     transport = ASGITransport(app=app)
     png_bytes = b"\x89PNG\r\n\x1a\n" + b"0" * 64
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         events = await _collect_sse(
             client,
             "POST",
@@ -346,7 +333,7 @@ async def test_photos_reverse_sse(make_app) -> None:
     )
     transport = ASGITransport(app=app)
     png_bytes = b"\x89PNG\r\n\x1a\n" + b"0" * 64
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         events = await _collect_sse(
             client,
             "POST",
@@ -362,7 +349,7 @@ async def test_photos_review_rejects_bad_type(make_app) -> None:
     """照片类型校验：非 jpg/png → 400。"""
     app, _ = make_app([])
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         resp = await client.post(
             "/api/photos/review",
             files={"file": ("x.gif", b"GIF89a", "image/gif")},
@@ -406,7 +393,7 @@ async def test_profile_get_put(make_app) -> None:
     """档案：GET 读默认空档；PUT 更新后 GET 读回。"""
     app, _ = make_app([])
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         got = await client.get("/api/profile")
         assert got.status_code == 200
         assert got.json()["camera_body"] == ""
@@ -444,7 +431,7 @@ async def test_favorite_spot_crud_and_profile_write_guard(make_app, data_dir: Pa
         "source": "用户实测",
     }
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         assert (await client.put("/api/profile", json={"favorite_spots": []})).status_code == 422
         assert (
             await client.post("/api/favorite-spots", json={**spot, "latitude": 91})
@@ -478,7 +465,7 @@ async def test_legacy_spot_confirmation_and_user_isolation(make_app, data_dir: P
     profile_path = data_dir / "users" / "_local" / "memory" / "profile.json"
     original = profile_path.read_bytes()
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         listed = (await client.get("/api/favorite-spots")).json()["items"]
         assert listed[0]["coordinate_state"] == "unknown_system"
         assert memory.profile.valid_favorite_spots() == []
@@ -544,7 +531,7 @@ async def test_chase_plan_uses_profile_sites_and_manual_fallback(make_app) -> No
         "min_shoot_minutes": 15,
     }
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         response = await client.post("/api/chase-plans", json=body)
     assert response.status_code == 200, response.text
     result = response.json()
@@ -558,7 +545,7 @@ async def test_event_write_requires_explicit_request(make_app) -> None:
     """事件只由显式 API 请求写入，不随复盘端点自动创建。"""
     app, _ = make_app([])
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         response = await client.post(
             "/api/events", json={"location": "临港", "subject_type": "火烧云"}
         )
@@ -571,7 +558,7 @@ async def test_event_timestamp_rejects_invalid_or_timezone_free_values(make_app,
     """事件时间只接受可解析且含时区的 ISO 8601 值。"""
     app, _ = make_app([])
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         response = await client.post(
             "/api/events", json={"location": "临港", "timestamp": timestamp}
         )
@@ -582,7 +569,7 @@ async def test_event_timestamp_accepts_timezone_and_returns_typed_value(make_app
     """带时区的 ISO 8601 时间经事件接口解析并按 datetime 响应。"""
     app, _ = make_app([])
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         response = await client.post(
             "/api/events",
             json={"location": "临港", "timestamp": "2026-10-03T19:00:00+08:00"},
@@ -595,7 +582,7 @@ async def test_sessions_unknown_404(make_app) -> None:
     """未知会话 → 404。"""
     app, _ = make_app([])
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         resp = await client.get("/api/sessions/no-such-session")
     assert resp.status_code == 404
 
@@ -604,7 +591,7 @@ async def test_openapi_contains_all_endpoints(make_app) -> None:
     """OpenAPI/文档：五个端点全部注册。"""
     app, _ = make_app([])
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         spec = (await client.get("/openapi.json")).json()
         docs = await client.get("/docs")
     paths = spec["paths"]
@@ -639,7 +626,7 @@ async def test_photos_review_keeps_image_until_pipeline_reads_it(make_app) -> No
     )
     transport = ASGITransport(app=app)
     png_bytes = b"\x89PNG\r\n\x1a\n" + b"0" * 64
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as client:
         events = await _collect_sse(
             client,
             "POST",

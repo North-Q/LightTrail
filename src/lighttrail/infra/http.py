@@ -27,6 +27,8 @@ from tenacity import (
     wait_random,
 )
 
+from lighttrail.infra.redact import redact
+
 logger = logging.getLogger("lighttrail.infra.http")
 
 # 默认超时与重试次数（与 llm/client 的重试次数一致：3 次）
@@ -86,16 +88,18 @@ async def get_json(
             with attempt:
                 response = await active.get(url, params=params)
                 if response.status_code in _RETRY_STATUS:
-                    raise _RetryableStatus(response.status_code, response.text[:200])
+                    raise _RetryableStatus(response.status_code, redact(response.text)[:200])
                 if response.status_code >= 400:
-                    raise DataSourceError(f"HTTP {response.status_code}：{response.text[:200]}")
+                    raise DataSourceError(
+                        f"HTTP {response.status_code}：{redact(response.text)[:200]}"
+                    )
                 return response.json()
     except _RetryableStatus as exc:
-        raise DataSourceError(f"取数失败（已重试 {max_attempts} 次）：{exc}") from exc
+        raise DataSourceError(redact(f"取数失败（已重试 {max_attempts} 次）：{exc}")) from None
     except httpx.HTTPError as exc:
         raise DataSourceError(
-            f"取数失败（已重试 {max_attempts} 次）：{type(exc).__name__}: {exc}"
-        ) from exc
+            redact(f"取数失败（已重试 {max_attempts} 次）：{type(exc).__name__}: {exc}")
+        ) from None
     finally:
         if owns_client:
             await active.aclose()

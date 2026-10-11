@@ -1,0 +1,120 @@
+"""隔离复现产品审查发现，不访问真实 API 或用户数据。"""
+from __future__ import annotations
+import asyncio
+import inspect
+import json
+import os
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from unittest.mock import patch
+from typing import Any
+
+ROOT = Path(__file__).resolve().parents[2]
+WORK = Path(__file__).parent
+for key in ('LLM_API_KEY','ECNU_API_KEY'):
+    os.environ[key] = 'offline-audit'
+os.environ['LIGHTTRAIL_DATA_DIR'] = str(WORK / 'data')
+for key in ('AMAP_WEB_SERVICE_KEY','AMAP_JS_API_KEY','AMAP_SECURITY_JS_CODE','BAIDU_MAP_AK'):
+    os.environ[key] = ''
+from httpx import ASGITransport, AsyncClient
+from astral import moon
+from lighttrail.api.app import ApiDeps, create_app
+from lighttrail.api.session import SessionManager
+from lighttrail.composition import build_application
+from lighttrail.config import Settings
+from lighttrail.contracts.context import RequestContext
+from lighttrail.contracts.favorite_spot import FavoriteSpotInput
+from lighttrail.contracts.models import DecisionCard, Source
+from lighttrail.infra.confidence import confidence_detail
+from lighttrail.tools import astronomy, weather
+from lighttrail.tools.basic import get_current_time
+from lighttrail.tools.exposure import equivalent_exposure
+from lighttrail.domain.chase import ChaseSite, GeoPoint, ChasePlanner, ManualTravelTimeProvider
+from lighttrail.orchestrator.pipelines import _values_equivalent
+
+RESULT: dict[str, Any] = {}
+class FakeClient:
+    """仅返回构造的模型文本，记录真实装配传入的上下文。"""
+    def __init__(self) -> None:
+        self.calls: list[Any] = []
+    async def acall(self, messages: list[dict[str, Any]], **kwargs: Any) -> dict[str, Any]:
+        """返回可通过旧契约的强结论。"""
+        self.calls.append(messages)
+        return {'role':'assistant','content':json.dumps({'conclusion':'值得出门','evidence':[{'tool':'weather_forecast','field':'云量','confidence':'high','note':'条件理想'}],'confidence':'high','verdict':'go'},ensure_ascii=False)}
+    def queue_position(self) -> int:
+        """离线无排队。"""
+        return 0
+
+async def main() -> None:
+    """验证核心 API 与确定性数值，保存合成证据。"""
+    data = WORK / ('repro-' + __import__('uuid').uuid4().hex)
+    fake = FakeClient()
+    settings = Settings(_env_file=None, api_key='offline', data_dir=str(data), reason_thinking=False, llm_timeout=(1.0,2.0))
+    def fail_data(name: str, args: str) -> str:
+        """所有采集失败的隔离替身。"""
+        return json.dumps({'error':'审查注入：数据源离线'},ensure_ascii=False)
+    services = build_application(settings,client=fake,dispatch=fail_data)
+    sessions = SessionManager(data)
+    app = create_app(ApiDeps(services,sessions))
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app),base_url='http://test') as client:
+            saved = await client.post('/api/favorite-spots',json={'name':'审查台','latitude':31.2,'longitude':121.5,'coordinate_system':'WGS84','tz_offset':'+08:00','source':'合成审查'})
+            response = await client.post('/api/decide',json={'request':'今晚在审查台拍火烧云值得冲吗'})
+            events = [json.loads(line[5:]) for line in response.text.splitlines() if line.startswith('data:')]
+            card = next(e['card'] for e in events if e['type']=='card')
+            RESULT['failed_data_card'] = {'verdict':card['verdict'],'confidence':card['confidence'],'degraded':card['degraded'],'evidence':card['evidence'],'detail':card['confidence_detail']}
+            session_id = events[-1]['session_id']
+            fake.calls.clear()
+            await client.post('/api/decide',json={'request':'明天在审查台拍日落','session_id':session_id})
+            RESULT['decide_history_not_loaded'] = not any('今晚在审查台拍火烧云值得冲吗' in str(m) for m in fake.calls)
+            cors = await client.post('/api/events',headers={'Origin':'https://audit.invalid'},json={'location':'合成地点','outcome':'fail'})
+            RESULT['cross_origin_event_write'] = {'status':cors.status_code,'allow_origin':cors.headers.get('access-control-allow-origin')}
+            invalid = await client.post('/api/events',json={'location':'合成地点','timestamp':'bad'})
+            RESULT['invalid_event_timestamp_status'] = invalid.status_code
+            archive = await client.post('/api/spot-plans',json={'subject_type':'日落','target_date':'2026-10-06','tz_offset':'+08:00','spot':{'name':'审查台','site_id':saved.json()['id']}})
+            RESULT['d2_failed_source'] = archive.json()['status']
+    finally:
+        services.close()
+    real_services = build_application(settings)
+    try:
+        RESULT['timeout_wiring'] = {'settings':settings.llm_timeout,'client':real_services.client._timeout,'sdk_retries':real_services.client._client.max_retries}
+        ctx = RequestContext()
+        real_services.memory.update_profile(ctx,{'camera_body':'S5M2'})
+        scope = real_services.create_scope(ctx)
+        star = json.loads(real_services.registry.dispatch('star_shutter_rule',json.dumps({'focal_length':14,'aperture':2.8}),scope.tool_context))
+        RESULT['production_npf_autofill'] = star['NPF 法则最大快门（秒）']
+    finally:
+        real_services.close()
+    RESULT['time_offset'] = get_current_time('+08:00')['iso']
+    RESULT['short_shutter_rounding'] = equivalent_exposure(4,1/250,100,0)['等效方案']['快门优先']['shutter_speed']
+    RESULT['equivalent_fraction'] = _values_equivalent('1/125s','0.008s')
+    RESULT['astral_phase_contract'] = moon.phase.__doc__
+    with patch.object(astronomy.moon,'phase',return_value=21.0):
+        RESULT['moon_last_quarter'] = astronomy.moon_phase('2026-10-06')
+    for lat,lon,day in [(78.2,15.6,'2026-06-21'),(51.5,-0.12,'2026-06-21')]:
+        try:
+            astronomy.sun_times(lat,lon,day,'+00:00')
+        except ValueError as exc:
+            RESULT[f'sun_failure_{lat}'] = str(exc)
+    today = datetime.now(timezone(timedelta(hours=8))).date()
+    def weather_fixture(url: str) -> dict[str, Any]:
+        """构造未来六日字段为空的小时预报。"""
+        target = (today+timedelta(days=6)).isoformat()
+        return {'hourly':{'time':[target+'T17:00',target+'T18:00'], 'cloud_cover':[50,50],'cloud_cover_high':[40,40]}}
+    with patch.object(weather,'_fetch_json',side_effect=weather_fixture), patch.object(weather,'sun_times',return_value={'日落':'18:00'}):
+        RESULT['six_day_missing_weather'] = weather.sunset_glow_score(31.2,121.5,(today+timedelta(days=6)).isoformat())
+    def foreign_fixture(url: str) -> dict[str, Any]:
+        """供应商时间为 UTC-4，数据请求声明 UTC+8。"""
+        return {'timezone':'America/New_York','utc_offset_seconds':-14400,'hourly':{'time':['2026-10-06T18:00'],'cloud_cover':[None]}}
+    with patch.object(weather,'_fetch_json',side_effect=foreign_fixture):
+        RESULT['forecast_missing_and_timezone'] = weather.weather_forecast(40.7,-74,1,'+08:00')
+    t = datetime(2026,10,6,16,tzinfo=timezone(timedelta(hours=8)))
+    sites=[ChaseSite('A',GeoPoint(31.2,121.5),t,t+timedelta(hours=2)),ChaseSite('B',GeoPoint(31.2001,121.5001),t+timedelta(minutes=30),t+timedelta(hours=1,minutes=30))]
+    chase=ChasePlanner(ManualTravelTimeProvider()).plan(sites,'walking',t,transition_buffer_s=0,min_shooting_s=900)
+    RESULT['early_leave_order']={'order':chase.ordered_site_names,'rejections':[item.reason for item in chase.rejected_options]}
+    RESULT['unvalidated_evidence'] = confidence_detail('high',[Source(tool='made_up',field='unknown',confidence='high',note='合成')]).model_dump()
+    (WORK/'results.json').write_text(json.dumps(RESULT,ensure_ascii=False,indent=2),encoding='utf8')
+    print(json.dumps(RESULT,ensure_ascii=False,indent=2))
+
+if __name__ == '__main__':
+    asyncio.run(main())

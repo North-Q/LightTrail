@@ -1,13 +1,22 @@
 /** D3 决策页（E7-9，核心页）：
- *  三态大卡（铁律②：语义色 + 图标 + 文字）+ 置信度三层（铁律①：主值 + 区间条 + 依据）
- *  + 概率依据条 + 倒计时（time_window）+ 曝光三角联动（纯前端 EV 守恒）+ 四步推理（移动端抽屉）。
+ *  三态大卡（语义色 + 图标 + 文字）+ 数据资格与缺失原因
+ *  + 实际依据 + 倒计时（time_window）+ 曝光三角联动（纯前端 EV 守恒）+ 四步推理（移动端抽屉）。
  */
 
-import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import { useEffect, useRef, useState, type ReactElement } from "react";
+import { decisionState } from "./decisionState";
 import { sendDecide } from "../api/client";
+import { STOP_WAITING_NOTICE } from "../api/requestScope";
+import { useRequestScope } from "../api/useRequestScope";
 import type { DecisionCard, SSEEvent } from "../api/events";
 import { useSources } from "../context/SourceContext";
 import { DecisionCardView } from "../components/DecisionCard";
+import { DataNotice } from "../components/DataNotice";
+import { SavedHistory } from "../components/SavedHistory";
+import { FeedbackPanel } from "../components/FeedbackPanel";
+import { useSavedResults } from "../api/savedResults";
+import { SpotPlanView } from "./SpotPlanView";
+import { MarkdownMessage } from "../components/MarkdownMessage";
 import { CheckIcon, ClockIcon, WarnIcon } from "../components/icons";
 import { changeExposure, exposureValue, type Exposure } from "./exposure";
 
@@ -30,24 +39,9 @@ function asVerdict(raw: string | undefined): Verdict | null {
   return raw === "go" || raw === "wait" || raw === "risk" ? raw : null;
 }
 
-function firstTime(text: string): string {
-  const match = text.match(/(\d{1,2}):(\d{2})/);
-  return match ? `${match[1].padStart(2, "0")}:${match[2]}` : "";
-}
-
 function countdownSeconds(targetTime: string): number {
-  if (targetTime.includes("T")) {
-    const targetMs = Date.parse(targetTime);
-    return Number.isNaN(targetMs) ? 0 : Math.max(0, Math.floor((targetMs - Date.now()) / 1000));
-  }
-  const [hour, minute] = targetTime.split(":").map((part) => parseInt(part, 10));
-  const now = new Date();
-  let target = new Date(now);
-  target.setHours(hour, minute, 0, 0);
-  if (target.getTime() <= now.getTime()) {
-    target = new Date(target.getTime() + 24 * 3600 * 1000);
-  }
-  return Math.max(0, Math.floor((target.getTime() - now.getTime()) / 1000));
+  const targetMs = Date.parse(targetTime);
+  return Number.isNaN(targetMs) ? 0 : Math.max(0, Math.floor((targetMs - Date.now()) / 1000));
 }
 
 function formatCountdown(total: number): string {
@@ -62,10 +56,14 @@ function formatShutter(seconds: number): string {
 }
 
 export function D3Page() {
+  const feedbackDirty = useRef(false);
+  const [feedbackReady, setFeedbackReady] = useState(false);
   const [input, setInput] = useState("");
   const [card, setCard] = useState<DecisionCard | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const waiting = useRequestScope();
   const [decisionText, setDecisionText] = useState("");
   const [activeVerdict, setActiveVerdict] = useState<Verdict | null>(null);
   const [fieldMode, setFieldMode] = useState(false);
@@ -76,6 +74,14 @@ export function D3Page() {
   const reasonsRef = useRef<{ title: string; detail: string; src: string }[]>([]);
   const [reasons, setReasons] = useState<{ title: string; detail: string; src: string }[]>([]);
   const { addSource } = useSources();
+  const [historical, setHistorical] = useState(false);
+  const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
+  const saved = useSavedResults("decision", (result, history) => {
+    setFeedbackReady(true);
+    setCard(result.card ?? null); setDecisionText(result.text ?? "");
+    setMessages((result.history ?? []).filter(message => message.role === "user" || message.role === "assistant").map(message => ({ role: String(message.role), content: String(message.content ?? "") })));
+    setHistorical(history); setTargetTime(!history && result.card && decisionState(result.card) === "ready" ? result.card.window_start : ""); setActiveVerdict(null); setReasons([]);
+  });
 
   // 倒计时优先使用后端结构化窗口；旧卡才兼容解析展示文案。
   useEffect(() => {
@@ -96,31 +102,44 @@ export function D3Page() {
   }, [targetTime]);
 
   // 置信度明细与三态结论都来自卡片的真实字段（后端规则推导 + 模型结论，前端不自算）
-  const detail = card?.confidence_detail ?? null;
-  const verdict: Verdict | null = useMemo(() => asVerdict(card?.verdict) ?? activeVerdict, [card, activeVerdict]);
+  const [clockNow, setClockNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const status = card ? (historical ? "stale" : decisionState(card, clockNow)) : null;
+  const verdict: Verdict | null = status === "needs_data" ? "wait" : status === "stale" ? null : asVerdict(card?.verdict) ?? activeVerdict;
 
   // 曝光三角联动（EV 守恒，纯前端）
   const ev = exposureValue(exposure);
 
-  async function submit(): Promise<void> {
-    const text = input.trim();
+  async function submit(requery = false): Promise<void> {
+    const text = requery ? String(saved.active?.request?.request ?? "") : input.trim();
     if (!text || running) {
       return;
     }
     setError("");
+    if (feedbackDirty.current && !window.confirm("反馈草稿尚未保存，开始生成将丢弃草稿。继续？")) return;
+    saved.start();
+    setFeedbackReady(false);
+    setNotice("");
     setDecisionText("");
     setCard(null);
+    setHistorical(false);
     setActiveVerdict(null);
+    setTargetTime("");
     reasonsRef.current = [];
     setReasons([]);
     setRunning(true);
+    const controller = waiting.begin();
     try {
-      await sendDecide(text, "", (event: SSEEvent) => {
+      await sendDecide(text, saved.pointer.session_id, (event: SSEEvent) => {
+        if (!waiting.isCurrent(controller)) return;
         if (event.type === "card") {
           setCard(event.card);
           localStorage.setItem("lt.last_card", JSON.stringify({ card: event.card, ts: Date.now() }));
           setActiveVerdict(asVerdict(event.card.verdict));
-          const parsed = event.card.window_start || firstTime(event.card.time_window ?? "");
+          const parsed = decisionState(event.card) === "ready" ? event.card.window_start : "";
           if (parsed) {
             setTargetTime(parsed);
           }
@@ -135,12 +154,14 @@ export function D3Page() {
           setReasons(next);
         } else if (event.type === "error") {
           setError(event.message);
+        } else if (event.type === "done") {
+          saved.confirm(event);
         }
-      });
+      }, controller.signal, saved.pointer.result_id, requery);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      if (waiting.isCurrent(controller)) setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
-      setRunning(false);
+      waiting.finish(controller, () => setRunning(false));
     }
   }
 
@@ -159,6 +180,11 @@ export function D3Page() {
         </button>
       </header>
 
+      <SavedHistory {...saved} disabled={running || saved.loading} onRestore={target => {
+        if (!feedbackDirty.current || window.confirm("反馈草稿尚未保存，切换将丢弃草稿。继续？")) void saved.restore(target);
+      }} onRequery={saved.active?.plan ? undefined : () => void submit(true)} />
+      {saved.active?.plan ? <SpotPlanView plan={saved.active.plan} frozen /> : null}
+      <div className="message-list">{messages.map((message, index) => <div key={index} className={`message message-${message.role}`}><div className={`bubble${message.role === "assistant" ? " bubble-markdown" : ""}`}>{message.role === "assistant" ? <MarkdownMessage content={message.content} /> : message.content}</div></div>)}</div>
       <section className={`verdict-card decision-panel${fieldMode ? " field-mode" : ""}`}>
         <span className="card-kicker">三态结论</span>
         <div className="state-row">
@@ -172,6 +198,7 @@ export function D3Page() {
                 className={`state-btn ${state.key}${active ? " is-active" : ""}`}
                 onClick={() => setActiveVerdict(state.key)}
                 aria-pressed={active}
+                disabled={Boolean(card) && status !== "ready"}
               >
                 <Icon /> {state.label}
               </button>
@@ -179,76 +206,17 @@ export function D3Page() {
           })}
         </div>
         <p className="page-sub" style={{ margin: "12px 0 0" }}>
-          {verdict ? STATE_DESC[verdict] : "运行一次决策后，这里给出三态结论（可手动修正）"}
+          {status === "needs_data" ? "数据不足，暂不能判断是否值得出门；补齐后重新查询" : status === "stale" ? "历史或远期结果，请重新查询目标日期的数据" : verdict ? STATE_DESC[verdict] : "运行一次决策后，这里给出行动建议"}
         </p>
 
         <div className="countdown-row">
-          <span className="countdown-value">{remaining > 0 ? formatCountdown(remaining) : "—"}</span>
+          <span className="countdown-value">{status === "ready" && remaining > 0 ? formatCountdown(remaining) : "—"}</span>
           <span className="countdown-label">
-            {targetTime ? `距关键时刻 ${targetTime}` : "决策后依据方案时间窗口显示倒计时"}
+            {status === "ready" && targetTime ? `距关键时刻 ${targetTime}` : "有效的当前结果才显示倒计时"}
           </span>
         </div>
 
-        {detail ? (
-          <div className="card-block">
-            <h4>置信度（主值 + 区间 + 依据）</h4>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-              <span className="confidence-display">{detail.score}<small style={{ fontSize: 20 }}>%</small></span>
-              <span className="confidence-sub">区间 {detail.low}–{detail.high} · {detail.level}</span>
-            </div>
-            <div className="interval-scale">
-              <span className="interval-range" style={{ left: `${detail.low}%`, width: `${detail.high - detail.low}%` }} />
-              <span className="interval-marker" style={{ left: `${detail.score}%` }} />
-            </div>
-            <p className="page-sub" style={{ margin: "8px 0 0" }}>{detail.basis}</p>
-            {(card?.evidence ?? []).length > 0 ? (
-              <ul className="evidence-list">
-                {card?.evidence.map((source, index) => (
-                  <li key={`${source.tool}-${index}`}>
-                    <span className={`badge confidence-${source.confidence || "low"}`}>{source.confidence || "low"}</span>
-                    <code className="source-tool">{source.tool || "—"}</code>
-                    <span className="source-field">{source.field || ""}</span>
-                    {source.note ? <span className="source-note">{source.note}</span> : null}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="trace-empty">暂无依据（模型未给出来源）。</p>
-            )}
-          </div>
-        ) : null}
-
-        {detail ? (
-          <div className="prob-bars">
-            <h4 className="card-kicker" style={{ margin: 0 }}>依据构成（按来源级别）</h4>
-            {(
-              [
-                { label: "确定性来源（high）", value: detail.high_count, className: "go" },
-                { label: "外部数据 / 启发式（medium）", value: detail.medium_count, className: "amber" },
-                { label: "存量不足（low）", value: detail.low_count, className: "blue" },
-              ] as const
-            ).map((row) => {
-              const total = detail.high_count + detail.medium_count + detail.low_count;
-              const share = total > 0 ? Math.round((row.value / total) * 100) : 0;
-              return (
-                <div className="prob-row" key={row.label}>
-                  <div className="prob-head">
-                    <span>{row.label}</span>
-                    <span className="num">{row.value} 条</span>
-                  </div>
-                  <div className="prob-track">
-                    <span className={`prob-fill ${row.className}`} style={{ width: `${share}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : null}
-        {detail ? (
-          <p className="page-sub" style={{ margin: "8px 0 0" }}>
-            置信度主值、区间与依据构成由后端按来源级别规则推导（非模型自评，也不是概率估计）。
-          </p>
-        ) : null}
+        <p className="page-sub">证据等级仅描述可用依据；火烧云启发式评分未经概率校准。</p>
 
         <div className="param-cards">
           <div className="param-card">
@@ -290,6 +258,7 @@ export function D3Page() {
 
       <section className="card" style={{ marginTop: 20 }}>
         <span className="card-kicker">临场提问</span>
+        <DataNotice kind="decision" />
         <form
           className="prompt-row"
           onSubmit={(event) => {
@@ -301,18 +270,24 @@ export function D3Page() {
             value={input}
             onChange={(event) => setInput(event.target.value)}
             placeholder="今晚火烧云值得冲吗？"
-            disabled={running}
+            disabled={running || saved.loading}
             aria-label="决策提问"
           />
-          <button type="submit" className="btn btn-primary" disabled={running || !input.trim()}>
+          <button type="submit" className="btn btn-primary" disabled={running || saved.loading || !input.trim()}>
             {running ? "决策中…" : "决策"}
           </button>
+          {running ? <button type="button" className="btn btn-ghost" onClick={() => {
+            waiting.stop(); setRunning(false); setNotice(STOP_WAITING_NOTICE);
+          }}>停止等待</button> : null}
         </form>
+        {notice ? <p className="page-sub" role="status">{notice}</p> : null}
         {error ? <p className="message-error">{error}</p> : null}
         {decisionText ? <p className="trace-empty" role="status">{decisionText}</p> : null}
       </section>
 
-      {card ? <div style={{ marginTop: 20 }}><DecisionCardView card={card} /></div> : null}
+      {card ? <div style={{ marginTop: 20 }}><DecisionCardView card={card} historical={historical} /></div> : null}
+      {feedbackReady && saved.active && !saved.loading && !running ? <FeedbackPanel key={`${saved.active.session_id}/${saved.active.result_id}`}
+        target={{ session_id: saved.active.session_id, result_id: saved.active.result_id }} onDirty={dirty => { feedbackDirty.current = dirty; }} /> : null}
 
       {/* 为什么这么判断：桌面内联 / 移动端底部抽屉 */}
       <section className="why-panel card" style={{ marginTop: 20 }}>

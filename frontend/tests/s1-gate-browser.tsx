@@ -1,3 +1,4 @@
+import { saveFixturePlan, readFixturePlan } from "./saved-plan-fixture";
 /** 合成机位全链路：M1 新建、D2 地图/计划、URL 恢复及冻结文件导入。 */
 
 import { createElement } from "react";
@@ -64,6 +65,8 @@ HTMLAnchorElement.prototype.click = function click(): void {
 
 window.fetch = (async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const url = String(input);
+  const savedResponse = readFixturePlan(url);
+  if (savedResponse) return savedResponse;
   const method = init?.method ?? "GET";
   if (url === "/api/profile") return Response.json({
     camera_body: "", lenses: [], preferences: [], common_locations: [],
@@ -83,11 +86,11 @@ window.fetch = (async (input: RequestInfo | URL, init?: RequestInit): Promise<Re
     assert(!String(init?.body).includes("latitude"), "地图请求体包含精确坐标");
     return Response.json({ positions: [{ longitude: 121.99, latitude: 31.12 }] });
   }
-  if (url === "/api/spot-plans") {
+  if (url === "/api/saved-spot-plans") {
     planCalls += 1;
-    const request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    const request = JSON.parse(String(init?.body)).request as Record<string, unknown>;
     assert((request.spot as { site_id: string }).site_id === "created-spot", "计划使用了错误机位");
-    return Response.json({
+    return saveFixturePlan({
       status: "ready", request, selected_date: request.target_date,
       site: { name: "东滩", site_id: "created-spot", point: { latitude: 31.123456, longitude: 121.987654, coordinate_system: "WGS84" }, source: "用户实测" },
       ...action,

@@ -8,6 +8,7 @@ from typing import Any
 
 from lighttrail.adapters.datasources import DataSourceError, get_json_sync
 from lighttrail.domain.chase import GeoPoint, TransportMode, TravelProviderError, TravelRoute
+from lighttrail.infra.redact import redact, register_secrets
 
 _BASE_URL = "https://api.map.baidu.com/directionlite/v1"
 _ENDPOINTS: dict[TransportMode, str] = {
@@ -25,6 +26,7 @@ class BaiduRoutingAdapter:
     def __init__(self, api_key: str, *, json_getter: _JsonGetter = get_json_sync) -> None:
         """保存服务端 AK 和可替换 HTTP 调用口。"""
         self._api_key = api_key.strip()
+        register_secrets(self._api_key)
         self._json_getter = json_getter
 
     def route(
@@ -55,11 +57,13 @@ class BaiduRoutingAdapter:
         try:
             payload = self._json_getter(_BASE_URL + _ENDPOINTS[transport_mode], params=params)
         except DataSourceError as exc:
-            raise TravelProviderError(f"百度路线服务不可用：{exc}") from exc
-        except Exception as exc:
-            raise TravelProviderError(f"百度路线请求失败：{type(exc).__name__}") from exc
+            raise TravelProviderError(redact(f"百度路线服务不可用：{exc}")) from None
+        except Exception as exc:  # noqa: BLE001 - 供应商边界，隐藏原始异常链
+            raise TravelProviderError(f"百度路线请求失败：{type(exc).__name__}") from None
         if int(payload.get("status", -1)) != 0:
-            raise TravelProviderError(f"百度路线服务返回失败：{payload.get('message', '未知错误')}")
+            raise TravelProviderError(
+                redact(f"百度路线服务返回失败：{payload.get('message', '未知错误')}")
+            )
         result = payload.get("result")
         if not isinstance(result, dict):
             raise TravelProviderError("百度路线响应缺少 result")
@@ -91,8 +95,8 @@ def _number(value: Any, field: str) -> int:
     """校验并读取百度数值字段。"""
     try:
         result = int(float(str(value)))
-    except (TypeError, ValueError) as exc:
-        raise TravelProviderError(f"百度响应中的{field}非法") from exc
+    except (TypeError, ValueError):
+        raise TravelProviderError(f"百度响应中的{field}非法") from None
     if result <= 0:
         raise TravelProviderError(f"百度响应中的{field}必须大于零")
     return result

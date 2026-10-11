@@ -18,6 +18,7 @@ from lighttrail.domain.chase import (
     TravelProviderError,
     TravelRoute,
 )
+from lighttrail.infra.redact import redact, register_secrets
 
 _BASE_URL = "https://restapi.amap.com"
 _ENDPOINTS: dict[TransportMode, str] = {
@@ -40,6 +41,7 @@ class AMapRoutingAdapter:
     def __init__(self, api_key: str, *, json_getter: _JsonGetter = get_json_sync) -> None:
         """保存 Key 和可测试的 HTTP 调用口。"""
         self._api_key = api_key.strip()
+        register_secrets(self._api_key)
         self._json_getter = json_getter
 
     def route(
@@ -87,18 +89,18 @@ class AMapRoutingAdapter:
         try:
             payload = self._json_getter(_BASE_URL + _ENDPOINTS[transport_mode], params=params)
         except DataSourceError as exc:
-            raise TravelProviderError(f"高德路线服务不可用：{exc}") from exc
-        except Exception as exc:
-            raise TravelProviderError(f"高德路线请求失败：{type(exc).__name__}") from exc
+            raise TravelProviderError(redact(f"高德路线服务不可用：{exc}")) from None
+        except Exception as exc:  # noqa: BLE001 - 供应商边界，隐藏原始异常链
+            raise TravelProviderError(f"高德路线请求失败：{type(exc).__name__}") from None
 
         if transport_mode == "cycling":
             if int(payload.get("errcode", -1)) != 0:
                 raise TravelProviderError(
-                    f"高德路线服务返回失败：{payload.get('errmsg', '未知错误')}"
+                    redact(f"高德路线服务返回失败：{payload.get('errmsg', '未知错误')}")
                 )
         elif str(payload.get("status", "")) != "1":
             info = str(payload.get("info", "未知错误"))
-            raise TravelProviderError(f"高德路线服务返回失败：{info}")
+            raise TravelProviderError(redact(f"高德路线服务返回失败：{info}"))
         path = _first_path(payload, transport_mode)
         distance_m = _as_positive_int(path.get("distance"), "路线距离")
         duration_s = _duration_of(path)
@@ -150,8 +152,8 @@ def _as_positive_int(value: Any, field: str) -> int:
     """解析高德字符串数值，并拒绝零值和非法值。"""
     try:
         number = int(float(str(value)))
-    except (TypeError, ValueError) as exc:
-        raise TravelProviderError(f"高德响应中的{field}非法") from exc
+    except (TypeError, ValueError):
+        raise TravelProviderError(f"高德响应中的{field}非法") from None
     if number <= 0:
         raise TravelProviderError(f"高德响应中的{field}必须大于零")
     return number

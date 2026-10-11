@@ -1,3 +1,4 @@
+import { saveFixturePlan, readFixturePlan } from "./saved-plan-fixture";
 /** 浏览器内检查分享 URL、脱敏文件与冻结回放，不连接任何外部服务。 */
 
 import { createElement } from "react";
@@ -59,6 +60,8 @@ const archive = {
 
 window.fetch = (async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const url = String(input);
+  const savedResponse = readFixturePlan(url);
+  if (savedResponse) return savedResponse;
   calls.push(url);
   if (url === "/api/favorite-spots") return Response.json({
     items: [
@@ -66,10 +69,10 @@ window.fetch = (async (input: RequestInfo | URL, init?: RequestInit): Promise<Re
       { id: "spot-west", name: "西岸", latitude: 30.9, longitude: 121.9, coordinate_system: "WGS84", coordinate_state: "ready", tz_offset: "+08:00", source: "用户记录" },
     ], skipped: [],
   });
-  if (url === "/api/spot-plans") {
-    const sent = JSON.parse(String(init?.body)) as typeof request;
+  if (url === "/api/saved-spot-plans") {
+    const sent = JSON.parse(String(init?.body)).request as typeof request;
     assert(sent.spot.site_id === "spot-east", "恢复后使用了错误机位");
-    return Response.json(livePlan);
+    return saveFixturePlan(livePlan);
   }
   if (url === "/api/spot-plans/archive") return Response.json(archive);
   if (url === "/api/spot-plans/replay") return Response.json(archive);
@@ -82,7 +85,7 @@ async function run(): Promise<void> {
   stage = "URL 恢复";
   await waitFor(() => document.querySelectorAll<HTMLSelectElement>(".d2-selection-fields select")[1]?.value === "spot-east");
   assert(document.querySelector<HTMLInputElement>('input[type="date"]')?.value === "2026-10-03", "URL 日期未恢复");
-  assert(!calls.includes("/api/spot-plans"), "仅打开分享链接就重新计算了计划");
+  assert(!calls.includes("/api/saved-spot-plans"), "仅打开分享链接就重新计算了计划");
   document.querySelector<HTMLButtonElement>(".page-head button")!.click();
   stage = "计划生成";
   await waitFor(() => Boolean(document.querySelector(".d2-plan")));
@@ -104,11 +107,11 @@ async function run(): Promise<void> {
   const files = new DataTransfer();
   files.items.add(new File([JSON.stringify(archive)], "plan.json", { type: "application/json" }));
   Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "files")!.set!.call(fileInput, files.files);
-  const plansBeforeReplay = calls.filter((url) => url === "/api/spot-plans").length;
+  const plansBeforeReplay = calls.filter((url) => url === "/api/saved-spot-plans").length;
   fileInput.dispatchEvent(new Event("change", { bubbles: true }));
   stage = "冻结回放";
   await waitFor(() => document.body.textContent?.includes("冻结回放") ?? false);
-  assert(calls.filter((url) => url === "/api/spot-plans").length === plansBeforeReplay, "冻结回放重新调用了规划接口");
+  assert(calls.filter((url) => url === "/api/saved-spot-plans").length === plansBeforeReplay, "冻结回放重新调用了规划接口");
   assert(!calls.includes("/api/map/config") && !calls.includes("/api/map/convert"), "冻结回放触发地图服务");
   result.textContent = "PASS: URL 恢复、跨用户 ID 拒绝、脱敏导出与冻结回放";
 }

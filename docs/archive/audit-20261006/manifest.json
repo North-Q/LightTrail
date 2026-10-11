@@ -1,0 +1,120 @@
+{
+  "date": "2026-10-06",
+  "baseline": "4b04b81",
+  "initialUserModified": [
+    "README.md",
+    "docs/AGENT-ROADMAP.md",
+    "docs/CODE-REVIEW-REPORT-2026-10-03.md",
+    "docs/CODE-REVIEW-TASKS-APPENDIX-A.md",
+    "docs/FEATURES.md",
+    "docs/GAP-ANALYSIS-BY-FEATURE.md",
+    "docs/GAP-ANALYSIS.md",
+    "docs/MCP-AND-MULTIAGENT-PROPOSAL.md"
+  ],
+  "files": [
+    {
+      "path": "docs/PRD-v0.3.md",
+      "sha256": "e32f46d6f3c3f1bf2dc88d32e4a0e4d122553b2582c6beb451efb152635eac92"
+    },
+    {
+      "path": "docs/FEATURES.md",
+      "sha256": "ac10b4dde65e1582818befa95bf342b239da9987a086d059ccd121dd65ef0b56"
+    },
+    {
+      "path": "docs/AGENT-ROADMAP.md",
+      "sha256": "d899e078f2a6aaa8ebfedf400ee40eaf942763725666ef86bd72222017dbbf1c"
+    },
+    {
+      "path": "README.md",
+      "sha256": "3c2795750de78136188e85a15c48ca8929d33bec8be5da1a3f99143b5c298ff9"
+    },
+    {
+      "path": "TODO.md",
+      "sha256": "999e35c31cf4f3c0893cc3822815158fba70fac1e5ba087bf9ac30231dd3b228"
+    },
+    {
+      "path": "frontend/README.md",
+      "sha256": "37f55536a03485bf399051608cbd681036702a8f05e0b3c3458c91aee3552b75"
+    },
+    {
+      "path": "docs/architecture.md",
+      "sha256": "0383f1dec875fab662fc704c49038eb9516877d19b5bd4a461427f2960d29042"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "98be5d37eb2136aa0bda320d62be02e70f68b3032de0fb8b8c8f0808ceb655bf"
+    },
+    {
+      "path": "docs/CODE-REVIEW.md",
+      "sha256": "429bffc85fa3fcfb5639a1c7f491bba0ec77cfe775a43f2bd5b6af1a808c24a8"
+    },
+    {
+      "path": "docs/adr/ADR-002-platform-neutrality.md",
+      "sha256": "02748d4ff13a015ad8a63ce136420995920ed2a775a90d7b3bd7fd2f69183c31"
+    },
+    {
+      "path": "docs/adr/ADR-003-reason-extension-params.md",
+      "sha256": "66ad584a207becf2210580d5ec2a8e2c9bdb57e4704d556aa8d4c2716c4af259"
+    },
+    {
+      "path": "docs/adr/ADR-004-concurrency-as-config.md",
+      "sha256": "ff0cc64d97d621b9bc6834d7c5543ba7d2ae0f967996007be5ffde716576efff"
+    },
+    {
+      "path": "docs/design/FRONTEND-SPEC.md",
+      "sha256": "e63fd9e7c44d9149b272ae137a83a48196a444899b826d8e45b932e6f1a018e9"
+    },
+    {
+      "path": "docs/design/DESIGN-OVERVIEW.md",
+      "sha256": "0106903b76506a6970e5a280219802d165fd085e9dfa1ddc8785a6ea94b4b1d2"
+    },
+    {
+      "path": "docs/design/delivery/交付说明.md",
+      "sha256": "6986180e62ba6c9a78d8fc485bf12942dbb99d0b06993f2a9d28ed5dc13d9310"
+    },
+    {
+      "path": "docs/design/MAP-EVALUATION.md",
+      "sha256": "6d5e13b21cabb5b7f3302815853a4ab76106c492e96cc8c2ba424f6f8b9be8fc"
+    },
+    {
+      "path": "docs/research-lohui.md",
+      "sha256": "c31fe5f64bbb0ed5110dac4c7e9c427ce9dd85881571238d81daa14baa8c87f6"
+    },
+    {
+      "path": "docs/competitive-research-photo-tools.md",
+      "sha256": "0a2ba64dd2a113d7b493fa4927bcfe0200635164e3a4ca155fb9939e62c2aa2e"
+    },
+    {
+      "path": "docs/research-chuweimin-photography-site.md",
+      "sha256": "39ddab3654ddd1686639f3e8d8111565946e61dbfb63afa6d6b11661e9ae21a7"
+    },
+    {
+      "path": "docs/research-chuweimin-spot-planner-photo-analysis.md",
+      "sha256": "3e2820af23405f4f185af043a7f63f7e3b91f9615f10f1646adcb863247a04dd"
+    },
+    {
+      "path": "docs/MCP-AND-MULTIAGENT-PROPOSAL.md",
+      "sha256": "a45f43dc449995ee047d5ad40c2510f74989521f8da43d4c78fa1e6200be9403"
+    },
+    {
+      "path": "docs/CODE-REVIEW-REPORT-2026-10-03.md",
+      "sha256": "bc9678349aa4fc04c2d84843be909e8b4be81415dc18a04c3d74ae369e3f4fb8"
+    },
+    {
+      "path": "docs/CODE-REVIEW-TASKS-APPENDIX-A.md",
+      "sha256": "48671c529b074666ed1bb31f3bbf91862cb4911715147675f0cace160f1b30e3"
+    },
+    {
+      "path": "docs/GAP-ANALYSIS.md",
+      "sha256": "9a9da321de3f5149db0f45b3cdeddca1bd4606b30123e0f5953d74fd538b9f41"
+    },
+    {
+      "path": "docs/GAP-ANALYSIS-BY-FEATURE.md",
+      "sha256": "11706fa7d33fe087fee11efe1ad45ce9572cab822ad3b0b40a20cda6e02cac2b"
+    },
+    {
+      "path": "docs/devlog.md",
+      "sha256": "3c9b6666ec96dad51bdbfd26eddbe2eedeab7c95364905bac3e456c2a1d8aeb8"
+    }
+  ]
+}

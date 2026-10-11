@@ -149,6 +149,8 @@ class DoneEvent(BaseModel):
     type: Literal["done"] = "done"
     text: str = ""
     session_id: str = ""
+    saved: bool | None = None
+    result_id: str | None = None
 
 
 # SSE 事件负载判别联合（type 字段判别）：OpenAPI 生成前端类型的单一真源

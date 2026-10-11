@@ -59,7 +59,7 @@ def _events(body: str) -> list[dict[str, Any]]:
 async def _chat(app: Any, user_id: str, message: str) -> list[dict[str, Any]]:
     """在测试依赖中模拟入口已验证的用户身份。"""
     app.dependency_overrides[get_request_context] = lambda: RequestContext(user_id=user_id)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://localhost") as client:
         response = await client.post("/api/chat", json={"message": message})
     assert response.status_code == 200
     events = _events(response.text)

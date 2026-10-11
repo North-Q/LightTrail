@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-06",
+  "baseline": "4b04b81",
+  "requirement_ids": {
+    "original": 73,
+    "current": 73,
+    "missing": []
+  },
+  "archives": {
+    "count": 26,
+    "all_byte_hashes_verified": true,
+    "initial_user_files": 8,
+    "all_initial_user_files_exact": true,
+    "index": "docs/archive/audit-20261006/INDEX.md"
+  },
+  "product_diff_exit_code": 0,
+  "ruff_check": "passed",
+  "effective_ruff_format": "182 files already formatted; explicitly excludes docs/archive",
+  "git_diff_check": "passed; CRLF normalization warnings only",
+  "local_links": {
+    "effective_markdown_files": 28,
+    "local_links": 128,
+    "broken": []
+  },
+  "final_checks": [
+    {
+      "check": "ruff check",
+      "exit_code": 0
+    },
+    {
+      "check": "effective ruff format",
+      "exit_code": 0
+    },
+    {
+      "check": "git diff check",
+      "exit_code": 0
+    },
+    {
+      "check": "product unchanged",
+      "exit_code": 0
+    }
+  ]
+}

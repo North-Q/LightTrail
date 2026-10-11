@@ -23,6 +23,7 @@ from typing import Any
 from lighttrail.contracts.context import RequestContext
 from lighttrail.contracts.tool import Tool, ToolContext, ToolSpec
 from lighttrail.infra.confidence import resolve_confidence
+from lighttrail.infra.redact import redact
 from lighttrail.infra.trace import Recorder, null_trace
 
 logger = logging.getLogger("lighttrail.runtime.registry")
@@ -199,6 +200,7 @@ class ToolRegistry:
                 if not isinstance(result, str)
                 else result
             )
+        result_text = redact(result_text)
         active_recorder.record_tool(
             name,
             arguments_json,

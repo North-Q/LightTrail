@@ -110,7 +110,7 @@ def _sanitize_value(value: Any) -> Any:
     if isinstance(value, str):
         return redact(value)
     if isinstance(value, dict):
-        return {key: _sanitize_value(item) for key, item in value.items()}
+        return {redact(str(key)): _sanitize_value(item) for key, item in value.items()}
     if isinstance(value, list):
         return [_sanitize_value(item) for item in value]
     return value
@@ -118,6 +118,7 @@ def _sanitize_value(value: Any) -> Any:
 
 def _truncate(text: str, limit: int) -> str:
     """把文本截断到 limit 字符，超限补省略号。"""
+    text = redact(text)
     if len(text) <= limit:
         return text
     cut = max(0, limit - 1)
@@ -246,7 +247,7 @@ class TraceRecorder:
         """
         event = TraceEvent(
             kind=event.kind,
-            name=event.name,
+            name=redact(event.name),
             payload=_sanitize_payload(event.kind, event.payload),
             ts=event.ts,
         )

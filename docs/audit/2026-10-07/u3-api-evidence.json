@@ -1,0 +1,1563 @@
+{
+  "synthetic_only": true,
+  "fixed_evaluation_time": "2026-10-06T08:00:00+00:00",
+  "sessions": [
+    {
+      "session_id": "6b50d80928194f03b25d6326e9bb60be",
+      "history": [
+        {
+          "role": "user",
+          "content": "{\"subject_type\":\"日落\",\"target_date\":\"2026-10-06\",\"date_range\":null,\"tz_offset\":\"+08:00\",\"spot\":{\"name\":\"合成西岸\",\"site_id\":\"f8a7ce79-d3fc-4001-b607-d8740282e3be\"},\"area\":null}"
+        },
+        {
+          "role": "assistant",
+          "content": "{\"status\":\"needs_data\",\"request\":{\"subject_type\":\"日落\",\"target_date\":\"2026-10-06\",\"date_range\":null,\"tz_offset\":\"+08:00\",\"spot\":{\"name\":\"合成西岸\",\"site_id\":\"f8a7ce79-d3fc-4001-b607-d8740282e3be\"},\"area\":null},\"selected_date\":\"2026-10-06\",\"site\":{\"name\":\"合成西岸\",\"site_id\":\"f8a7ce79-d3fc-4001-b607-d8740282e3be\",\"point\":{\"latitude\":0.0,\"longitude\":0.0,\"coordinate_system\":\"WGS84\"},\"source\":\"离线合成\"},\"direction\":null,\"arrival_window\":null,\"setup_window\":null,\"shoot_window\":null,\"departure_window\":null,\"focal_length_mm\":null,\"gear\":[],\"parameters\":[],\"risks\":[{\"code\":\"astronomy_unavailable\",\"severity\":\"medium\",\"detail\":\"该机位和日期没有可用的天文窗口，请核对日期与坐标。\"}],\"evidence_refs\":[{\"source\":\"favorite_spots\",\"field\":\"source\",\"observed_at\":null,\"valid_until\":null}]}"
+        }
+      ],
+      "pipeline": {},
+      "workspace": {},
+      "user_id": "_local",
+      "created_at": "2026-10-07T06:57:33.079+00:00",
+      "updated_at": "2026-10-07T06:57:33.082+00:00",
+      "results": [
+        {
+          "session_id": "6b50d80928194f03b25d6326e9bb60be",
+          "result_id": "89a643dcb14943308c2bd84a10878172",
+          "version": 1,
+          "kind": "spot_plan",
+          "created_at": "2026-10-07T06:57:33.081+00:00",
+          "parent_result_id": "",
+          "request": {
+            "subject_type": "日落",
+            "target_date": "2026-10-06",
+            "date_range": null,
+            "tz_offset": "+08:00",
+            "spot": {
+              "name": "合成西岸",
+              "site_id": "f8a7ce79-d3fc-4001-b607-d8740282e3be"
+            },
+            "area": null
+          },
+          "text": "",
+          "card": null,
+          "plan": {
+            "status": "needs_data",
+            "request": {
+              "subject_type": "日落",
+              "target_date": "2026-10-06",
+              "date_range": null,
+              "tz_offset": "+08:00",
+              "spot": {
+                "name": "合成西岸",
+                "site_id": "f8a7ce79-d3fc-4001-b607-d8740282e3be"
+              },
+              "area": null
+            },
+            "selected_date": "2026-10-06",
+            "site": {
+              "name": "合成西岸",
+              "site_id": "f8a7ce79-d3fc-4001-b607-d8740282e3be",
+              "point": {
+                "latitude": 0.0,
+                "longitude": 0.0,
+                "coordinate_system": "WGS84"
+              },
+              "source": "离线合成"
+            },
+            "direction": null,
+            "arrival_window": null,
+            "setup_window": null,
+            "shoot_window": null,
+            "departure_window": null,
+            "focal_length_mm": null,
+            "gear": [],
+            "parameters": [],
+            "risks": [
+              {
+                "code": "astronomy_unavailable",
+                "severity": "medium",
+                "detail": "该机位和日期没有可用的天文窗口，请核对日期与坐标。"
+              }
+            ],
+            "evidence_refs": [
+              {
+                "source": "favorite_spots",
+                "field": "source",
+                "observed_at": null,
+                "valid_until": null
+              }
+            ]
+          },
+          "history": [
+            {
+              "role": "user",
+              "content": "{\"subject_type\":\"日落\",\"target_date\":\"2026-10-06\",\"date_range\":null,\"tz_offset\":\"+08:00\",\"spot\":{\"name\":\"合成西岸\",\"site_id\":\"f8a7ce79-d3fc-4001-b607-d8740282e3be\"},\"area\":null}"
+            },
+            {
+              "role": "assistant",
+              "content": "{\"status\":\"needs_data\",\"request\":{\"subject_type\":\"日落\",\"target_date\":\"2026-10-06\",\"date_range\":null,\"tz_offset\":\"+08:00\",\"spot\":{\"name\":\"合成西岸\",\"site_id\":\"f8a7ce79-d3fc-4001-b607-d8740282e3be\"},\"area\":null},\"selected_date\":\"2026-10-06\",\"site\":{\"name\":\"合成西岸\",\"site_id\":\"f8a7ce79-d3fc-4001-b607-d8740282e3be\",\"point\":{\"latitude\":0.0,\"longitude\":0.0,\"coordinate_system\":\"WGS84\"},\"source\":\"离线合成\"},\"direction\":null,\"arrival_window\":null,\"setup_window\":null,\"shoot_window\":null,\"departure_window\":null,\"focal_length_mm\":null,\"gear\":[],\"parameters\":[],\"risks\":[{\"code\":\"astronomy_unavailable\",\"severity\":\"medium\",\"detail\":\"该机位和日期没有可用的天文窗口，请核对日期与坐标。\"}],\"evidence_refs\":[{\"source\":\"favorite_spots\",\"field\":\"source\",\"observed_at\":null,\"valid_until\":null}]}"
+            }
+          ],
+          "pipeline": {},
+          "trace": {}
+        }
+      ]
+    },
+    {
+      "session_id": "ae03530e372b4e4f9107f5bf83265b2c",
+      "history": [
+        {
+          "role": "user",
+          "content": "那我需要带什么？"
+        },
+        {
+          "role": "assistant",
+          "content": "## 拍摄方案（决策卡片）\n- 结论：合成西岸观察火烧云，携带合成相机与三脚架。\n- 置信度：medium\n- 推荐机位：合成西岸（本次请求确定的收藏机位）\n- 依据：weather_forecast/每日预报 [置信度 medium]；sun_times/日落 [置信度 high]；sunset_glow_score/评分（0-100） [置信度 medium]"
+        }
+      ],
+      "pipeline": {
+        "user_request": "那我需要带什么？",
+        "intent": {
+          "subject_type": "火烧云",
+          "location": "",
+          "time_hint": "今晚",
+          "mode": "live"
+        },
+        "data": {
+          "sunset_glow_score": {
+            "评分（0-100）": 62,
+            "等级": "中等（可看趋势再定）",
+            "数据来源": "启发式规则（确定性）",
+            "位置": "0.0,0.0",
+            "时区": "+08:00",
+            "获取时间": "2026-10-06T07:00:00+00:00",
+            "有效开始时间": "2026-10-06T00:00:00+08:00",
+            "有效结束时间": "2026-10-13T00:00:00+08:00",
+            "日期": "2026-10-06",
+            "缺失字段": [],
+            "目标时刻": "2026-10-06T18:06:00+08:00"
+          },
+          "sun_times": {
+            "日出": "05:42",
+            "日落": "18:06",
+            "数据来源": "天文计算（确定性）",
+            "日期": "2026-10-06",
+            "时区": "+08:00"
+          },
+          "weather_forecast": {
+            "每日预报": [
+              {
+                "日期": "2026-10-06",
+                "平均云量（%）": 30,
+                "最低能见度（km）": 25,
+                "最高降水概率（%）": 10,
+                "最大风速（km/h）": 15
+              },
+              {
+                "日期": "2026-10-07",
+                "平均云量（%）": 30,
+                "最低能见度（km）": 25,
+                "最高降水概率（%）": 10,
+                "最大风速（km/h）": 15
+              },
+              {
+                "日期": "2026-10-08",
+                "平均云量（%）": 30,
+                "最低能见度（km）": 25,
+                "最高降水概率（%）": 10,
+                "最大风速（km/h）": 15
+              },
+              {
+                "日期": "2026-10-09",
+                "平均云量（%）": 30,
+                "最低能见度（km）": 25,
+                "最高降水概率（%）": 10,
+                "最大风速（km/h）": 15
+              },
+              {
+                "日期": "2026-10-10",
+                "平均云量（%）": 30,
+                "最低能见度（km）": 25,
+                "最高降水概率（%）": 10,
+                "最大风速（km/h）": 15
+              },
+              {
+                "日期": "2026-10-11",
+                "平均云量（%）": 30,
+                "最低能见度（km）": 25,
+                "最高降水概率（%）": 10,
+                "最大风速（km/h）": 15
+              },
+              {
+                "日期": "2026-10-12",
+                "平均云量（%）": 30,
+                "最低能见度（km）": 25,
+                "最高降水概率（%）": 10,
+                "最大风速（km/h）": 15
+              }
+            ],
+            "数据来源": "Open-Meteo（确定性 Fake）",
+            "位置": "0.0,0.0",
+            "时区": "+08:00",
+            "获取时间": "2026-10-06T07:00:00+00:00",
+            "有效开始时间": "2026-10-06T00:00:00+08:00",
+            "有效结束时间": "2026-10-13T00:00:00+08:00"
+          },
+          "目标日期": "2026-10-06",
+          "目标机位": "合成西岸",
+          "目标坐标": "0.0,0.0",
+          "请求题材": "火烧云",
+          "候选机位": [
+            {
+              "名称": "合成西岸",
+              "纬度": 0.0,
+              "经度": 0.0,
+              "题材": "火烧云",
+              "档案题材": ""
+            }
+          ],
+          "match_sites": {
+            "error": "FakeDispatcher 无数据：match_sites"
+          },
+          "目标时区": "+08:00",
+          "用户器材": ""
+        },
+        "scores": {
+          "火烧云评分": 62,
+          "火烧云等级": "中等"
+        },
+        "card": {
+          "conclusion": "合成西岸观察火烧云，携带合成相机与三脚架。",
+          "evidence": [
+            {
+              "tool": "weather_forecast",
+              "field": "每日预报",
+              "confidence": "medium",
+              "note": "[{\"日期\": \"2026-10-06\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-07\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-08\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-09\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-10\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-11\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-12\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}]"
+            },
+            {
+              "tool": "sun_times",
+              "field": "日落",
+              "confidence": "high",
+              "note": "\"18:06\""
+            },
+            {
+              "tool": "sunset_glow_score",
+              "field": "评分（0-100）",
+              "confidence": "medium",
+              "note": "62"
+            }
+          ],
+          "confidence": "medium",
+          "verdict": "go",
+          "confidence_detail": null,
+          "time_window": "",
+          "window_start": "",
+          "window_end": "",
+          "locations": [
+            {
+              "name": "合成西岸",
+              "reason": "本次请求确定的收藏机位"
+            }
+          ],
+          "params": [],
+          "alternatives": [],
+          "degraded": "",
+          "target_date": "2026-10-06",
+          "subject_type": "火烧云",
+          "data_status": "ready",
+          "missing_data": [],
+          "evaluated_at": "2026-10-06T08:00:00+00:00",
+          "updated_at": "2026-10-06T07:00:00+00:00",
+          "valid_until": "2026-10-06T18:06:00+08:00",
+          "tz_offset": "+08:00"
+        }
+      },
+      "workspace": {
+        "last_card": {
+          "conclusion": "合成西岸观察火烧云，携带合成相机与三脚架。",
+          "evidence": [
+            {
+              "tool": "weather_forecast",
+              "field": "每日预报",
+              "confidence": "medium",
+              "note": "[{\"日期\": \"2026-10-06\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-07\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-08\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-09\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-10\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-11\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-12\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}]"
+            },
+            {
+              "tool": "sun_times",
+              "field": "日落",
+              "confidence": "high",
+              "note": "\"18:06\""
+            },
+            {
+              "tool": "sunset_glow_score",
+              "field": "评分（0-100）",
+              "confidence": "medium",
+              "note": "62"
+            }
+          ],
+          "confidence": "medium",
+          "verdict": "go",
+          "confidence_detail": null,
+          "time_window": "",
+          "window_start": "",
+          "window_end": "",
+          "locations": [
+            {
+              "name": "合成西岸",
+              "reason": "本次请求确定的收藏机位"
+            }
+          ],
+          "params": [],
+          "alternatives": [],
+          "degraded": "",
+          "target_date": "2026-10-06",
+          "subject_type": "火烧云",
+          "data_status": "ready",
+          "missing_data": [],
+          "evaluated_at": "2026-10-06T08:00:00+00:00",
+          "updated_at": "2026-10-06T07:00:00+00:00",
+          "valid_until": "2026-10-06T18:06:00+08:00",
+          "tz_offset": "+08:00"
+        },
+        "last_trace": {
+          "llm_calls": [
+            {
+              "模型": "ecnu-plus",
+              "prompt_summary": "消息数 2（pydantic-ai 桥）",
+              "耗时_秒": 3.070000093430281e-05,
+              "tokens": null,
+              "输入_tokens": null,
+              "输出_tokens": null
+            },
+            {
+              "模型": "ecnu-max",
+              "prompt_summary": "消息数 2（pydantic-ai 桥）",
+              "耗时_秒": 4.989997250959277e-05,
+              "tokens": null,
+              "输入_tokens": null,
+              "输出_tokens": null
+            }
+          ],
+          "tool_calls": [
+            {
+              "name": "sun_times",
+              "arguments_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+              "result_summary": "日出: 05:42，日落: 18:06，数据来源: 天文计算（确定性），日期: 2026-10-06，时区: +08:00",
+              "data_source": "天文计算（确定性）",
+              "confidence": "high",
+              "field": "太阳时刻",
+              "elapsed_ms": 0.0
+            },
+            {
+              "name": "sunset_glow_score",
+              "arguments_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+              "result_summary": "评分（0-100）: 62，等级: 中等（可看趋势再定），数据来源: 启发式规则（确定性），位置: 0.0,0.0，时区: +08:00，获取时间: 2026-10-06T07:00:00+00:00，有效开始时间: 2026-10-06T00:00:00+08:00，有效结束时间: 2026-10-13T00:00:00+08:00，日期: 2026-10-06，缺失字段: []，目标时刻: 2026-10-06T18:06:00+08:00",
+              "data_source": "启发式规则（确定性）",
+              "confidence": "medium",
+              "field": "评分",
+              "elapsed_ms": 0.0
+            },
+            {
+              "name": "weather_forecast",
+              "arguments_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"days\": 3, \"tz_offset\": \"+08:00\"}",
+              "result_summary": "每日预报: [{\"日期\": \"2026-10-06\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水…，数据来源: Open-Meteo（确定性 Fake），位置: 0.0,0.0，时区: +08:00，获取时间: 2026-10-06T07:00:00+00:00，有效开始时间: 2026-10-06T00:00:00+08:00，有效结束时间: 2026-10-13T00:00:00+08:00",
+              "data_source": "Open-Meteo（确定性 Fake）",
+              "confidence": "low",
+              "field": "每日预报",
+              "elapsed_ms": 0.0
+            },
+            {
+              "name": "match_sites",
+              "arguments_summary": "{\"sites\": [{\"名称\": \"合成西岸\", \"纬度\": 0.0, \"经度\": 0.0, \"题材\": \"日落\"}], \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+              "result_summary": "error: FakeDispatcher 无数据：match_sites",
+              "data_source": "",
+              "confidence": "low",
+              "field": "匹配结果",
+              "elapsed_ms": 0.0
+            }
+          ],
+          "steps": [
+            {
+              "name": "意图路由_LLM",
+              "input_summary": "那我需要带什么？",
+              "output_summary": ""
+            },
+            {
+              "name": "记忆_注入",
+              "input_summary": "",
+              "output_summary": "users/_local/memory/：profile"
+            },
+            {
+              "name": "意图路由_LLM",
+              "input_summary": "那我需要带什么？",
+              "output_summary": "live/火烧云/0.90；依据：合成续问"
+            },
+            {
+              "name": "管线_live",
+              "input_summary": "那我需要带什么？",
+              "output_summary": "启动"
+            },
+            {
+              "name": "采集_sun_times",
+              "input_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+              "output_summary": ""
+            },
+            {
+              "name": "采集_sunset_glow_score",
+              "input_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+              "output_summary": ""
+            },
+            {
+              "name": "采集_weather_forecast",
+              "input_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"days\": 3, \"tz_offset\": \"+08:00\"}",
+              "output_summary": ""
+            },
+            {
+              "name": "机位匹配",
+              "input_summary": "{\"sites\": [{\"名称\": \"合成西岸\", \"纬度\": 0.0, \"经度\": 0.0, \"题材\": \"日落\"}], \"date\": \"2026-10-0",
+              "output_summary": ""
+            }
+          ],
+          "sources": [
+            {
+              "tool": "sun_times",
+              "field": "太阳时刻",
+              "confidence": "high",
+              "data_source": "天文计算（确定性）"
+            },
+            {
+              "tool": "sunset_glow_score",
+              "field": "评分",
+              "confidence": "medium",
+              "data_source": "启发式规则（确定性）"
+            },
+            {
+              "tool": "weather_forecast",
+              "field": "每日预报",
+              "confidence": "low",
+              "data_source": "Open-Meteo（确定性 Fake）"
+            },
+            {
+              "tool": "match_sites",
+              "field": "匹配结果",
+              "confidence": "low",
+              "data_source": ""
+            }
+          ]
+        }
+      },
+      "user_id": "_local",
+      "created_at": "2026-10-07T06:57:32.797+00:00",
+      "updated_at": "2026-10-07T06:57:34.893+00:00",
+      "results": [
+        {
+          "session_id": "ae03530e372b4e4f9107f5bf83265b2c",
+          "result_id": "b2f0b232e5a545dbb7c7df6eb88e495e",
+          "version": 1,
+          "kind": "decision",
+          "created_at": "2026-10-07T06:57:32.852+00:00",
+          "parent_result_id": "",
+          "request": {
+            "request": "今晚火烧云是否值得去"
+          },
+          "text": "## 拍摄方案（决策卡片）\n- 结论：合成西岸观察火烧云，携带合成相机与三脚架。\n- 置信度：medium\n- 推荐机位：合成西岸（本次请求确定的收藏机位）\n- 依据：weather_forecast/每日预报 [置信度 medium]；sun_times/日落 [置信度 high]；sunset_glow_score/评分（0-100） [置信度 medium]",
+          "card": {
+            "conclusion": "合成西岸观察火烧云，携带合成相机与三脚架。",
+            "evidence": [
+              {
+                "tool": "weather_forecast",
+                "field": "每日预报",
+                "confidence": "medium",
+                "note": "[{\"日期\": \"2026-10-06\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-07\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-08\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-09\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-10\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-11\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-12\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}]"
+              },
+              {
+                "tool": "sun_times",
+                "field": "日落",
+                "confidence": "high",
+                "note": "\"18:06\""
+              },
+              {
+                "tool": "sunset_glow_score",
+                "field": "评分（0-100）",
+                "confidence": "medium",
+                "note": "62"
+              }
+            ],
+            "confidence": "medium",
+            "verdict": "go",
+            "confidence_detail": null,
+            "time_window": "",
+            "window_start": "",
+            "window_end": "",
+            "locations": [
+              {
+                "name": "合成西岸",
+                "reason": "本次请求确定的收藏机位"
+              }
+            ],
+            "params": [],
+            "alternatives": [],
+            "degraded": "",
+            "target_date": "2026-10-06",
+            "subject_type": "火烧云",
+            "data_status": "ready",
+            "missing_data": [],
+            "evaluated_at": "2026-10-06T08:00:00+00:00",
+            "updated_at": "2026-10-06T07:00:00+00:00",
+            "valid_until": "2026-10-06T18:06:00+08:00",
+            "tz_offset": "+08:00"
+          },
+          "plan": null,
+          "history": [
+            {
+              "role": "user",
+              "content": "今晚火烧云是否值得去"
+            },
+            {
+              "role": "assistant",
+              "content": "## 拍摄方案（决策卡片）\n- 结论：合成西岸观察火烧云，携带合成相机与三脚架。\n- 置信度：medium\n- 推荐机位：合成西岸（本次请求确定的收藏机位）\n- 依据：weather_forecast/每日预报 [置信度 medium]；sun_times/日落 [置信度 high]；sunset_glow_score/评分（0-100） [置信度 medium]"
+            }
+          ],
+          "pipeline": {
+            "user_request": "今晚火烧云是否值得去",
+            "intent": {
+              "subject_type": "火烧云",
+              "location": "",
+              "time_hint": "今晚",
+              "mode": "live"
+            },
+            "data": {
+              "sunset_glow_score": {
+                "评分（0-100）": 62,
+                "等级": "中等（可看趋势再定）",
+                "数据来源": "启发式规则（确定性）",
+                "位置": "0.0,0.0",
+                "时区": "+08:00",
+                "获取时间": "2026-10-06T07:00:00+00:00",
+                "有效开始时间": "2026-10-06T00:00:00+08:00",
+                "有效结束时间": "2026-10-13T00:00:00+08:00",
+                "日期": "2026-10-06",
+                "缺失字段": [],
+                "目标时刻": "2026-10-06T18:06:00+08:00"
+              },
+              "sun_times": {
+                "日出": "05:42",
+                "日落": "18:06",
+                "数据来源": "天文计算（确定性）",
+                "日期": "2026-10-06",
+                "时区": "+08:00"
+              },
+              "weather_forecast": {
+                "每日预报": [
+                  {
+                    "日期": "2026-10-06",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  },
+                  {
+                    "日期": "2026-10-07",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  },
+                  {
+                    "日期": "2026-10-08",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  },
+                  {
+                    "日期": "2026-10-09",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  },
+                  {
+                    "日期": "2026-10-10",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  },
+                  {
+                    "日期": "2026-10-11",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  },
+                  {
+                    "日期": "2026-10-12",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  }
+                ],
+                "数据来源": "Open-Meteo（确定性 Fake）",
+                "位置": "0.0,0.0",
+                "时区": "+08:00",
+                "获取时间": "2026-10-06T07:00:00+00:00",
+                "有效开始时间": "2026-10-06T00:00:00+08:00",
+                "有效结束时间": "2026-10-13T00:00:00+08:00"
+              },
+              "目标日期": "2026-10-06",
+              "目标机位": "合成西岸",
+              "目标坐标": "0.0,0.0",
+              "请求题材": "火烧云",
+              "候选机位": [
+                {
+                  "名称": "合成西岸",
+                  "纬度": 0.0,
+                  "经度": 0.0,
+                  "题材": "火烧云",
+                  "档案题材": ""
+                }
+              ],
+              "match_sites": {
+                "error": "FakeDispatcher 无数据：match_sites"
+              },
+              "目标时区": "+08:00",
+              "用户器材": ""
+            },
+            "scores": {
+              "火烧云评分": 62,
+              "火烧云等级": "中等"
+            },
+            "card": {
+              "conclusion": "合成西岸观察火烧云，携带合成相机与三脚架。",
+              "evidence": [
+                {
+                  "tool": "weather_forecast",
+                  "field": "每日预报",
+                  "confidence": "medium",
+                  "note": "[{\"日期\": \"2026-10-06\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-07\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-08\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-09\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-10\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-11\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-12\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}]"
+                },
+                {
+                  "tool": "sun_times",
+                  "field": "日落",
+                  "confidence": "high",
+                  "note": "\"18:06\""
+                },
+                {
+                  "tool": "sunset_glow_score",
+                  "field": "评分（0-100）",
+                  "confidence": "medium",
+                  "note": "62"
+                }
+              ],
+              "confidence": "medium",
+              "verdict": "go",
+              "confidence_detail": null,
+              "time_window": "",
+              "window_start": "",
+              "window_end": "",
+              "locations": [
+                {
+                  "name": "合成西岸",
+                  "reason": "本次请求确定的收藏机位"
+                }
+              ],
+              "params": [],
+              "alternatives": [],
+              "degraded": "",
+              "target_date": "2026-10-06",
+              "subject_type": "火烧云",
+              "data_status": "ready",
+              "missing_data": [],
+              "evaluated_at": "2026-10-06T08:00:00+00:00",
+              "updated_at": "2026-10-06T07:00:00+00:00",
+              "valid_until": "2026-10-06T18:06:00+08:00",
+              "tz_offset": "+08:00"
+            }
+          },
+          "trace": {
+            "llm_calls": [
+              {
+                "模型": "ecnu-max",
+                "prompt_summary": "消息数 2（pydantic-ai 桥）",
+                "耗时_秒": 4.549999721348286e-05,
+                "tokens": null,
+                "输入_tokens": null,
+                "输出_tokens": null
+              }
+            ],
+            "tool_calls": [
+              {
+                "name": "sun_times",
+                "arguments_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+                "result_summary": "日出: 05:42，日落: 18:06，数据来源: 天文计算（确定性），日期: 2026-10-06，时区: +08:00",
+                "data_source": "天文计算（确定性）",
+                "confidence": "high",
+                "field": "太阳时刻",
+                "elapsed_ms": 0.0
+              },
+              {
+                "name": "sunset_glow_score",
+                "arguments_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+                "result_summary": "评分（0-100）: 62，等级: 中等（可看趋势再定），数据来源: 启发式规则（确定性），位置: 0.0,0.0，时区: +08:00，获取时间: 2026-10-06T07:00:00+00:00，有效开始时间: 2026-10-06T00:00:00+08:00，有效结束时间: 2026-10-13T00:00:00+08:00，日期: 2026-10-06，缺失字段: []，目标时刻: 2026-10-06T18:06:00+08:00",
+                "data_source": "启发式规则（确定性）",
+                "confidence": "medium",
+                "field": "评分",
+                "elapsed_ms": 0.0
+              },
+              {
+                "name": "weather_forecast",
+                "arguments_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"days\": 3, \"tz_offset\": \"+08:00\"}",
+                "result_summary": "每日预报: [{\"日期\": \"2026-10-06\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水…，数据来源: Open-Meteo（确定性 Fake），位置: 0.0,0.0，时区: +08:00，获取时间: 2026-10-06T07:00:00+00:00，有效开始时间: 2026-10-06T00:00:00+08:00，有效结束时间: 2026-10-13T00:00:00+08:00",
+                "data_source": "Open-Meteo（确定性 Fake）",
+                "confidence": "low",
+                "field": "每日预报",
+                "elapsed_ms": 0.0
+              },
+              {
+                "name": "match_sites",
+                "arguments_summary": "{\"sites\": [{\"名称\": \"合成西岸\", \"纬度\": 0.0, \"经度\": 0.0, \"题材\": \"日落\"}], \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+                "result_summary": "error: FakeDispatcher 无数据：match_sites",
+                "data_source": "",
+                "confidence": "low",
+                "field": "匹配结果",
+                "elapsed_ms": 0.0
+              }
+            ],
+            "steps": [
+              {
+                "name": "意图路由_规则",
+                "input_summary": "今晚火烧云是否值得去",
+                "output_summary": "规则关键词命中：live/火烧云"
+              },
+              {
+                "name": "管线_live",
+                "input_summary": "今晚火烧云是否值得去",
+                "output_summary": "启动"
+              },
+              {
+                "name": "采集_sun_times",
+                "input_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+                "output_summary": ""
+              },
+              {
+                "name": "采集_sunset_glow_score",
+                "input_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+                "output_summary": ""
+              },
+              {
+                "name": "采集_weather_forecast",
+                "input_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"days\": 3, \"tz_offset\": \"+08:00\"}",
+                "output_summary": ""
+              },
+              {
+                "name": "机位匹配",
+                "input_summary": "{\"sites\": [{\"名称\": \"合成西岸\", \"纬度\": 0.0, \"经度\": 0.0, \"题材\": \"日落\"}], \"date\": \"2026-10-0",
+                "output_summary": ""
+              },
+              {
+                "name": "记忆_注入",
+                "input_summary": "",
+                "output_summary": "users/_local/memory/：profile"
+              }
+            ],
+            "sources": [
+              {
+                "tool": "sun_times",
+                "field": "太阳时刻",
+                "confidence": "high",
+                "data_source": "天文计算（确定性）"
+              },
+              {
+                "tool": "sunset_glow_score",
+                "field": "评分",
+                "confidence": "medium",
+                "data_source": "启发式规则（确定性）"
+              },
+              {
+                "tool": "weather_forecast",
+                "field": "每日预报",
+                "confidence": "low",
+                "data_source": "Open-Meteo（确定性 Fake）"
+              },
+              {
+                "tool": "match_sites",
+                "field": "匹配结果",
+                "confidence": "low",
+                "data_source": ""
+              }
+            ]
+          }
+        },
+        {
+          "session_id": "ae03530e372b4e4f9107f5bf83265b2c",
+          "result_id": "6603fe446c344385b4f7ffcb557bc9c8",
+          "version": 2,
+          "kind": "decision",
+          "created_at": "2026-10-07T06:57:34.787+00:00",
+          "parent_result_id": "b2f0b232e5a545dbb7c7df6eb88e495e",
+          "request": {
+            "request": "那我需要带什么？"
+          },
+          "text": "## 拍摄方案（决策卡片）\n- 结论：合成西岸观察火烧云，携带合成相机与三脚架。\n- 置信度：medium\n- 推荐机位：合成西岸（本次请求确定的收藏机位）\n- 依据：weather_forecast/每日预报 [置信度 medium]；sun_times/日落 [置信度 high]；sunset_glow_score/评分（0-100） [置信度 medium]",
+          "card": {
+            "conclusion": "合成西岸观察火烧云，携带合成相机与三脚架。",
+            "evidence": [
+              {
+                "tool": "weather_forecast",
+                "field": "每日预报",
+                "confidence": "medium",
+                "note": "[{\"日期\": \"2026-10-06\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-07\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-08\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-09\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-10\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-11\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-12\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}]"
+              },
+              {
+                "tool": "sun_times",
+                "field": "日落",
+                "confidence": "high",
+                "note": "\"18:06\""
+              },
+              {
+                "tool": "sunset_glow_score",
+                "field": "评分（0-100）",
+                "confidence": "medium",
+                "note": "62"
+              }
+            ],
+            "confidence": "medium",
+            "verdict": "go",
+            "confidence_detail": null,
+            "time_window": "",
+            "window_start": "",
+            "window_end": "",
+            "locations": [
+              {
+                "name": "合成西岸",
+                "reason": "本次请求确定的收藏机位"
+              }
+            ],
+            "params": [],
+            "alternatives": [],
+            "degraded": "",
+            "target_date": "2026-10-06",
+            "subject_type": "火烧云",
+            "data_status": "ready",
+            "missing_data": [],
+            "evaluated_at": "2026-10-06T08:00:00+00:00",
+            "updated_at": "2026-10-06T07:00:00+00:00",
+            "valid_until": "2026-10-06T18:06:00+08:00",
+            "tz_offset": "+08:00"
+          },
+          "plan": null,
+          "history": [
+            {
+              "role": "user",
+              "content": "今晚火烧云是否值得去"
+            },
+            {
+              "role": "assistant",
+              "content": "## 拍摄方案（决策卡片）\n- 结论：合成西岸观察火烧云，携带合成相机与三脚架。\n- 置信度：medium\n- 推荐机位：合成西岸（本次请求确定的收藏机位）\n- 依据：weather_forecast/每日预报 [置信度 medium]；sun_times/日落 [置信度 high]；sunset_glow_score/评分（0-100） [置信度 medium]"
+            },
+            {
+              "role": "user",
+              "content": "那我需要带什么？"
+            },
+            {
+              "role": "assistant",
+              "content": "## 拍摄方案（决策卡片）\n- 结论：合成西岸观察火烧云，携带合成相机与三脚架。\n- 置信度：medium\n- 推荐机位：合成西岸（本次请求确定的收藏机位）\n- 依据：weather_forecast/每日预报 [置信度 medium]；sun_times/日落 [置信度 high]；sunset_glow_score/评分（0-100） [置信度 medium]"
+            }
+          ],
+          "pipeline": {
+            "user_request": "那我需要带什么？",
+            "intent": {
+              "subject_type": "火烧云",
+              "location": "",
+              "time_hint": "今晚",
+              "mode": "live"
+            },
+            "data": {
+              "sunset_glow_score": {
+                "评分（0-100）": 62,
+                "等级": "中等（可看趋势再定）",
+                "数据来源": "启发式规则（确定性）",
+                "位置": "0.0,0.0",
+                "时区": "+08:00",
+                "获取时间": "2026-10-06T07:00:00+00:00",
+                "有效开始时间": "2026-10-06T00:00:00+08:00",
+                "有效结束时间": "2026-10-13T00:00:00+08:00",
+                "日期": "2026-10-06",
+                "缺失字段": [],
+                "目标时刻": "2026-10-06T18:06:00+08:00"
+              },
+              "sun_times": {
+                "日出": "05:42",
+                "日落": "18:06",
+                "数据来源": "天文计算（确定性）",
+                "日期": "2026-10-06",
+                "时区": "+08:00"
+              },
+              "weather_forecast": {
+                "每日预报": [
+                  {
+                    "日期": "2026-10-06",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  },
+                  {
+                    "日期": "2026-10-07",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  },
+                  {
+                    "日期": "2026-10-08",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  },
+                  {
+                    "日期": "2026-10-09",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  },
+                  {
+                    "日期": "2026-10-10",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  },
+                  {
+                    "日期": "2026-10-11",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  },
+                  {
+                    "日期": "2026-10-12",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  }
+                ],
+                "数据来源": "Open-Meteo（确定性 Fake）",
+                "位置": "0.0,0.0",
+                "时区": "+08:00",
+                "获取时间": "2026-10-06T07:00:00+00:00",
+                "有效开始时间": "2026-10-06T00:00:00+08:00",
+                "有效结束时间": "2026-10-13T00:00:00+08:00"
+              },
+              "目标日期": "2026-10-06",
+              "目标机位": "合成西岸",
+              "目标坐标": "0.0,0.0",
+              "请求题材": "火烧云",
+              "候选机位": [
+                {
+                  "名称": "合成西岸",
+                  "纬度": 0.0,
+                  "经度": 0.0,
+                  "题材": "火烧云",
+                  "档案题材": ""
+                }
+              ],
+              "match_sites": {
+                "error": "FakeDispatcher 无数据：match_sites"
+              },
+              "目标时区": "+08:00",
+              "用户器材": ""
+            },
+            "scores": {
+              "火烧云评分": 62,
+              "火烧云等级": "中等"
+            },
+            "card": {
+              "conclusion": "合成西岸观察火烧云，携带合成相机与三脚架。",
+              "evidence": [
+                {
+                  "tool": "weather_forecast",
+                  "field": "每日预报",
+                  "confidence": "medium",
+                  "note": "[{\"日期\": \"2026-10-06\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-07\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-08\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-09\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-10\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-11\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-12\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}]"
+                },
+                {
+                  "tool": "sun_times",
+                  "field": "日落",
+                  "confidence": "high",
+                  "note": "\"18:06\""
+                },
+                {
+                  "tool": "sunset_glow_score",
+                  "field": "评分（0-100）",
+                  "confidence": "medium",
+                  "note": "62"
+                }
+              ],
+              "confidence": "medium",
+              "verdict": "go",
+              "confidence_detail": null,
+              "time_window": "",
+              "window_start": "",
+              "window_end": "",
+              "locations": [
+                {
+                  "name": "合成西岸",
+                  "reason": "本次请求确定的收藏机位"
+                }
+              ],
+              "params": [],
+              "alternatives": [],
+              "degraded": "",
+              "target_date": "2026-10-06",
+              "subject_type": "火烧云",
+              "data_status": "ready",
+              "missing_data": [],
+              "evaluated_at": "2026-10-06T08:00:00+00:00",
+              "updated_at": "2026-10-06T07:00:00+00:00",
+              "valid_until": "2026-10-06T18:06:00+08:00",
+              "tz_offset": "+08:00"
+            }
+          },
+          "trace": {
+            "llm_calls": [
+              {
+                "模型": "ecnu-plus",
+                "prompt_summary": "消息数 2（pydantic-ai 桥）",
+                "耗时_秒": 4.360001184977591e-05,
+                "tokens": null,
+                "输入_tokens": null,
+                "输出_tokens": null
+              },
+              {
+                "模型": "ecnu-max",
+                "prompt_summary": "消息数 2（pydantic-ai 桥）",
+                "耗时_秒": 3.960001049563289e-05,
+                "tokens": null,
+                "输入_tokens": null,
+                "输出_tokens": null
+              }
+            ],
+            "tool_calls": [
+              {
+                "name": "sun_times",
+                "arguments_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+                "result_summary": "日出: 05:42，日落: 18:06，数据来源: 天文计算（确定性），日期: 2026-10-06，时区: +08:00",
+                "data_source": "天文计算（确定性）",
+                "confidence": "high",
+                "field": "太阳时刻",
+                "elapsed_ms": 0.0
+              },
+              {
+                "name": "sunset_glow_score",
+                "arguments_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+                "result_summary": "评分（0-100）: 62，等级: 中等（可看趋势再定），数据来源: 启发式规则（确定性），位置: 0.0,0.0，时区: +08:00，获取时间: 2026-10-06T07:00:00+00:00，有效开始时间: 2026-10-06T00:00:00+08:00，有效结束时间: 2026-10-13T00:00:00+08:00，日期: 2026-10-06，缺失字段: []，目标时刻: 2026-10-06T18:06:00+08:00",
+                "data_source": "启发式规则（确定性）",
+                "confidence": "medium",
+                "field": "评分",
+                "elapsed_ms": 0.0
+              },
+              {
+                "name": "weather_forecast",
+                "arguments_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"days\": 3, \"tz_offset\": \"+08:00\"}",
+                "result_summary": "每日预报: [{\"日期\": \"2026-10-06\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水…，数据来源: Open-Meteo（确定性 Fake），位置: 0.0,0.0，时区: +08:00，获取时间: 2026-10-06T07:00:00+00:00，有效开始时间: 2026-10-06T00:00:00+08:00，有效结束时间: 2026-10-13T00:00:00+08:00",
+                "data_source": "Open-Meteo（确定性 Fake）",
+                "confidence": "low",
+                "field": "每日预报",
+                "elapsed_ms": 0.0
+              },
+              {
+                "name": "match_sites",
+                "arguments_summary": "{\"sites\": [{\"名称\": \"合成西岸\", \"纬度\": 0.0, \"经度\": 0.0, \"题材\": \"日落\"}], \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+                "result_summary": "error: FakeDispatcher 无数据：match_sites",
+                "data_source": "",
+                "confidence": "low",
+                "field": "匹配结果",
+                "elapsed_ms": 0.0
+              }
+            ],
+            "steps": [
+              {
+                "name": "意图路由_LLM",
+                "input_summary": "那我需要带什么？",
+                "output_summary": ""
+              },
+              {
+                "name": "记忆_注入",
+                "input_summary": "",
+                "output_summary": "users/_local/memory/：profile"
+              },
+              {
+                "name": "意图路由_LLM",
+                "input_summary": "那我需要带什么？",
+                "output_summary": "live/火烧云/0.90；依据：合成续问"
+              },
+              {
+                "name": "管线_live",
+                "input_summary": "那我需要带什么？",
+                "output_summary": "启动"
+              },
+              {
+                "name": "采集_sun_times",
+                "input_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+                "output_summary": ""
+              },
+              {
+                "name": "采集_sunset_glow_score",
+                "input_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+                "output_summary": ""
+              },
+              {
+                "name": "采集_weather_forecast",
+                "input_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"days\": 3, \"tz_offset\": \"+08:00\"}",
+                "output_summary": ""
+              },
+              {
+                "name": "机位匹配",
+                "input_summary": "{\"sites\": [{\"名称\": \"合成西岸\", \"纬度\": 0.0, \"经度\": 0.0, \"题材\": \"日落\"}], \"date\": \"2026-10-0",
+                "output_summary": ""
+              }
+            ],
+            "sources": [
+              {
+                "tool": "sun_times",
+                "field": "太阳时刻",
+                "confidence": "high",
+                "data_source": "天文计算（确定性）"
+              },
+              {
+                "tool": "sunset_glow_score",
+                "field": "评分",
+                "confidence": "medium",
+                "data_source": "启发式规则（确定性）"
+              },
+              {
+                "tool": "weather_forecast",
+                "field": "每日预报",
+                "confidence": "low",
+                "data_source": "Open-Meteo（确定性 Fake）"
+              },
+              {
+                "tool": "match_sites",
+                "field": "匹配结果",
+                "confidence": "low",
+                "data_source": ""
+              }
+            ]
+          }
+        },
+        {
+          "session_id": "ae03530e372b4e4f9107f5bf83265b2c",
+          "result_id": "540842f8977c42da91c24c5ec9cebd10",
+          "version": 3,
+          "kind": "decision",
+          "created_at": "2026-10-07T06:57:34.890+00:00",
+          "parent_result_id": "6603fe446c344385b4f7ffcb557bc9c8",
+          "request": {
+            "request": "那我需要带什么？"
+          },
+          "text": "## 拍摄方案（决策卡片）\n- 结论：合成西岸观察火烧云，携带合成相机与三脚架。\n- 置信度：medium\n- 推荐机位：合成西岸（本次请求确定的收藏机位）\n- 依据：weather_forecast/每日预报 [置信度 medium]；sun_times/日落 [置信度 high]；sunset_glow_score/评分（0-100） [置信度 medium]",
+          "card": {
+            "conclusion": "合成西岸观察火烧云，携带合成相机与三脚架。",
+            "evidence": [
+              {
+                "tool": "weather_forecast",
+                "field": "每日预报",
+                "confidence": "medium",
+                "note": "[{\"日期\": \"2026-10-06\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-07\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-08\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-09\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-10\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-11\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-12\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}]"
+              },
+              {
+                "tool": "sun_times",
+                "field": "日落",
+                "confidence": "high",
+                "note": "\"18:06\""
+              },
+              {
+                "tool": "sunset_glow_score",
+                "field": "评分（0-100）",
+                "confidence": "medium",
+                "note": "62"
+              }
+            ],
+            "confidence": "medium",
+            "verdict": "go",
+            "confidence_detail": null,
+            "time_window": "",
+            "window_start": "",
+            "window_end": "",
+            "locations": [
+              {
+                "name": "合成西岸",
+                "reason": "本次请求确定的收藏机位"
+              }
+            ],
+            "params": [],
+            "alternatives": [],
+            "degraded": "",
+            "target_date": "2026-10-06",
+            "subject_type": "火烧云",
+            "data_status": "ready",
+            "missing_data": [],
+            "evaluated_at": "2026-10-06T08:00:00+00:00",
+            "updated_at": "2026-10-06T07:00:00+00:00",
+            "valid_until": "2026-10-06T18:06:00+08:00",
+            "tz_offset": "+08:00"
+          },
+          "plan": null,
+          "history": [
+            {
+              "role": "user",
+              "content": "那我需要带什么？"
+            },
+            {
+              "role": "assistant",
+              "content": "## 拍摄方案（决策卡片）\n- 结论：合成西岸观察火烧云，携带合成相机与三脚架。\n- 置信度：medium\n- 推荐机位：合成西岸（本次请求确定的收藏机位）\n- 依据：weather_forecast/每日预报 [置信度 medium]；sun_times/日落 [置信度 high]；sunset_glow_score/评分（0-100） [置信度 medium]"
+            }
+          ],
+          "pipeline": {
+            "user_request": "那我需要带什么？",
+            "intent": {
+              "subject_type": "火烧云",
+              "location": "",
+              "time_hint": "今晚",
+              "mode": "live"
+            },
+            "data": {
+              "sunset_glow_score": {
+                "评分（0-100）": 62,
+                "等级": "中等（可看趋势再定）",
+                "数据来源": "启发式规则（确定性）",
+                "位置": "0.0,0.0",
+                "时区": "+08:00",
+                "获取时间": "2026-10-06T07:00:00+00:00",
+                "有效开始时间": "2026-10-06T00:00:00+08:00",
+                "有效结束时间": "2026-10-13T00:00:00+08:00",
+                "日期": "2026-10-06",
+                "缺失字段": [],
+                "目标时刻": "2026-10-06T18:06:00+08:00"
+              },
+              "sun_times": {
+                "日出": "05:42",
+                "日落": "18:06",
+                "数据来源": "天文计算（确定性）",
+                "日期": "2026-10-06",
+                "时区": "+08:00"
+              },
+              "weather_forecast": {
+                "每日预报": [
+                  {
+                    "日期": "2026-10-06",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  },
+                  {
+                    "日期": "2026-10-07",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  },
+                  {
+                    "日期": "2026-10-08",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  },
+                  {
+                    "日期": "2026-10-09",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  },
+                  {
+                    "日期": "2026-10-10",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  },
+                  {
+                    "日期": "2026-10-11",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  },
+                  {
+                    "日期": "2026-10-12",
+                    "平均云量（%）": 30,
+                    "最低能见度（km）": 25,
+                    "最高降水概率（%）": 10,
+                    "最大风速（km/h）": 15
+                  }
+                ],
+                "数据来源": "Open-Meteo（确定性 Fake）",
+                "位置": "0.0,0.0",
+                "时区": "+08:00",
+                "获取时间": "2026-10-06T07:00:00+00:00",
+                "有效开始时间": "2026-10-06T00:00:00+08:00",
+                "有效结束时间": "2026-10-13T00:00:00+08:00"
+              },
+              "目标日期": "2026-10-06",
+              "目标机位": "合成西岸",
+              "目标坐标": "0.0,0.0",
+              "请求题材": "火烧云",
+              "候选机位": [
+                {
+                  "名称": "合成西岸",
+                  "纬度": 0.0,
+                  "经度": 0.0,
+                  "题材": "火烧云",
+                  "档案题材": ""
+                }
+              ],
+              "match_sites": {
+                "error": "FakeDispatcher 无数据：match_sites"
+              },
+              "目标时区": "+08:00",
+              "用户器材": ""
+            },
+            "scores": {
+              "火烧云评分": 62,
+              "火烧云等级": "中等"
+            },
+            "card": {
+              "conclusion": "合成西岸观察火烧云，携带合成相机与三脚架。",
+              "evidence": [
+                {
+                  "tool": "weather_forecast",
+                  "field": "每日预报",
+                  "confidence": "medium",
+                  "note": "[{\"日期\": \"2026-10-06\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-07\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-08\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-09\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-10\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-11\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-12\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}]"
+                },
+                {
+                  "tool": "sun_times",
+                  "field": "日落",
+                  "confidence": "high",
+                  "note": "\"18:06\""
+                },
+                {
+                  "tool": "sunset_glow_score",
+                  "field": "评分（0-100）",
+                  "confidence": "medium",
+                  "note": "62"
+                }
+              ],
+              "confidence": "medium",
+              "verdict": "go",
+              "confidence_detail": null,
+              "time_window": "",
+              "window_start": "",
+              "window_end": "",
+              "locations": [
+                {
+                  "name": "合成西岸",
+                  "reason": "本次请求确定的收藏机位"
+                }
+              ],
+              "params": [],
+              "alternatives": [],
+              "degraded": "",
+              "target_date": "2026-10-06",
+              "subject_type": "火烧云",
+              "data_status": "ready",
+              "missing_data": [],
+              "evaluated_at": "2026-10-06T08:00:00+00:00",
+              "updated_at": "2026-10-06T07:00:00+00:00",
+              "valid_until": "2026-10-06T18:06:00+08:00",
+              "tz_offset": "+08:00"
+            }
+          },
+          "trace": {
+            "llm_calls": [
+              {
+                "模型": "ecnu-plus",
+                "prompt_summary": "消息数 2（pydantic-ai 桥）",
+                "耗时_秒": 3.070000093430281e-05,
+                "tokens": null,
+                "输入_tokens": null,
+                "输出_tokens": null
+              },
+              {
+                "模型": "ecnu-max",
+                "prompt_summary": "消息数 2（pydantic-ai 桥）",
+                "耗时_秒": 4.989997250959277e-05,
+                "tokens": null,
+                "输入_tokens": null,
+                "输出_tokens": null
+              }
+            ],
+            "tool_calls": [
+              {
+                "name": "sun_times",
+                "arguments_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+                "result_summary": "日出: 05:42，日落: 18:06，数据来源: 天文计算（确定性），日期: 2026-10-06，时区: +08:00",
+                "data_source": "天文计算（确定性）",
+                "confidence": "high",
+                "field": "太阳时刻",
+                "elapsed_ms": 0.0
+              },
+              {
+                "name": "sunset_glow_score",
+                "arguments_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+                "result_summary": "评分（0-100）: 62，等级: 中等（可看趋势再定），数据来源: 启发式规则（确定性），位置: 0.0,0.0，时区: +08:00，获取时间: 2026-10-06T07:00:00+00:00，有效开始时间: 2026-10-06T00:00:00+08:00，有效结束时间: 2026-10-13T00:00:00+08:00，日期: 2026-10-06，缺失字段: []，目标时刻: 2026-10-06T18:06:00+08:00",
+                "data_source": "启发式规则（确定性）",
+                "confidence": "medium",
+                "field": "评分",
+                "elapsed_ms": 0.0
+              },
+              {
+                "name": "weather_forecast",
+                "arguments_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"days\": 3, \"tz_offset\": \"+08:00\"}",
+                "result_summary": "每日预报: [{\"日期\": \"2026-10-06\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水…，数据来源: Open-Meteo（确定性 Fake），位置: 0.0,0.0，时区: +08:00，获取时间: 2026-10-06T07:00:00+00:00，有效开始时间: 2026-10-06T00:00:00+08:00，有效结束时间: 2026-10-13T00:00:00+08:00",
+                "data_source": "Open-Meteo（确定性 Fake）",
+                "confidence": "low",
+                "field": "每日预报",
+                "elapsed_ms": 0.0
+              },
+              {
+                "name": "match_sites",
+                "arguments_summary": "{\"sites\": [{\"名称\": \"合成西岸\", \"纬度\": 0.0, \"经度\": 0.0, \"题材\": \"日落\"}], \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+                "result_summary": "error: FakeDispatcher 无数据：match_sites",
+                "data_source": "",
+                "confidence": "low",
+                "field": "匹配结果",
+                "elapsed_ms": 0.0
+              }
+            ],
+            "steps": [
+              {
+                "name": "意图路由_LLM",
+                "input_summary": "那我需要带什么？",
+                "output_summary": ""
+              },
+              {
+                "name": "记忆_注入",
+                "input_summary": "",
+                "output_summary": "users/_local/memory/：profile"
+              },
+              {
+                "name": "意图路由_LLM",
+                "input_summary": "那我需要带什么？",
+                "output_summary": "live/火烧云/0.90；依据：合成续问"
+              },
+              {
+                "name": "管线_live",
+                "input_summary": "那我需要带什么？",
+                "output_summary": "启动"
+              },
+              {
+                "name": "采集_sun_times",
+                "input_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+                "output_summary": ""
+              },
+              {
+                "name": "采集_sunset_glow_score",
+                "input_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"date\": \"2026-10-06\", \"tz_offset\": \"+08:00\"}",
+                "output_summary": ""
+              },
+              {
+                "name": "采集_weather_forecast",
+                "input_summary": "{\"latitude\": 0.0, \"longitude\": 0.0, \"days\": 3, \"tz_offset\": \"+08:00\"}",
+                "output_summary": ""
+              },
+              {
+                "name": "机位匹配",
+                "input_summary": "{\"sites\": [{\"名称\": \"合成西岸\", \"纬度\": 0.0, \"经度\": 0.0, \"题材\": \"日落\"}], \"date\": \"2026-10-0",
+                "output_summary": ""
+              }
+            ],
+            "sources": [
+              {
+                "tool": "sun_times",
+                "field": "太阳时刻",
+                "confidence": "high",
+                "data_source": "天文计算（确定性）"
+              },
+              {
+                "tool": "sunset_glow_score",
+                "field": "评分",
+                "confidence": "medium",
+                "data_source": "启发式规则（确定性）"
+              },
+              {
+                "tool": "weather_forecast",
+                "field": "每日预报",
+                "confidence": "low",
+                "data_source": "Open-Meteo（确定性 Fake）"
+              },
+              {
+                "tool": "match_sites",
+                "field": "匹配结果",
+                "confidence": "low",
+                "data_source": ""
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "model_received_messages": [
+    [
+      {
+        "role": "system",
+        "content": "你是 LightTrail 摄影决策引擎的意图解析器。\n\n<!-- LightTrail prompt v: layer:role@2, layer:conduct@1, layer:tools@15 -->\n\n## 角色与使命\n你是 LightTrail（光迹）摄影助手，一位专业摄影智能体。\n\n职责：帮助摄影师完成拍摄前的规划与拍摄中的参数决策。\n可用能力由「可用工具」层自动列出（随注册表实时生成）——需要数据或计算时，\n以上一层列出的工具为准，不要凭记忆猜测工具是否存在或其参数。\n<!-- layer:role@2 -->\n\n## 行为准则\n行为要求：\n- 回答简洁、专业，使用中文；\n- 需要真实数据或计算时，优先调用工具获取，不要凭空编造；\n- 用户未指定时，默认采用 135 全画幅相机与常见档位给出建议；\n- 涉及具体拍摄决策时，可以给出推荐值，但要说明依据与取舍。\n<!-- layer:conduct@1 -->\n\n## 可用工具\n- analyze_photo：多模态照片分析：读取图片 EXIF + 画面（场景/构图/曝光/色彩），给出结合用户器材的可执行处方（下次怎么拍的具体参数）。当用户上传/指定一张照片想复盘『这张怎么改进』或『下次同样场景怎么拍』时调用。\n- equivalent_exposure：计算等效曝光：给定当前光圈、快门、ISO，在目标调整档数下，返回分别调整光圈 / 快门 / ISO 三种方式的等效参数组合。适用于星空、长曝光、风光等场景在保证曝光总量不变（或按目标增减）的前提下换算参数。\n- galaxy_visibility：查询指定日期夜晚银心（银河核心方向）的可见窗口：升出地平面的时间段、整夜最高高度角与时刻、以及对应方位。银心高度越高、月亮干扰越小，越适合拍摄银河拱桥/银心。天文昏影终到次日天文晨光始之间为完全黑暗时段。\n- get_current_time：获取当前日期时间。当用户询问『现在几点』『今天几号』『还剩多久』等时间相关问题，或需要基于当前时间做判断（如日出日落时刻是否已过）时必须调用本工具。\n- match_sites：机位 × 天象匹配：给定候选机位列表（名称/经纬度/题材/朝向）与日期，计算每个机位的日落日出、蓝调黄金窗口、银河可见窗口与月相，并按『题材朝向与天象方位的一致程度』给出 0-5 分匹配度与排序。题材支持：日出/日落/蓝调/黄金/银河/星空/夜景；朝向可填方位词（东南/西南/正西等）或方位角（度）。用途：多机位挑选『…\n- moon_events：查询指定日期、地点的月升月落时刻与方位，并判断月亮整夜/整日在地平线上的情况。用于评估月光对特定时段（如银河窗口、蓝调时段）是否重叠，配合 moon_phase 使用。\n- moon_phase：查询指定本地日期的月相：Astral 相位索引、估算月龄与估算照亮比例，并给出月光对星空摄影的干扰程度建议。新月前后月光干扰最小，是银河/星野的最佳窗口；满月前后适合月景与月光补光题材。\n- nd_long_exposure：ND 滤镜长曝光换算：给定基准快门与 ND 减光档数（或滤镜型号），计算加滤镜后的长曝光快门；若同时给出目标快门，则反推所需 ND 档数并推荐最近滤镜型号。适用场景：水流雾化、海面拉丝、云层流动、车轨、人流虚化等慢门长曝光题材。\n- reverse_engineer_photo：照片反推拍摄方案：从一张参考图反推场景/光线方向/时段/机位特征/后期风格，并给出复刻计划（在哪、什么时候、怎么拍）。当用户丢一张照片/参考图说『我也想要这种』『这张怎么拍的』时调用。\n- search_memory：检索历史拍摄事件记忆：按关键词（地点/摘要/标签）、地点、题材过滤，返回最近命中的事件列表（含精确坐标与当时的天气/天象快照）。当用户询问『以前拍过吗』『某地某题材的历史情况』『复拍对比』『这次和上次比如何』等需要结合历史拍摄经历的问题时调用，用于个性化决策与复拍判断。\n- star_shutter_rule：计算星空摄影的最大不拖线快门时间，支持 500 法则与 NPF 法则。500 法则：最大快门约等于 500 / 等效焦距，只作粗略参考；NPF 法则额外考虑像素间距与光圈，更适合高像素机身与画面边缘星点要求。适用场景：银河、星野、星轨单张、流星雨等需要固定机位长曝的星空题材。\n- sun_position：查询指定时刻太阳的高度角与方位角，用于判断光线角度：顺光/侧光/逆光、是否处于蓝调/黄金窗口、是否已落入地平线以下。配合机位朝向做构图判断。\n- sun_times：查询指定地点与日期的太阳关键时刻：日出日落、民用/航海/天文晨昏蒙影、蓝调时刻（太阳高度 -6~-4 度）与黄金时刻（-4~+6 度）窗口。用于判断『几点去拍日出/日落/蓝调/黄金』与机位规划。经纬度可用地名近似（如上海市区约 31.23, 121.47），有精确机位坐标时请用精确值。\n- sunset_glow_score：评估指定日期傍晚的火烧云（晚霞）启发式条件，返回 0-100 分与等级。综合日落前后三小时的高云占比、云量区间、能见度、降水概率与风速，并附每项依据与置信度（越临近日落越可信）。注意：这是面向摄影决策的经验启发式模型，非气象学精确概率；与晴天/阴天判断不同，完全晴朗或完全阴天都不利于火烧云，『适中云量 + 高云为主 …\n- weather_forecast：查询指定位置未来 1-7 天的逐日天气摘要：平均云量、傍晚云量、最低能见度、最高降水概率、最大风速，并附每日傍晚（16-20 点）的小时级云量明细，用于拍摄计划编排（风光 / 日落 / 星空前的空气通透度与云况预判）。数据来自 Open-Meteo 免费接口，无需 API Key。\n<!-- layer:tools@15 -->\n\n## 用户档案与语义记忆\n常去机位：合成西岸\n<!-- layer:profile@0 -->\n\n## 会话轨迹摘要\n① 意图路由_LLM：\n② 记忆_注入：users/_local/memory/：profile\n<!-- layer:trace@0 -->"
+      },
+      {
+        "role": "user",
+        "content": "以下为已保存历史，仅用于理解续问；旧天气和旧建议不属于本轮证据。\n[{\"role\": \"user\", \"content\": \"今晚火烧云是否值得去\"}, {\"role\": \"assistant\", \"content\": \"## 拍摄方案（决策卡片）\\n- 结论：合成西岸观察火烧云，携带合成相机与三脚架。\\n- 置信度：medium\\n- 推荐机位：合成西岸（本次请求确定的收藏机位）\\n- 依据：weather_forecast/每日预报 [置信度 medium]；sun_times/日落 [置信度 high]；sunset_glow_score/评分（0-100） [置信度 medium]\"}]\n当前请求：\n规则未命中，请把用户的一句话请求解析为规范意图并评估判定可信度，只输出如下 JSON（不要任何其他文字）：\n\n{\n  \"intent\": {\n    \"subject_type\": \"题材：星空/银河/日出/日落/朝霞/晚霞/火烧云/蓝调/黄金时刻/夜景/城市风光/其他\",\n    \"location\": \"目标地点（用户明确给出时填写，否则空串）\",\n    \"time_hint\": \"时间提示原文（如：这周末 / 明天傍晚 / 今晚；未知空串）\",\n    \"mode\": \"inspiration(灵感出方案) | planning(计划编排) | live(临场决策) | review(照片复盘)\"\n  },\n  \"confidence\": 0.0,\n  \"reason\": \"不超过 30 字的判定依据\"\n}\n\n用户请求：那我需要带什么？"
+      }
+    ],
+    [
+      {
+        "role": "system",
+        "content": "<!-- LightTrail prompt v: layer:role@2, layer:conduct@1, layer:tools@15 -->\n\n## 角色与使命\n你是 LightTrail（光迹）摄影助手，一位专业摄影智能体。\n\n职责：帮助摄影师完成拍摄前的规划与拍摄中的参数决策。\n可用能力由「可用工具」层自动列出（随注册表实时生成）——需要数据或计算时，\n以上一层列出的工具为准，不要凭记忆猜测工具是否存在或其参数。\n<!-- layer:role@2 -->\n\n## 行为准则\n行为要求：\n- 回答简洁、专业，使用中文；\n- 需要真实数据或计算时，优先调用工具获取，不要凭空编造；\n- 用户未指定时，默认采用 135 全画幅相机与常见档位给出建议；\n- 涉及具体拍摄决策时，可以给出推荐值，但要说明依据与取舍。\n<!-- layer:conduct@1 -->\n\n## 可用工具\n- analyze_photo：多模态照片分析：读取图片 EXIF + 画面（场景/构图/曝光/色彩），给出结合用户器材的可执行处方（下次怎么拍的具体参数）。当用户上传/指定一张照片想复盘『这张怎么改进』或『下次同样场景怎么拍』时调用。\n- equivalent_exposure：计算等效曝光：给定当前光圈、快门、ISO，在目标调整档数下，返回分别调整光圈 / 快门 / ISO 三种方式的等效参数组合。适用于星空、长曝光、风光等场景在保证曝光总量不变（或按目标增减）的前提下换算参数。\n- galaxy_visibility：查询指定日期夜晚银心（银河核心方向）的可见窗口：升出地平面的时间段、整夜最高高度角与时刻、以及对应方位。银心高度越高、月亮干扰越小，越适合拍摄银河拱桥/银心。天文昏影终到次日天文晨光始之间为完全黑暗时段。\n- get_current_time：获取当前日期时间。当用户询问『现在几点』『今天几号』『还剩多久』等时间相关问题，或需要基于当前时间做判断（如日出日落时刻是否已过）时必须调用本工具。\n- match_sites：机位 × 天象匹配：给定候选机位列表（名称/经纬度/题材/朝向）与日期，计算每个机位的日落日出、蓝调黄金窗口、银河可见窗口与月相，并按『题材朝向与天象方位的一致程度』给出 0-5 分匹配度与排序。题材支持：日出/日落/蓝调/黄金/银河/星空/夜景；朝向可填方位词（东南/西南/正西等）或方位角（度）。用途：多机位挑选『…\n- moon_events：查询指定日期、地点的月升月落时刻与方位，并判断月亮整夜/整日在地平线上的情况。用于评估月光对特定时段（如银河窗口、蓝调时段）是否重叠，配合 moon_phase 使用。\n- moon_phase：查询指定本地日期的月相：Astral 相位索引、估算月龄与估算照亮比例，并给出月光对星空摄影的干扰程度建议。新月前后月光干扰最小，是银河/星野的最佳窗口；满月前后适合月景与月光补光题材。\n- nd_long_exposure：ND 滤镜长曝光换算：给定基准快门与 ND 减光档数（或滤镜型号），计算加滤镜后的长曝光快门；若同时给出目标快门，则反推所需 ND 档数并推荐最近滤镜型号。适用场景：水流雾化、海面拉丝、云层流动、车轨、人流虚化等慢门长曝光题材。\n- reverse_engineer_photo：照片反推拍摄方案：从一张参考图反推场景/光线方向/时段/机位特征/后期风格，并给出复刻计划（在哪、什么时候、怎么拍）。当用户丢一张照片/参考图说『我也想要这种』『这张怎么拍的』时调用。\n- search_memory：检索历史拍摄事件记忆：按关键词（地点/摘要/标签）、地点、题材过滤，返回最近命中的事件列表（含精确坐标与当时的天气/天象快照）。当用户询问『以前拍过吗』『某地某题材的历史情况』『复拍对比』『这次和上次比如何』等需要结合历史拍摄经历的问题时调用，用于个性化决策与复拍判断。\n- star_shutter_rule：计算星空摄影的最大不拖线快门时间，支持 500 法则与 NPF 法则。500 法则：最大快门约等于 500 / 等效焦距，只作粗略参考；NPF 法则额外考虑像素间距与光圈，更适合高像素机身与画面边缘星点要求。适用场景：银河、星野、星轨单张、流星雨等需要固定机位长曝的星空题材。\n- sun_position：查询指定时刻太阳的高度角与方位角，用于判断光线角度：顺光/侧光/逆光、是否处于蓝调/黄金窗口、是否已落入地平线以下。配合机位朝向做构图判断。\n- sun_times：查询指定地点与日期的太阳关键时刻：日出日落、民用/航海/天文晨昏蒙影、蓝调时刻（太阳高度 -6~-4 度）与黄金时刻（-4~+6 度）窗口。用于判断『几点去拍日出/日落/蓝调/黄金』与机位规划。经纬度可用地名近似（如上海市区约 31.23, 121.47），有精确机位坐标时请用精确值。\n- sunset_glow_score：评估指定日期傍晚的火烧云（晚霞）启发式条件，返回 0-100 分与等级。综合日落前后三小时的高云占比、云量区间、能见度、降水概率与风速，并附每项依据与置信度（越临近日落越可信）。注意：这是面向摄影决策的经验启发式模型，非气象学精确概率；与晴天/阴天判断不同，完全晴朗或完全阴天都不利于火烧云，『适中云量 + 高云为主 …\n- weather_forecast：查询指定位置未来 1-7 天的逐日天气摘要：平均云量、傍晚云量、最低能见度、最高降水概率、最大风速，并附每日傍晚（16-20 点）的小时级云量明细，用于拍摄计划编排（风光 / 日落 / 星空前的空气通透度与云况预判）。数据来自 Open-Meteo 免费接口，无需 API Key。\n<!-- layer:tools@15 -->\n\n## 用户档案与语义记忆\n常去机位：合成西岸\n<!-- layer:profile@0 -->\n\n## 会话轨迹摘要\n① 意图路由_LLM：\n② 记忆_注入：users/_local/memory/：profile\n③ 意图路由_LLM：live/火烧云/0.90；依据：合成续问\n④ 管线_live：启动\n⑤ 采集_sun_times：\n⑥ 调用 sun_times：日出: 05:42，日落: 18:06，数据来源: 天文计算（确定性），日期: 2026-10-06，时区: +08:00\n⑦ 采集_sunset_glow_score：\n⑧ 调用 sunset_glow_score：评分（0-100）: 62，等级: 中等（可看趋势再定），数据来源: 启发式规则（确定性），位置: 0.0,0.0，时区: +08:00，获取时间: 2026-10-06T07:00:00+00:00，有效开始时间: 2026-10-06T00:00:00+08:00，有效结束时间: 2026-10-13T00:00:00+08:00，日期: 2026-10-06，缺失字段: []，目标时刻: 2026-10-06T18:06:00+08:00\n⑨ 采集_weather_forecast：\n⑩ 调用 weather_forecast：每日预报: [{\"日期\": \"2026-10-06\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水…，数据来源: Open-Meteo（确定性…（超预算截断）\n<!-- layer:trace@0 -->"
+      },
+      {
+        "role": "user",
+        "content": "以下为已保存历史，仅用于理解续问；旧天气和旧建议不属于本轮证据。\n[{\"role\": \"user\", \"content\": \"今晚火烧云是否值得去\"}, {\"role\": \"assistant\", \"content\": \"## 拍摄方案（决策卡片）\\n- 结论：合成西岸观察火烧云，携带合成相机与三脚架。\\n- 置信度：medium\\n- 推荐机位：合成西岸（本次请求确定的收藏机位）\\n- 依据：weather_forecast/每日预报 [置信度 medium]；sun_times/日落 [置信度 high]；sunset_glow_score/评分（0-100） [置信度 medium]\"}]\n当前请求：\n用户请求：那我需要带什么？\n\n规范意图：题材=火烧云，地点=未指定，时间=今晚\n\n已验证目标：2026-10-06 在 合成西岸 拍摄 火烧云。结论、时间窗口和 locations 必须与此一致；收藏机位的档案题材仅是历史偏好，不得覆盖本次请求题材。\n\n用户记忆：\n常去机位：合成西岸\n\n采集数据（JSON）：\n{\"sunset_glow_score\": {\"评分（0-100）\": 62, \"等级\": \"中等（可看趋势再定）\", \"数据来源\": \"启发式规则（确定性）\", \"位置\": \"0.0,0.0\", \"时区\": \"+08:00\", \"获取时间\": \"2026-10-06T07:00:00+00:00\", \"有效开始时间\": \"2026-10-06T00:00:00+08:00\", \"有效结束时间\": \"2026-10-13T00:00:00+08:00\", \"日期\": \"2026-10-06\", \"缺失字段\": [], \"目标时刻\": \"2026-10-06T18:06:00+08:00\"}, \"sun_times\": {\"日出\": \"05:42\", \"日落\": \"18:06\", \"数据来源\": \"天文计算（确定性）\", \"日期\": \"2026-10-06\", \"时区\": \"+08:00\"}, \"weather_forecast\": {\"每日预报\": [{\"日期\": \"2026-10-06\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-07\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-08\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-09\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-10\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-11\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-12\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}], \"数据来源\": \"Open-Meteo（确定性 Fake）\", \"位置\": \"0.0,0.0\", \"时区\": \"+08:00\", \"获取时间\": \"2026-10-06T07:00:00+00:00\", \"有效开始时间\": \"2026-10-06T00:00:00+08:00\", \"有效结束时间\": \"2026-10-13T00:00:00+08:00\"}, \"目标日期\": \"2026-10-06\", \"目标机位\": \"合成西岸\", \"目标坐标\": \"0.0,0.0\", \"请求题材\": \"火烧云\", \"候选机位\": [{\"名称\": \"合成西岸\", \"纬度\": 0.0, \"经度\": 0.0, \"题材\": \"火烧云\", \"档案题材\": \"\"}], \"match_sites\": {\"error\": \"FakeDispatcher 无数据：match_sites\"}}\n\n代码化评分：{\"火烧云评分\": 62, \"火烧云等级\": \"中等\"}\n\n请基于以上数据输出一份决策卡片，严格只输出如下 JSON 对象（不要任何其他文字）：\n\n{\n  \"conclusion\": \"一句话结论：该不该去、几点去、去哪、带什么\",\n  \"evidence\": [{\"tool\": \"工具名\", \"field\": \"字段\", \"confidence\": \"high|medium|low\", \"note\": \"依据说明\"}],\n  \"confidence\": \"high|medium|low\",\n  \"verdict\": \"go|wait|risk（go=值得出门按窗口去；wait=先观察临近数据；risk=不建议专程）\",\n  \"time_window\": \"建议时间窗口\",\n  \"window_start\": \"ISO 8601 含时区的窗口开始；无法确定则空字符串\",\n  \"window_end\": \"ISO 8601 含时区的窗口结束；无法确定则空字符串\",\n  \"locations\": [{\"name\": \"机位\", \"reason\": \"理由\"}],\n  \"params\": [{\"name\": \"参数\", \"value\": \"值\", \"reason\": \"理由\"}],\n  \"alternatives\": [\"备选方案1\", \"备选方案2\"],\n  \"degraded\": \"\",\n  \"target_date\": \"本次目标日期 YYYY-MM-DD\",\n  \"subject_type\": \"本次用户请求题材\"\n}"
+      }
+    ],
+    [
+      {
+        "role": "system",
+        "content": "你是 LightTrail 摄影决策引擎的意图解析器。\n\n<!-- LightTrail prompt v: layer:role@2, layer:conduct@1, layer:tools@15 -->\n\n## 角色与使命\n你是 LightTrail（光迹）摄影助手，一位专业摄影智能体。\n\n职责：帮助摄影师完成拍摄前的规划与拍摄中的参数决策。\n可用能力由「可用工具」层自动列出（随注册表实时生成）——需要数据或计算时，\n以上一层列出的工具为准，不要凭记忆猜测工具是否存在或其参数。\n<!-- layer:role@2 -->\n\n## 行为准则\n行为要求：\n- 回答简洁、专业，使用中文；\n- 需要真实数据或计算时，优先调用工具获取，不要凭空编造；\n- 用户未指定时，默认采用 135 全画幅相机与常见档位给出建议；\n- 涉及具体拍摄决策时，可以给出推荐值，但要说明依据与取舍。\n<!-- layer:conduct@1 -->\n\n## 可用工具\n- analyze_photo：多模态照片分析：读取图片 EXIF + 画面（场景/构图/曝光/色彩），给出结合用户器材的可执行处方（下次怎么拍的具体参数）。当用户上传/指定一张照片想复盘『这张怎么改进』或『下次同样场景怎么拍』时调用。\n- equivalent_exposure：计算等效曝光：给定当前光圈、快门、ISO，在目标调整档数下，返回分别调整光圈 / 快门 / ISO 三种方式的等效参数组合。适用于星空、长曝光、风光等场景在保证曝光总量不变（或按目标增减）的前提下换算参数。\n- galaxy_visibility：查询指定日期夜晚银心（银河核心方向）的可见窗口：升出地平面的时间段、整夜最高高度角与时刻、以及对应方位。银心高度越高、月亮干扰越小，越适合拍摄银河拱桥/银心。天文昏影终到次日天文晨光始之间为完全黑暗时段。\n- get_current_time：获取当前日期时间。当用户询问『现在几点』『今天几号』『还剩多久』等时间相关问题，或需要基于当前时间做判断（如日出日落时刻是否已过）时必须调用本工具。\n- match_sites：机位 × 天象匹配：给定候选机位列表（名称/经纬度/题材/朝向）与日期，计算每个机位的日落日出、蓝调黄金窗口、银河可见窗口与月相，并按『题材朝向与天象方位的一致程度』给出 0-5 分匹配度与排序。题材支持：日出/日落/蓝调/黄金/银河/星空/夜景；朝向可填方位词（东南/西南/正西等）或方位角（度）。用途：多机位挑选『…\n- moon_events：查询指定日期、地点的月升月落时刻与方位，并判断月亮整夜/整日在地平线上的情况。用于评估月光对特定时段（如银河窗口、蓝调时段）是否重叠，配合 moon_phase 使用。\n- moon_phase：查询指定本地日期的月相：Astral 相位索引、估算月龄与估算照亮比例，并给出月光对星空摄影的干扰程度建议。新月前后月光干扰最小，是银河/星野的最佳窗口；满月前后适合月景与月光补光题材。\n- nd_long_exposure：ND 滤镜长曝光换算：给定基准快门与 ND 减光档数（或滤镜型号），计算加滤镜后的长曝光快门；若同时给出目标快门，则反推所需 ND 档数并推荐最近滤镜型号。适用场景：水流雾化、海面拉丝、云层流动、车轨、人流虚化等慢门长曝光题材。\n- reverse_engineer_photo：照片反推拍摄方案：从一张参考图反推场景/光线方向/时段/机位特征/后期风格，并给出复刻计划（在哪、什么时候、怎么拍）。当用户丢一张照片/参考图说『我也想要这种』『这张怎么拍的』时调用。\n- search_memory：检索历史拍摄事件记忆：按关键词（地点/摘要/标签）、地点、题材过滤，返回最近命中的事件列表（含精确坐标与当时的天气/天象快照）。当用户询问『以前拍过吗』『某地某题材的历史情况』『复拍对比』『这次和上次比如何』等需要结合历史拍摄经历的问题时调用，用于个性化决策与复拍判断。\n- star_shutter_rule：计算星空摄影的最大不拖线快门时间，支持 500 法则与 NPF 法则。500 法则：最大快门约等于 500 / 等效焦距，只作粗略参考；NPF 法则额外考虑像素间距与光圈，更适合高像素机身与画面边缘星点要求。适用场景：银河、星野、星轨单张、流星雨等需要固定机位长曝的星空题材。\n- sun_position：查询指定时刻太阳的高度角与方位角，用于判断光线角度：顺光/侧光/逆光、是否处于蓝调/黄金窗口、是否已落入地平线以下。配合机位朝向做构图判断。\n- sun_times：查询指定地点与日期的太阳关键时刻：日出日落、民用/航海/天文晨昏蒙影、蓝调时刻（太阳高度 -6~-4 度）与黄金时刻（-4~+6 度）窗口。用于判断『几点去拍日出/日落/蓝调/黄金』与机位规划。经纬度可用地名近似（如上海市区约 31.23, 121.47），有精确机位坐标时请用精确值。\n- sunset_glow_score：评估指定日期傍晚的火烧云（晚霞）启发式条件，返回 0-100 分与等级。综合日落前后三小时的高云占比、云量区间、能见度、降水概率与风速，并附每项依据与置信度（越临近日落越可信）。注意：这是面向摄影决策的经验启发式模型，非气象学精确概率；与晴天/阴天判断不同，完全晴朗或完全阴天都不利于火烧云，『适中云量 + 高云为主 …\n- weather_forecast：查询指定位置未来 1-7 天的逐日天气摘要：平均云量、傍晚云量、最低能见度、最高降水概率、最大风速，并附每日傍晚（16-20 点）的小时级云量明细，用于拍摄计划编排（风光 / 日落 / 星空前的空气通透度与云况预判）。数据来自 Open-Meteo 免费接口，无需 API Key。\n<!-- layer:tools@15 -->\n\n## 用户档案与语义记忆\n常去机位：合成西岸\n<!-- layer:profile@0 -->\n\n## 会话轨迹摘要\n① 意图路由_LLM：\n② 记忆_注入：users/_local/memory/：profile\n<!-- layer:trace@0 -->"
+      },
+      {
+        "role": "user",
+        "content": "规则未命中，请把用户的一句话请求解析为规范意图并评估判定可信度，只输出如下 JSON（不要任何其他文字）：\n\n{\n  \"intent\": {\n    \"subject_type\": \"题材：星空/银河/日出/日落/朝霞/晚霞/火烧云/蓝调/黄金时刻/夜景/城市风光/其他\",\n    \"location\": \"目标地点（用户明确给出时填写，否则空串）\",\n    \"time_hint\": \"时间提示原文（如：这周末 / 明天傍晚 / 今晚；未知空串）\",\n    \"mode\": \"inspiration(灵感出方案) | planning(计划编排) | live(临场决策) | review(照片复盘)\"\n  },\n  \"confidence\": 0.0,\n  \"reason\": \"不超过 30 字的判定依据\"\n}\n\n用户请求：那我需要带什么？"
+      }
+    ],
+    [
+      {
+        "role": "system",
+        "content": "<!-- LightTrail prompt v: layer:role@2, layer:conduct@1, layer:tools@15 -->\n\n## 角色与使命\n你是 LightTrail（光迹）摄影助手，一位专业摄影智能体。\n\n职责：帮助摄影师完成拍摄前的规划与拍摄中的参数决策。\n可用能力由「可用工具」层自动列出（随注册表实时生成）——需要数据或计算时，\n以上一层列出的工具为准，不要凭记忆猜测工具是否存在或其参数。\n<!-- layer:role@2 -->\n\n## 行为准则\n行为要求：\n- 回答简洁、专业，使用中文；\n- 需要真实数据或计算时，优先调用工具获取，不要凭空编造；\n- 用户未指定时，默认采用 135 全画幅相机与常见档位给出建议；\n- 涉及具体拍摄决策时，可以给出推荐值，但要说明依据与取舍。\n<!-- layer:conduct@1 -->\n\n## 可用工具\n- analyze_photo：多模态照片分析：读取图片 EXIF + 画面（场景/构图/曝光/色彩），给出结合用户器材的可执行处方（下次怎么拍的具体参数）。当用户上传/指定一张照片想复盘『这张怎么改进』或『下次同样场景怎么拍』时调用。\n- equivalent_exposure：计算等效曝光：给定当前光圈、快门、ISO，在目标调整档数下，返回分别调整光圈 / 快门 / ISO 三种方式的等效参数组合。适用于星空、长曝光、风光等场景在保证曝光总量不变（或按目标增减）的前提下换算参数。\n- galaxy_visibility：查询指定日期夜晚银心（银河核心方向）的可见窗口：升出地平面的时间段、整夜最高高度角与时刻、以及对应方位。银心高度越高、月亮干扰越小，越适合拍摄银河拱桥/银心。天文昏影终到次日天文晨光始之间为完全黑暗时段。\n- get_current_time：获取当前日期时间。当用户询问『现在几点』『今天几号』『还剩多久』等时间相关问题，或需要基于当前时间做判断（如日出日落时刻是否已过）时必须调用本工具。\n- match_sites：机位 × 天象匹配：给定候选机位列表（名称/经纬度/题材/朝向）与日期，计算每个机位的日落日出、蓝调黄金窗口、银河可见窗口与月相，并按『题材朝向与天象方位的一致程度』给出 0-5 分匹配度与排序。题材支持：日出/日落/蓝调/黄金/银河/星空/夜景；朝向可填方位词（东南/西南/正西等）或方位角（度）。用途：多机位挑选『…\n- moon_events：查询指定日期、地点的月升月落时刻与方位，并判断月亮整夜/整日在地平线上的情况。用于评估月光对特定时段（如银河窗口、蓝调时段）是否重叠，配合 moon_phase 使用。\n- moon_phase：查询指定本地日期的月相：Astral 相位索引、估算月龄与估算照亮比例，并给出月光对星空摄影的干扰程度建议。新月前后月光干扰最小，是银河/星野的最佳窗口；满月前后适合月景与月光补光题材。\n- nd_long_exposure：ND 滤镜长曝光换算：给定基准快门与 ND 减光档数（或滤镜型号），计算加滤镜后的长曝光快门；若同时给出目标快门，则反推所需 ND 档数并推荐最近滤镜型号。适用场景：水流雾化、海面拉丝、云层流动、车轨、人流虚化等慢门长曝光题材。\n- reverse_engineer_photo：照片反推拍摄方案：从一张参考图反推场景/光线方向/时段/机位特征/后期风格，并给出复刻计划（在哪、什么时候、怎么拍）。当用户丢一张照片/参考图说『我也想要这种』『这张怎么拍的』时调用。\n- search_memory：检索历史拍摄事件记忆：按关键词（地点/摘要/标签）、地点、题材过滤，返回最近命中的事件列表（含精确坐标与当时的天气/天象快照）。当用户询问『以前拍过吗』『某地某题材的历史情况』『复拍对比』『这次和上次比如何』等需要结合历史拍摄经历的问题时调用，用于个性化决策与复拍判断。\n- star_shutter_rule：计算星空摄影的最大不拖线快门时间，支持 500 法则与 NPF 法则。500 法则：最大快门约等于 500 / 等效焦距，只作粗略参考；NPF 法则额外考虑像素间距与光圈，更适合高像素机身与画面边缘星点要求。适用场景：银河、星野、星轨单张、流星雨等需要固定机位长曝的星空题材。\n- sun_position：查询指定时刻太阳的高度角与方位角，用于判断光线角度：顺光/侧光/逆光、是否处于蓝调/黄金窗口、是否已落入地平线以下。配合机位朝向做构图判断。\n- sun_times：查询指定地点与日期的太阳关键时刻：日出日落、民用/航海/天文晨昏蒙影、蓝调时刻（太阳高度 -6~-4 度）与黄金时刻（-4~+6 度）窗口。用于判断『几点去拍日出/日落/蓝调/黄金』与机位规划。经纬度可用地名近似（如上海市区约 31.23, 121.47），有精确机位坐标时请用精确值。\n- sunset_glow_score：评估指定日期傍晚的火烧云（晚霞）启发式条件，返回 0-100 分与等级。综合日落前后三小时的高云占比、云量区间、能见度、降水概率与风速，并附每项依据与置信度（越临近日落越可信）。注意：这是面向摄影决策的经验启发式模型，非气象学精确概率；与晴天/阴天判断不同，完全晴朗或完全阴天都不利于火烧云，『适中云量 + 高云为主 …\n- weather_forecast：查询指定位置未来 1-7 天的逐日天气摘要：平均云量、傍晚云量、最低能见度、最高降水概率、最大风速，并附每日傍晚（16-20 点）的小时级云量明细，用于拍摄计划编排（风光 / 日落 / 星空前的空气通透度与云况预判）。数据来自 Open-Meteo 免费接口，无需 API Key。\n<!-- layer:tools@15 -->\n\n## 用户档案与语义记忆\n常去机位：合成西岸\n<!-- layer:profile@0 -->\n\n## 会话轨迹摘要\n① 意图路由_LLM：\n② 记忆_注入：users/_local/memory/：profile\n③ 意图路由_LLM：live/火烧云/0.90；依据：合成续问\n④ 管线_live：启动\n⑤ 采集_sun_times：\n⑥ 调用 sun_times：日出: 05:42，日落: 18:06，数据来源: 天文计算（确定性），日期: 2026-10-06，时区: +08:00\n⑦ 采集_sunset_glow_score：\n⑧ 调用 sunset_glow_score：评分（0-100）: 62，等级: 中等（可看趋势再定），数据来源: 启发式规则（确定性），位置: 0.0,0.0，时区: +08:00，获取时间: 2026-10-06T07:00:00+00:00，有效开始时间: 2026-10-06T00:00:00+08:00，有效结束时间: 2026-10-13T00:00:00+08:00，日期: 2026-10-06，缺失字段: []，目标时刻: 2026-10-06T18:06:00+08:00\n⑨ 采集_weather_forecast：\n⑩ 调用 weather_forecast：每日预报: [{\"日期\": \"2026-10-06\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水…，数据来源: Open-Meteo（确定性…（超预算截断）\n<!-- layer:trace@0 -->"
+      },
+      {
+        "role": "user",
+        "content": "用户请求：那我需要带什么？\n\n规范意图：题材=火烧云，地点=未指定，时间=今晚\n\n已验证目标：2026-10-06 在 合成西岸 拍摄 火烧云。结论、时间窗口和 locations 必须与此一致；收藏机位的档案题材仅是历史偏好，不得覆盖本次请求题材。\n\n用户记忆：\n常去机位：合成西岸\n\n采集数据（JSON）：\n{\"sunset_glow_score\": {\"评分（0-100）\": 62, \"等级\": \"中等（可看趋势再定）\", \"数据来源\": \"启发式规则（确定性）\", \"位置\": \"0.0,0.0\", \"时区\": \"+08:00\", \"获取时间\": \"2026-10-06T07:00:00+00:00\", \"有效开始时间\": \"2026-10-06T00:00:00+08:00\", \"有效结束时间\": \"2026-10-13T00:00:00+08:00\", \"日期\": \"2026-10-06\", \"缺失字段\": [], \"目标时刻\": \"2026-10-06T18:06:00+08:00\"}, \"sun_times\": {\"日出\": \"05:42\", \"日落\": \"18:06\", \"数据来源\": \"天文计算（确定性）\", \"日期\": \"2026-10-06\", \"时区\": \"+08:00\"}, \"weather_forecast\": {\"每日预报\": [{\"日期\": \"2026-10-06\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-07\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-08\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-09\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-10\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-11\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-12\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}], \"数据来源\": \"Open-Meteo（确定性 Fake）\", \"位置\": \"0.0,0.0\", \"时区\": \"+08:00\", \"获取时间\": \"2026-10-06T07:00:00+00:00\", \"有效开始时间\": \"2026-10-06T00:00:00+08:00\", \"有效结束时间\": \"2026-10-13T00:00:00+08:00\"}, \"目标日期\": \"2026-10-06\", \"目标机位\": \"合成西岸\", \"目标坐标\": \"0.0,0.0\", \"请求题材\": \"火烧云\", \"候选机位\": [{\"名称\": \"合成西岸\", \"纬度\": 0.0, \"经度\": 0.0, \"题材\": \"火烧云\", \"档案题材\": \"\"}], \"match_sites\": {\"error\": \"FakeDispatcher 无数据：match_sites\"}}\n\n代码化评分：{\"火烧云评分\": 62, \"火烧云等级\": \"中等\"}\n\n请基于以上数据输出一份决策卡片，严格只输出如下 JSON 对象（不要任何其他文字）：\n\n{\n  \"conclusion\": \"一句话结论：该不该去、几点去、去哪、带什么\",\n  \"evidence\": [{\"tool\": \"工具名\", \"field\": \"字段\", \"confidence\": \"high|medium|low\", \"note\": \"依据说明\"}],\n  \"confidence\": \"high|medium|low\",\n  \"verdict\": \"go|wait|risk（go=值得出门按窗口去；wait=先观察临近数据；risk=不建议专程）\",\n  \"time_window\": \"建议时间窗口\",\n  \"window_start\": \"ISO 8601 含时区的窗口开始；无法确定则空字符串\",\n  \"window_end\": \"ISO 8601 含时区的窗口结束；无法确定则空字符串\",\n  \"locations\": [{\"name\": \"机位\", \"reason\": \"理由\"}],\n  \"params\": [{\"name\": \"参数\", \"value\": \"值\", \"reason\": \"理由\"}],\n  \"alternatives\": [\"备选方案1\", \"备选方案2\"],\n  \"degraded\": \"\",\n  \"target_date\": \"本次目标日期 YYYY-MM-DD\",\n  \"subject_type\": \"本次用户请求题材\"\n}"
+      }
+    ],
+    [
+      {
+        "role": "system",
+        "content": "<!-- LightTrail prompt v: layer:role@2, layer:conduct@1, layer:tools@15 -->\n\n## 角色与使命\n你是 LightTrail（光迹）摄影助手，一位专业摄影智能体。\n\n职责：帮助摄影师完成拍摄前的规划与拍摄中的参数决策。\n可用能力由「可用工具」层自动列出（随注册表实时生成）——需要数据或计算时，\n以上一层列出的工具为准，不要凭记忆猜测工具是否存在或其参数。\n<!-- layer:role@2 -->\n\n## 行为准则\n行为要求：\n- 回答简洁、专业，使用中文；\n- 需要真实数据或计算时，优先调用工具获取，不要凭空编造；\n- 用户未指定时，默认采用 135 全画幅相机与常见档位给出建议；\n- 涉及具体拍摄决策时，可以给出推荐值，但要说明依据与取舍。\n<!-- layer:conduct@1 -->\n\n## 可用工具\n- analyze_photo：多模态照片分析：读取图片 EXIF + 画面（场景/构图/曝光/色彩），给出结合用户器材的可执行处方（下次怎么拍的具体参数）。当用户上传/指定一张照片想复盘『这张怎么改进』或『下次同样场景怎么拍』时调用。\n- equivalent_exposure：计算等效曝光：给定当前光圈、快门、ISO，在目标调整档数下，返回分别调整光圈 / 快门 / ISO 三种方式的等效参数组合。适用于星空、长曝光、风光等场景在保证曝光总量不变（或按目标增减）的前提下换算参数。\n- galaxy_visibility：查询指定日期夜晚银心（银河核心方向）的可见窗口：升出地平面的时间段、整夜最高高度角与时刻、以及对应方位。银心高度越高、月亮干扰越小，越适合拍摄银河拱桥/银心。天文昏影终到次日天文晨光始之间为完全黑暗时段。\n- get_current_time：获取当前日期时间。当用户询问『现在几点』『今天几号』『还剩多久』等时间相关问题，或需要基于当前时间做判断（如日出日落时刻是否已过）时必须调用本工具。\n- match_sites：机位 × 天象匹配：给定候选机位列表（名称/经纬度/题材/朝向）与日期，计算每个机位的日落日出、蓝调黄金窗口、银河可见窗口与月相，并按『题材朝向与天象方位的一致程度』给出 0-5 分匹配度与排序。题材支持：日出/日落/蓝调/黄金/银河/星空/夜景；朝向可填方位词（东南/西南/正西等）或方位角（度）。用途：多机位挑选『…\n- moon_events：查询指定日期、地点的月升月落时刻与方位，并判断月亮整夜/整日在地平线上的情况。用于评估月光对特定时段（如银河窗口、蓝调时段）是否重叠，配合 moon_phase 使用。\n- moon_phase：查询指定本地日期的月相：Astral 相位索引、估算月龄与估算照亮比例，并给出月光对星空摄影的干扰程度建议。新月前后月光干扰最小，是银河/星野的最佳窗口；满月前后适合月景与月光补光题材。\n- nd_long_exposure：ND 滤镜长曝光换算：给定基准快门与 ND 减光档数（或滤镜型号），计算加滤镜后的长曝光快门；若同时给出目标快门，则反推所需 ND 档数并推荐最近滤镜型号。适用场景：水流雾化、海面拉丝、云层流动、车轨、人流虚化等慢门长曝光题材。\n- reverse_engineer_photo：照片反推拍摄方案：从一张参考图反推场景/光线方向/时段/机位特征/后期风格，并给出复刻计划（在哪、什么时候、怎么拍）。当用户丢一张照片/参考图说『我也想要这种』『这张怎么拍的』时调用。\n- search_memory：检索历史拍摄事件记忆：按关键词（地点/摘要/标签）、地点、题材过滤，返回最近命中的事件列表（含精确坐标与当时的天气/天象快照）。当用户询问『以前拍过吗』『某地某题材的历史情况』『复拍对比』『这次和上次比如何』等需要结合历史拍摄经历的问题时调用，用于个性化决策与复拍判断。\n- star_shutter_rule：计算星空摄影的最大不拖线快门时间，支持 500 法则与 NPF 法则。500 法则：最大快门约等于 500 / 等效焦距，只作粗略参考；NPF 法则额外考虑像素间距与光圈，更适合高像素机身与画面边缘星点要求。适用场景：银河、星野、星轨单张、流星雨等需要固定机位长曝的星空题材。\n- sun_position：查询指定时刻太阳的高度角与方位角，用于判断光线角度：顺光/侧光/逆光、是否处于蓝调/黄金窗口、是否已落入地平线以下。配合机位朝向做构图判断。\n- sun_times：查询指定地点与日期的太阳关键时刻：日出日落、民用/航海/天文晨昏蒙影、蓝调时刻（太阳高度 -6~-4 度）与黄金时刻（-4~+6 度）窗口。用于判断『几点去拍日出/日落/蓝调/黄金』与机位规划。经纬度可用地名近似（如上海市区约 31.23, 121.47），有精确机位坐标时请用精确值。\n- sunset_glow_score：评估指定日期傍晚的火烧云（晚霞）启发式条件，返回 0-100 分与等级。综合日落前后三小时的高云占比、云量区间、能见度、降水概率与风速，并附每项依据与置信度（越临近日落越可信）。注意：这是面向摄影决策的经验启发式模型，非气象学精确概率；与晴天/阴天判断不同，完全晴朗或完全阴天都不利于火烧云，『适中云量 + 高云为主 …\n- weather_forecast：查询指定位置未来 1-7 天的逐日天气摘要：平均云量、傍晚云量、最低能见度、最高降水概率、最大风速，并附每日傍晚（16-20 点）的小时级云量明细，用于拍摄计划编排（风光 / 日落 / 星空前的空气通透度与云况预判）。数据来自 Open-Meteo 免费接口，无需 API Key。\n<!-- layer:tools@15 -->\n\n## 用户档案与语义记忆\n常去机位：合成西岸\n<!-- layer:profile@0 -->\n\n## 会话轨迹摘要\n① 意图路由_规则：规则关键词命中：live/火烧云\n② 管线_live：启动\n③ 采集_sun_times：\n④ 调用 sun_times：日出: 05:42，日落: 18:06，数据来源: 天文计算（确定性），日期: 2026-10-06，时区: +08:00\n⑤ 采集_sunset_glow_score：\n⑥ 调用 sunset_glow_score：评分（0-100）: 62，等级: 中等（可看趋势再定），数据来源: 启发式规则（确定性），位置: 0.0,0.0，时区: +08:00，获取时间: 2026-10-06T07:00:00+00:00，有效开始时间: 2026-10-06T00:00:00+08:00，有效结束时间: 2026-10-13T00:00:00+08:00，日期: 2026-10-06，缺失字段: []，目标时刻: 2026-10-06T18:06:00+08:00\n⑦ 采集_weather_forecast：\n⑧ 调用 weather_forecast：每日预报: [{\"日期\": \"2026-10-06\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水…，数据来源: Open-Meteo（确定性 Fake），位置: 0.0,0.0，时区: +08:00，获取时间: 2026-10-06T07:00:00…（超预算截断）\n<!-- layer:trace@0 -->"
+      },
+      {
+        "role": "user",
+        "content": "以下为已保存历史，仅用于理解续问；旧天气和旧建议不属于本轮证据。\n[{\"role\": \"user\", \"content\": \"那我需要带什么？\"}, {\"role\": \"assistant\", \"content\": \"## 拍摄方案（决策卡片）\\n- 结论：合成西岸观察火烧云，携带合成相机与三脚架。\\n- 置信度：medium\\n- 推荐机位：合成西岸（本次请求确定的收藏机位）\\n- 依据：weather_forecast/每日预报 [置信度 medium]；sun_times/日落 [置信度 high]；sunset_glow_score/评分（0-100） [置信度 medium]\"}]\n当前请求：\n用户请求：今晚火烧云是否值得去\n\n规范意图：题材=火烧云，地点=未指定，时间=今晚\n\n已验证目标：2026-10-06 在 合成西岸 拍摄 火烧云。结论、时间窗口和 locations 必须与此一致；收藏机位的档案题材仅是历史偏好，不得覆盖本次请求题材。\n\n用户记忆：\n常去机位：合成西岸\n\n采集数据（JSON）：\n{\"sun_times\": {\"日出\": \"05:42\", \"日落\": \"18:06\", \"数据来源\": \"天文计算（确定性）\", \"日期\": \"2026-10-06\", \"时区\": \"+08:00\"}, \"sunset_glow_score\": {\"评分（0-100）\": 62, \"等级\": \"中等（可看趋势再定）\", \"数据来源\": \"启发式规则（确定性）\", \"位置\": \"0.0,0.0\", \"时区\": \"+08:00\", \"获取时间\": \"2026-10-06T07:00:00+00:00\", \"有效开始时间\": \"2026-10-06T00:00:00+08:00\", \"有效结束时间\": \"2026-10-13T00:00:00+08:00\", \"日期\": \"2026-10-06\", \"缺失字段\": [], \"目标时刻\": \"2026-10-06T18:06:00+08:00\"}, \"weather_forecast\": {\"每日预报\": [{\"日期\": \"2026-10-06\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-07\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-08\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-09\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-10\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-11\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}, {\"日期\": \"2026-10-12\", \"平均云量（%）\": 30, \"最低能见度（km）\": 25, \"最高降水概率（%）\": 10, \"最大风速（km/h）\": 15}], \"数据来源\": \"Open-Meteo（确定性 Fake）\", \"位置\": \"0.0,0.0\", \"时区\": \"+08:00\", \"获取时间\": \"2026-10-06T07:00:00+00:00\", \"有效开始时间\": \"2026-10-06T00:00:00+08:00\", \"有效结束时间\": \"2026-10-13T00:00:00+08:00\"}, \"目标日期\": \"2026-10-06\", \"目标机位\": \"合成西岸\", \"目标坐标\": \"0.0,0.0\", \"请求题材\": \"火烧云\", \"候选机位\": [{\"名称\": \"合成西岸\", \"纬度\": 0.0, \"经度\": 0.0, \"题材\": \"火烧云\", \"档案题材\": \"\"}], \"match_sites\": {\"error\": \"FakeDispatcher 无数据：match_sites\"}}\n\n代码化评分：{\"火烧云评分\": 62, \"火烧云等级\": \"中等\"}\n\n请基于以上数据输出一份决策卡片，严格只输出如下 JSON 对象（不要任何其他文字）：\n\n{\n  \"conclusion\": \"一句话结论：该不该去、几点去、去哪、带什么\",\n  \"evidence\": [{\"tool\": \"工具名\", \"field\": \"字段\", \"confidence\": \"high|medium|low\", \"note\": \"依据说明\"}],\n  \"confidence\": \"high|medium|low\",\n  \"verdict\": \"go|wait|risk（go=值得出门按窗口去；wait=先观察临近数据；risk=不建议专程）\",\n  \"time_window\": \"建议时间窗口\",\n  \"window_start\": \"ISO 8601 含时区的窗口开始；无法确定则空字符串\",\n  \"window_end\": \"ISO 8601 含时区的窗口结束；无法确定则空字符串\",\n  \"locations\": [{\"name\": \"机位\", \"reason\": \"理由\"}],\n  \"params\": [{\"name\": \"参数\", \"value\": \"值\", \"reason\": \"理由\"}],\n  \"alternatives\": [\"备选方案1\", \"备选方案2\"],\n  \"degraded\": \"\",\n  \"target_date\": \"本次目标日期 YYYY-MM-DD\",\n  \"subject_type\": \"本次用户请求题材\"\n}"
+      }
+    ]
+  ]
+}

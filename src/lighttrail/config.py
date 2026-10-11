@@ -22,14 +22,16 @@
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
-from pydantic import AliasChoices, Field, field_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from lighttrail.contracts.llm import DEFAULT_CONCURRENCY
 from lighttrail.contracts.plan import DEFAULT_PIPELINE_MAX_STEPS, DEFAULT_PLAN_MAX_STEPS
+from lighttrail.infra.redact import register_secrets
 
 # 项目根目录（src/lighttrail/config.py 向上三级）
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -87,10 +89,13 @@ class Settings(BaseSettings):
         populate_by_name=True,
         protected_namespaces=(),  # 允许 model / model_reason 字段名
         frozen=True,
+        hide_input_in_errors=True,
     )
 
     # ------ LLM 配置 ------
-    api_key: str = Field(default="", validation_alias=AliasChoices("LLM_API_KEY", "ECNU_API_KEY"))
+    api_key: str = Field(
+        default="", validation_alias=AliasChoices("LLM_API_KEY", "ECNU_API_KEY"), repr=False
+    )
     base_url: str = Field(
         default=DEFAULT_BASE_URL,
         validation_alias=AliasChoices("LLM_BASE_URL", "ECNU_BASE_URL"),
@@ -105,6 +110,10 @@ class Settings(BaseSettings):
     )
     concurrency: int = Field(default=DEFAULT_CONCURRENCY, ge=1, validation_alias="LLM_CONCURRENCY")
     reason_thinking: bool = Field(default=True, validation_alias="LLM_REASON_THINKING")
+    max_output_tokens: int = Field(default=4096, ge=1, validation_alias="LLM_MAX_OUTPUT_TOKENS")
+    output_limit_field: Literal["max_tokens", "max_completion_tokens"] = Field(
+        default="max_tokens", validation_alias="LLM_OUTPUT_LIMIT_FIELD"
+    )
 
     # ------ 应用配置 ------
     data_dir: str = Field(default=DEFAULT_DATA_DIR, validation_alias="LIGHTTRAIL_DATA_DIR")
@@ -114,6 +123,11 @@ class Settings(BaseSettings):
         le=1.0,
         validation_alias="LIGHTTRAIL_QUOTA_WARN_THRESHOLD",
     )
+    quota_weekly_credits: float = Field(default=20000.0, gt=0)
+    quota_pricing: dict[str, dict[str, float]] | None = None
+    quota_peak_hours: tuple[int, int] | None = (8, 18)
+    quota_pricing_tz_offset: float = Field(default=8.0, gt=-24, lt=24)
+    quota_valley_dates: tuple[str, ...] = tuple(f"2026-10-{day:02d}" for day in range(1, 8))
 
     # ------ 统一护栏（D5）------
     react_max_rounds: int = Field(
@@ -146,7 +160,7 @@ class Settings(BaseSettings):
     amap_security_js_code: str = Field(
         default="", validation_alias="AMAP_SECURITY_JS_CODE", repr=False
     )
-    baidu_map_ak: str = Field(default="", validation_alias="BAIDU_MAP_AK")
+    baidu_map_ak: str = Field(default="", validation_alias="BAIDU_MAP_AK", repr=False)
     map_primary_provider: str = Field(default="amap", validation_alias="MAP_PRIMARY_PROVIDER")
 
     # ------ 派生属性 ------
@@ -171,6 +185,25 @@ class Settings(BaseSettings):
         return bool(self.baidu_map_ak) and not self.baidu_map_ak.startswith("your-")
 
     # ------ 校验 ------
+    @model_validator(mode="before")
+    @classmethod
+    def _register_server_keys(cls, value: Any) -> Any:
+        """先登记凭据，确保配置校验失败的诊断也可过滤。"""
+        if isinstance(value, dict):
+            names = (
+                "api_key",
+                "LLM_API_KEY",
+                "ECNU_API_KEY",
+                "baidu_map_ak",
+                "BAIDU_MAP_AK",
+                "amap_web_service_key",
+                "AMAP_WEB_SERVICE_KEY",
+                "amap_security_js_code",
+                "AMAP_SECURITY_JS_CODE",
+            )
+            register_secrets(*(str(value[name]) for name in names if value.get(name)))
+        return value
+
     @field_validator("llm_timeout", mode="before")
     @classmethod
     def _parse_timeout(cls, value: Any) -> Any:
@@ -180,6 +213,14 @@ class Settings(BaseSettings):
                 part for part in value.strip().strip("[]()").replace(" ", ",").split(",") if part
             ]
             return tuple(float(part) for part in parts)
+        return value
+
+    @field_validator("llm_timeout")
+    @classmethod
+    def _validate_timeout(cls, value: tuple[float, float]) -> tuple[float, float]:
+        """拒绝非有限或非正超时，避免配置意外关闭等待上限。"""
+        if any(not math.isfinite(item) or item <= 0 for item in value):
+            raise ValueError("连接与读取超时必须是有限正数")
         return value
 
 

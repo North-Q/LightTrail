@@ -169,6 +169,8 @@ def _fixture(spec: tuple[Any, ...]) -> tuple[dict[str, Any], dict[str, Any]]:
     case_id, group, request, mode, day, site, coordinates, subject, scenario, verdict = spec
     galaxy = subject in {"银河", "星空"}
     tools = (GALAXY_TOOLS if galaxy else SUN_TOOLS).copy() if site else []
+    if subject in {"日出", "朝霞", "蓝调"}:
+        tools = [name for name in tools if name != "sunset_glow_score"]
     if site and mode in {"planning", "live"}:
         tools.append("match_sites")
     profile: dict[str, Any] = {}
@@ -180,12 +182,26 @@ def _fixture(spec: tuple[Any, ...]) -> tuple[dict[str, Any], dict[str, Any]]:
                     "name": site,
                     "latitude": coordinates[0],
                     "longitude": coordinates[1],
+                    "coordinate_system": "WGS84",
+                    "tz_offset": "+08:00",
                     "subject": "银河",
                 }
             ],
         }
     context = {"user_id": f"eval-{case_id}", "requested_at": REQUESTED_AT, "tz_offset": "+08:00"}
-    degraded = {"L2-011": "missing_favorite_spot", "L2-012": "missing_weather"}.get(case_id, "")
+    degraded = {
+        "L2-010": "needs_data",
+        "L2-011": "missing_favorite_spot",
+        "L2-012": "needs_data",
+    }.get(case_id, "")
+    if scenario == "polar":
+        verdict = "wait"
+    if case_id in {"L2-001", "L2-002", "L2-009"}:
+        degraded = "distant_forecast"
+        verdict = "wait"
+    if case_id == "L2-008":
+        degraded = "needs_data"  # 未明确晨暮的蓝调不能静默默认日落。
+        verdict = "wait"
     semantic: dict[str, Any] = {
         "target_date": day,
         "location": site,
@@ -230,11 +246,11 @@ def _fixture(spec: tuple[Any, ...]) -> tuple[dict[str, Any], dict[str, Any]]:
                 "tool": fact_tool,
                 "path": [fact_field],
                 "value": fact_value,
-                "claim_in_conclusion": True,
+                "claim_in_conclusion": not degraded,
             }
         ]
     expect = {
-        "min_evidence": 0 if not site else 1,
+        "min_evidence": 0 if not site or scenario == "polar" else 1,
         "max_locations": 1,
         "allow_degraded": bool(degraded),
     }
@@ -288,11 +304,43 @@ def _fixture(spec: tuple[Any, ...]) -> tuple[dict[str, Any], dict[str, Any]]:
             "提示": "极昼无日落窗口",
             "数据来源": "离线合成",
         }
+        semantic["facts"] = []
     if scenario == "missing_weather":
         result["weather_forecast"] = {"error": "离线夹具：天气不可用"}
         result["sunset_glow_score"] = {"error": "离线夹具：评分不可用"}
     if "match_sites" in tools:
         result["match_sites"] = {"匹配结果": [], "数据来源": "离线合成"}
+    # 补齐正常样本的时间与完整度；失败夹具保持失败，不能被元数据修饰为成功。
+    for name in ("weather_forecast", "sunset_glow_score"):
+        if name not in result or "error" in result[name]:
+            continue
+        result[name].update(
+            {
+                "位置": f"{coordinates[0]},{coordinates[1]}",
+                "时区": "+08:00",
+                "获取时间": REQUESTED_AT,
+                "有效开始时间": "2026-09-28T00:00:00+08:00",
+                "有效结束时间": "2026-10-06T00:00:00+08:00",
+            }
+        )
+    if scenario != "missing_weather":
+        result["weather_forecast"]["每日预报"][0].update(
+            {
+                "最低能见度（km）": 25,
+                "最高降水概率（%）": 10,
+                "最大风速（km/h）": 15,
+            }
+        )
+    if "sun_times" in result:
+        result["sun_times"].update({"日期": day, "时区": "+08:00"})
+    if scenario == "normal" and not galaxy:
+        result["sunset_glow_score"].update(
+            {
+                "日期": day,
+                "目标时刻": f"{day}T18:05:00+08:00",
+                "缺失字段": [],
+            }
+        )
     evidence = [
         {
             "tool": fact_tool,
@@ -301,6 +349,15 @@ def _fixture(spec: tuple[Any, ...]) -> tuple[dict[str, Any], dict[str, Any]]:
             "note": f"离线合成：{fact_field} {fact_value}",
         }
     ]
+    if scenario == "missing_weather":
+        evidence = [
+            {
+                "tool": "weather_forecast",
+                "field": "虚构天气",
+                "confidence": "high",
+                "note": "错误模型自报：天气完美，值得出发",
+            }
+        ]
     if case_id == "L2-001":
         evidence.append(
             {
@@ -321,13 +378,13 @@ def _fixture(spec: tuple[Any, ...]) -> tuple[dict[str, Any], dict[str, Any]]:
     card: dict[str, Any] = {
         "conclusion": conclusion,
         "evidence": evidence,
-        "confidence": "low" if degraded else "medium",
-        "verdict": verdict,
+        "confidence": "high" if scenario == "missing_weather" else "low" if degraded else "medium",
+        "verdict": "go" if scenario == "missing_weather" else verdict,
         "time_window": f"{day} 17:30-18:30" if not galaxy else f"{day} 20:00-23:30",
         "locations": [{"name": site, "reason": "用户档案中带坐标的机位"}],
         "params": [],
         "alternatives": [],
-        "degraded": degraded,
+        "degraded": "" if scenario == "missing_weather" else degraded,
         "target_date": day,
         "subject_type": subject,
     }

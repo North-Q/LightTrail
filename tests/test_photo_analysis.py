@@ -184,6 +184,7 @@ def test_analyze_photo_gear_from_profile(workdir: Path) -> None:
     png = workdir / "shot.png"
     _make_png(png)
     fake = FakeChatClient([_OK_JSON])
+    ctx.authorized_photo_paths = (str(png.resolve()),)
     analyze_photo(str(png), client=fake, ctx=ctx)
     prompt_text = fake.calls[0]["messages"][-1]["content"][0]["text"]
     assert "松下 S5M2" in prompt_text
@@ -200,6 +201,7 @@ def test_analyze_photo_explicit_equipment_wins(workdir: Path) -> None:
     fake = FakeChatClient([_OK_JSON])
     png = workdir / "shot.png"
     _make_png(png)
+    ctx.authorized_photo_paths = (str(png.resolve()),)
     analyze_photo(str(png), equipment="索尼 A7M4 + 16-35mm", client=fake, ctx=ctx)
     text = fake.calls[0]["messages"][-1]["content"][0]["text"]
     assert "索尼 A7M4" in text

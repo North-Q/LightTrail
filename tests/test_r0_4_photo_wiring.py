@@ -143,7 +143,9 @@ async def test_photo_api_uses_scoped_gear_prompts_and_cleans_uploads(
 
     monkeypatch.setattr(photo_analysis, "_encode_image", observe_encode)
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://localhost"
+        ) as client:
             for user, (body, lens) in users.items():
                 app.dependency_overrides[get_request_context] = lambda user=user: RequestContext(
                     user_id=user

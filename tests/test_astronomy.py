@@ -65,7 +65,8 @@ def test_moon_phase_august_2026() -> None:
     """2026-08-16 应为朔后数日（娥眉月），照亮比例在 10%-25%。"""
     result = _call("moon_phase", {"date": "2026-08-16"})
     assert result["月相名称"] == "娥眉月（朔后）"
-    assert 3.0 <= result["月龄（天）"] <= 4.5
+    assert result["月龄（天）"] is None
+    assert 3.0 <= result["估算月龄（天）"] <= 4.5
     assert 10 <= result["照亮比例（%）"] <= 25
 
 

@@ -1,0 +1,205 @@
+{
+  "scope": "U5-1至5，仅本地离线；V01–V15通过；无真实调用、无真实隔离材料读取",
+  "pytest": {
+    "full-final": {
+      "tests": 729,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "related-final": {
+      "tests": 76,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "backend-process": {
+      "tests": 24,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "new_u5_tests": 24,
+  "smoke": [
+    21,
+    21
+  ],
+  "layers": [
+    3,
+    3
+  ],
+  "l2": {
+    "pipeline_pass": 12,
+    "pipeline_total": 12,
+    "tool_pass": 10,
+    "tool_total": 10
+  },
+  "frontend_build": "passed",
+  "request_scope_sse_tests": [
+    8,
+    8
+  ],
+  "browser": {
+    "folder": ".pytest-run-u5-implementation/20261011/browser-6567df5e-e0e1-4425-9c8f-4a93237bbfd0",
+    "phases": [
+      {
+        "phase": "lifecycle",
+        "status": "PASS: 8组真实D3组件闭环；生产API持久化，业务外调0"
+      },
+      {
+        "phase": "restore",
+        "status": "PASS: 浏览器关闭后重建服务，稳定ID恢复仅GET、外调与反馈写入零新增"
+      }
+    ],
+    "blocked_page_external_requests": 0,
+    "cases": [
+      "V01/V02/V14/V15: 没去/未观察null，独立原因，无经验/照片自动动作",
+      "V05: 反馈修改使旧确认失效，重新保存当前版本候选后才能再次确认",
+      "V07: 经验撤回清空正文与确认时间，原始反馈保留",
+      "V10: 实际生产仓库替换失败，组件不显示保存成功",
+      "V11: 持久化后响应丢失显示未确认，只读按mutation核对",
+      "V03/V04: 观察范围独立，未看到非全局结论，取消/确认清除与离开草稿提醒",
+      "V13: 切换/停止/卸载均拒绝迟到回写，未承诺服务端取消",
+      "V06: 反馈撤回清空经验，最新版本重新填写不复活旧经验，原卡与有效期字节语义不变"
+    ],
+    "restore": {
+      "before": {
+        "model": 0,
+        "weather": 0,
+        "maps": 0,
+        "photos": 0,
+        "memory": 0,
+        "feedback_writes": 0,
+        "get": 4
+      },
+      "after": {
+        "model": 0,
+        "weather": 0,
+        "maps": 0,
+        "photos": 0,
+        "memory": 0,
+        "feedback_writes": 0,
+        "get": 11
+      }
+    },
+    "spa_restore": {
+      "before": {
+        "model": 0,
+        "weather": 0,
+        "maps": 0,
+        "photos": 0,
+        "memory": 0,
+        "feedback_writes": 0,
+        "get": 13
+      },
+      "after": {
+        "model": 0,
+        "weather": 0,
+        "maps": 0,
+        "photos": 0,
+        "memory": 0,
+        "feedback_writes": 0,
+        "get": 19
+      }
+    },
+    "metrics": {
+      "model": 0,
+      "weather": 0,
+      "maps": 0,
+      "photos": 0,
+      "memory": 0,
+      "feedback_writes": 0,
+      "get": 20
+    }
+  },
+  "network_runs": {
+    "backend-final-network": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    },
+    "backend-network": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    },
+    "backend-process-network": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    },
+    "full-final-network": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    },
+    "full-network": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    },
+    "l2-network": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    },
+    "layers-network": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    },
+    "related-final-network": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    },
+    "related-network": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    },
+    "schema-network": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    },
+    "serve-network": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    },
+    "smoke-network": {
+      "external_connections": 0,
+      "blocked_nonloopback_attempts": 0
+    }
+  },
+  "protection": {
+    "baseline_public_files": 1493,
+    "unchanged_files": 1477,
+    "expected_modified_files": [
+      "src/lighttrail/composition.py",
+      "src/lighttrail/api/app.py",
+      "src/lighttrail/api/session.py",
+      "frontend/src/styles.css",
+      "frontend/src/api/generated.ts",
+      "frontend/src/components/AppShell.tsx",
+      "frontend/src/pages/D3Page.tsx",
+      "docs/AGENT-ROADMAP.md",
+      "docs/architecture.md",
+      "docs/DATA-BOUNDARIES.md",
+      "docs/devlog.md",
+      "docs/FEATURES.md",
+      "docs/HANDOFF.md",
+      "docs/design/U5-MINIMAL-FEEDBACK.md"
+    ],
+    "generated_artifact_changes": [
+      "frontend/.openapi.json",
+      "frontend/tsconfig.app.tsbuildinfo"
+    ],
+    "unexpected_changes": [],
+    "private_material_read": false,
+    "root_data_hashed": false,
+    "staged_files": 0
+  },
+  "git": {
+    "branch": "main",
+    "head": "4b04b81",
+    "status_entries": 192,
+    "staged": 0
+  },
+  "documentation": {
+    "checked_links": 139,
+    "missing_links": [],
+    "V01_V15": "passed"
+  }
+}

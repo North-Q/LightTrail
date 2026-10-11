@@ -24,8 +24,17 @@ _FIXED_NOW = 1_800_000_000.0
 
 
 def _make_ledger(**kwargs) -> QuotaLedger:
-    """固定时钟的账本（测试可精确控制窗口）。"""
-    return QuotaLedger(now=_FIXED_NOW, **kwargs)
+    """显式旧窗口验证配置兼容性；当前默认计价与窗口由 U4 回归覆盖。"""
+    return QuotaLedger(
+        now=_FIXED_NOW,
+        peak_hours=None,
+        windows=(
+            ("hours", 5 * 3600.0, 2000.0),
+            ("daily", 24 * 3600.0, 5000.0),
+            ("monthly", 30 * 24 * 3600.0, 50000.0),
+        ),
+        **kwargs,
+    )
 
 
 # ------ 记账与预估 ------
